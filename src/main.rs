@@ -9,7 +9,8 @@ use anyhow::{anyhow, bail, Result};
 
 #[argopt::subcmd]
 fn hello() -> Result<()> {
-    println!("Hello, world!");
+    println!("Hello, world!"
+);
     Ok(())
 }
 
