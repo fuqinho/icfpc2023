@@ -1,4 +1,6 @@
 [workspace]
 members = [
   "examples/hello",
+  "examples/lifegame",
+  "examples/lifegame-wasm",
 ]
