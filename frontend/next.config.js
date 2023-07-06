@@ -7,7 +7,7 @@ const nextConfig = {
     config.experiments.asyncWebAssembly = true;
     config.plugins.push(
       new WasmPackPlugin({
-        crateDirectory: path.resolve(__dirname, "../examples/lifegame-wasm"),
+        crateDirectory: path.resolve(__dirname, "../sandbox/lifegame-wasm"),
       }),
     );
     return config;
