@@ -1,22 +1,26 @@
-'use client';
+"use client";
 
 import type * as lifegame from "lifegame-wasm";
 import { useState, useEffect } from "react";
 
 function LifeGameCell({ cell }: { cell: boolean }) {
   return (
-    <td style={{
-      width: '8px',
-      height: '8px',
-      backgroundColor: cell ? 'black' : 'white',
-    }} />
+    <td
+      style={{
+        width: "8px",
+        height: "8px",
+        backgroundColor: cell ? "black" : "white",
+      }}
+    />
   );
 }
 
 function LifeGameRow({ row }: { row: boolean[] }) {
   return (
     <tr>
-      { row.map((cell, i) => <LifeGameCell key={i} cell={cell} />) }
+      {row.map((cell, i) => (
+        <LifeGameCell key={i} cell={cell} />
+      ))}
     </tr>
   );
 }
@@ -26,7 +30,7 @@ function useLifeGameWorld(): boolean[][] {
 
   useEffect(() => {
     (async () => {
-      const lifegame = await import('lifegame-wasm');
+      const lifegame = await import("lifegame-wasm");
       const game = new lifegame.LifeGameWasm(19, 19);
       for (let i = 5; i < 14; i++) {
         for (let j = 5; j < 14; j++) {
@@ -81,7 +85,9 @@ export default function LifeGameBoard() {
 
   return (
     <table className="lifegame">
-      { world.map((row, i) => <LifeGameRow key={i} row={row} />) }
+      {world.map((row, i) => (
+        <LifeGameRow key={i} row={row} />
+      ))}
     </table>
   );
 }
