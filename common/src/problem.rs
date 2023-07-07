@@ -21,6 +21,7 @@ pub struct Attendee {
 
 #[derive(Clone, Debug)]
 pub struct Solution {
+    pub problem_id: u32,
     pub placements: Vec<Placement>,
 }
 
@@ -56,6 +57,7 @@ pub struct RawAttendee {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawSolution {
+    pub problem_id: u32,
     pub placements: Vec<RawPlacement>,
 }
 
@@ -108,6 +110,7 @@ impl From<RawProblem> for Problem {
 impl From<Solution> for RawSolution {
     fn from(s: Solution) -> Self {
         Self {
+            problem_id: s.problem_id,
             placements: s
                 .placements
                 .into_iter()
@@ -120,6 +123,7 @@ impl From<Solution> for RawSolution {
 impl From<RawSolution> for Solution {
     fn from(raw: RawSolution) -> Self {
         Self {
+            problem_id: raw.problem_id,
             placements: raw
                 .placements
                 .into_iter()
@@ -181,6 +185,7 @@ mod tests {
     #[test]
     fn serialize_test() {
         let solution = RawSolution {
+            problem_id: 42,
             placements: vec![
                 RawPlacement { x: 100.0, y: 200.0 },
                 RawPlacement { x: 300.5, y: 400.5 },
@@ -190,7 +195,7 @@ mod tests {
         let s = serde_json::to_string(&solution).expect("failed to serialize");
         assert_eq!(
             s,
-            r#"{"placements":[{"x":100.0,"y":200.0},{"x":300.5,"y":400.5}]}"#
+            r#"{"problem_id":42,"placements":[{"x":100.0,"y":200.0},{"x":300.5,"y":400.5}]}"#
         );
     }
 }
