@@ -12,7 +12,7 @@ const nextConfig = {
       }),
       new WasmPackPlugin({
         crateDirectory: path.resolve(__dirname, "../wasm"),
-      })
+      }),
     );
     return config;
   },
