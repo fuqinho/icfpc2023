@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "common",
   "sandbox/hello",
   "sandbox/lifegame",
   "sandbox/lifegame-wasm",
