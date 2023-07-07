@@ -71,8 +71,8 @@ impl saru::Annealer for Solver {
         let mut ret = vec![];
 
         for _ in 0..n {
-            let x = rng.gen_range(self.stage_valid.min_x()..self.stage_valid.max_x());
-            let y = rng.gen_range(self.stage_valid.min_y()..self.stage_valid.max_y());
+            let x = rng.gen_range(self.stage_valid.min_x()..=self.stage_valid.max_x());
+            let y = rng.gen_range(self.stage_valid.min_y()..=self.stage_valid.max_y());
             ret.push(point2(x, y));
         }
 
@@ -80,15 +80,16 @@ impl saru::Annealer for Solver {
     }
 
     fn start_temp(&self, init_score: f64) -> f64 {
-        init_score.abs() / 10.0
+        // init_score.abs() / 10.0
+        1e9
     }
 
     fn eval(
         &self,
         state: &Self::State,
-        progress_ratio: f64,
-        best_score: f64,
-        valid_best_score: f64,
+        _progress_ratio: f64,
+        _best_score: f64,
+        _valid_best_score: f64,
     ) -> (f64, Option<f64>) {
         let mut score = 0.0;
 
@@ -118,10 +119,6 @@ impl saru::Annealer for Solver {
         let mut penalty = 0.0;
 
         for i in 0..state.len() {
-            if !self.stage_valid.contains(state[i]) {
-                penalty += 1_000_000_000.0;
-            }
-
             for j in i + 1..state.len() {
                 let d = (state[i] - state[j]).length();
                 if d < 10.0 {
@@ -144,7 +141,17 @@ impl saru::Annealer for Solver {
         let id = rng.gen_range(0..state.len());
         let dx = rng.gen_range(-10.0..10.0);
         let dy = rng.gen_range(-10.0..10.0);
-        let new_pos = state[id] + vec2(dx, dy);
+        let new_pos =
+            (state[id] + vec2(dx, dy)).clamp(self.stage_valid.origin, self.stage_valid.max());
+        // let new_pos = point2(
+        //     new_pos
+        //         .x
+        //         .clamp(self.stage_valid.min_x(), self.stage_valid.max_x()),
+        //     new_pos
+        //         .y
+        //         .clamp(self.stage_valid.min_y(), self.stage_valid.max_y()),
+        // );
+
         let old_pos = state[id];
         Move {
             id,
@@ -173,7 +180,11 @@ fn main(
     /// problem id
     problem_id: u32,
 ) -> Result<()> {
-    let problem = get_problem_from_file(problem_id)?;
+    // let problem = get_problem_from_file(problem_id)?;
+    let problem = get_problem(problem_id)?;
+
+    eprintln!("Musicians: {}", problem.musicians.len());
+    eprintln!("Atendees:  {}", problem.attendees.len());
 
     let solver = Solver::from_problem(&problem);
 
@@ -191,21 +202,24 @@ fn main(
     );
 
     eprintln!("Score: {}", solution.score);
-    eprintln!("State: {:?}", solution.state);
 
     let Some(state) = solution.state else {
         anyhow::bail!("Valid solution not found")
     };
 
-    println!(
-        "{}",
-        serde_json::json!({
-            "placements": state.iter().map(|p| Placement {
-                x: p.x,
-                y: p.y,
-            }).collect::<Vec<_>>(),
-        })
-    );
+    if solution.score >= 0.0 {
+        anyhow::bail!("Positive score not found");
+    }
+
+    let placements = state
+        .iter()
+        .map(|p| Placement { x: p.x, y: p.y })
+        .collect::<Vec<_>>();
+
+    println!("{}", serde_json::json!({ "placements": placements }));
+
+    let resp = submit(problem_id, &placements)?;
+    eprintln!("Submitted: {}", resp.0);
 
     Ok(())
 }
