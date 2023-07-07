@@ -12,7 +12,7 @@ import (
 )
 
 type Problem struct {
-	ID string `json:"_id"`
+	ID string `json:"id"`
 }
 
 type DB struct {
