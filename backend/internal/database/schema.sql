@@ -1,0 +1,3 @@
+CREATE TABLE `problems` (
+    `id` CHAR(64) PRIMARY KEY
+) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
