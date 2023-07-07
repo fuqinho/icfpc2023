@@ -3,4 +3,5 @@ members = [
   "sandbox/hello",
   "sandbox/lifegame",
   "sandbox/lifegame-wasm",
+  "tanakh-solver",
 ]
