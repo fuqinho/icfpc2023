@@ -55,8 +55,8 @@ func (h *Handler) handleProblems(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-/// withJSONResponse is a helper function to implement a handler function that
-/// returns a JSON response.
+// withJSONResponse is a helper function to implement a handler function that
+// returns a JSON response.
 func withJSONResponse(w http.ResponseWriter, r *http.Request, f func() (interface{}, error)) {
 	res, err := f()
 	if err != nil {
