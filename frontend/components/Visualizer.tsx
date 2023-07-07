@@ -56,7 +56,7 @@ export default function Visualizer({
 function coordToCanvas(
   problem: Problem,
   x: number,
-  y: number
+  y: number,
 ): [number, number] {
   return [x, problem.room_height - y];
 }
@@ -67,10 +67,10 @@ function drawStage(ctx: CanvasRenderingContext2D, problem: Problem) {
     ...coordToCanvas(
       problem,
       problem.stage_bottom_left[0],
-      problem.stage_bottom_left[1] + problem.stage_height
+      problem.stage_bottom_left[1] + problem.stage_height,
     ),
     problem.stage_width,
-    problem.stage_height
+    problem.stage_height,
   );
 
   ctx.lineWidth = 1;
@@ -81,7 +81,7 @@ function drawStage(ctx: CanvasRenderingContext2D, problem: Problem) {
 function drawAttendee(
   ctx: CanvasRenderingContext2D,
   problem: Problem,
-  attendee: Attendee
+  attendee: Attendee,
 ) {
   ctx.beginPath();
   ctx.arc(
@@ -89,7 +89,7 @@ function drawAttendee(
     ATTENDEE_RADIUS,
     0,
     2 * Math.PI,
-    false
+    false,
   );
 
   ctx.fillStyle = "green";
@@ -103,7 +103,7 @@ function drawAttendee(
 function drawMusician(
   ctx: CanvasRenderingContext2D,
   problem: Problem,
-  musician: Musician
+  musician: Musician,
 ) {
   ctx.beginPath();
   ctx.arc(
@@ -111,7 +111,7 @@ function drawMusician(
     MUSICIAN_RADIUS,
     0,
     2 * Math.PI,
-    false
+    false,
   );
 
   ctx.fillStyle = "blue";
