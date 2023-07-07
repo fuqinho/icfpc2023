@@ -74,6 +74,15 @@ impl Problem {
     }
 }
 
+impl Solution {
+    pub fn write_to_file<P: AsRef<Path>>(path: P, solution: Solution) -> Result<()> {
+        let raw = RawSolution::from(solution);
+        let s = serde_json::to_string(&raw)?;
+        std::fs::write(path, &s)?;
+        Ok(())
+    }
+}
+
 impl From<RawAttendee> for Attendee {
     fn from(raw: RawAttendee) -> Self {
         Self {
