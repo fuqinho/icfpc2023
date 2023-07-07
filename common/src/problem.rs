@@ -44,9 +44,23 @@ pub struct RawAttendee {
     tastes: Vec<f64>,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
+pub struct RawSolution {
+    placements: Vec<RawPlacement>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
+pub struct RawPlacement {
+    x: f64,
+    y: f64,
+}
+
+
 #[cfg(test)]
 mod tests {
     use crate::problem::RawProblem;
+    use crate::problem::RawSolution;
+    use crate::problem::RawPlacement;
 
     #[test]
     fn deserialize_test() {
@@ -72,5 +86,15 @@ mod tests {
         assert_eq!(p.room_width, 2000.0);
         assert_eq!(p.stage_bottom_left, vec![500.0, 0.0]);
         assert_eq!(p.attendees[0].tastes, vec![1000.0, -1000.0]);
+    }
+
+    #[test]
+    fn serialize_test() {
+        let solution = RawSolution {
+            placements: vec![RawPlacement{x: 100.0, y: 200.0}, RawPlacement{x: 300.5, y: 400.5}],
+        };
+
+        let s = serde_json::to_string(&solution).expect("failed to serialize");
+        assert_eq!(s, r#"{"placements":[{"x":100.0,"y":200.0},{"x":300.5,"y":400.5}]}"#);
     }
 }
