@@ -21,9 +21,9 @@ pub fn is_blocked(attendee: &Attendee, placement: &Placement, placements: &[Plac
     false
 }
 
-fn evaluate_attendee(attendee: &Attendee, solution: &Solution) -> u64 {
+fn evaluate_attendee(attendee: &Attendee, musicians: &[usize], solution: &Solution) -> u64 {
     let mut score = 0u64;
-    for (taste, placement) in attendee.tastes.iter().zip(solution.placements.iter()) {
+    for (inst, placement) in musicians.iter().zip(solution.placements.iter()) {
         if is_blocked(attendee, placement, &solution.placements) {
             continue;
         }
@@ -32,7 +32,7 @@ fn evaluate_attendee(attendee: &Attendee, solution: &Solution) -> u64 {
             to: placement.position,
         }
         .square_length();
-        score += (1000000000f64 * taste / d2).ceil() as u64;
+        score += (1000000f64 * attendee.tastes[*inst] / d2).ceil() as u64;
     }
     score
 }
@@ -41,6 +41,6 @@ pub fn evaluate(problem: &Problem, solution: &Solution) -> u64 {
     problem
         .attendees
         .iter()
-        .map(|attendee| evaluate_attendee(attendee, solution))
+        .map(|attendee| evaluate_attendee(attendee, &problem.musicians, solution))
         .sum()
 }

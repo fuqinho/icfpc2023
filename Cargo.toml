@@ -5,6 +5,7 @@ members = [
   "sandbox/hello",
   "sandbox/lifegame",
   "sandbox/lifegame-wasm",
+  "psh-validator",
   "tanakh-solver",
   "wasm",
 ]
