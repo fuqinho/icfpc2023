@@ -33,6 +33,7 @@ func NewHandler(db *database.DB) *Handler {
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Set CORS header to all responses.
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	h.router.ServeHTTP(w, r)
 }
@@ -54,6 +55,8 @@ func (h *Handler) handleProblems(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+/// withJSONResponse is a helper function to implement a handler function that
+/// returns a JSON response.
 func withJSONResponse(w http.ResponseWriter, r *http.Request, f func() (interface{}, error)) {
 	res, err := f()
 	if err != nil {
