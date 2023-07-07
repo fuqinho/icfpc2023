@@ -7,7 +7,7 @@ use std::{
 };
 
 use num::{
-    traits::{NumRef, RefNum},
+    traits::{NumOps, NumRef, RefNum},
     Num,
 };
 
@@ -63,8 +63,9 @@ impl<T: Num> Point<T> {
 macro_rules! add_sub {
     (impl $imp:ident, $method:ident, $op:tt) => {
         // p + q, p + &q
-        impl<T: NumRef, U: Borrow<Self>> $imp<U> for Point<T>
+        impl<T, U: Borrow<Self>> $imp<U> for Point<T>
         where
+            for<'r> T: NumOps<&'r T>,
             for<'r> &'r T: RefNum<T>,
         {
             type Output = Point<T>;
@@ -75,7 +76,7 @@ macro_rules! add_sub {
         }
 
         // &p + q, &p + &q
-        impl<T: NumRef, U: Borrow<Point<T>>> $imp<U> for &Point<T>
+        impl<T: NumOps, U: Borrow<Point<T>>> $imp<U> for &Point<T>
         where
             for<'r> &'r T: RefNum<T>,
         {
@@ -94,8 +95,9 @@ add_sub!(impl Sub, sub, -);
 macro_rules! mul_div {
     (impl $imp:ident, $method:ident, $op:tt) => {
         // p * d, p * &d
-        impl<T: NumRef, U: Borrow<T>> $imp<U> for Point<T>
+        impl<T, U: Borrow<T>> $imp<U> for Point<T>
         where
+            for<'r> T: NumOps<&'r T>,
             for<'r> &'r T: RefNum<T>,
         {
             type Output = Point<T>;
@@ -106,7 +108,7 @@ macro_rules! mul_div {
         }
 
         // &p * d, &p * &d
-        impl<T: NumRef, U: Borrow<T>> $imp<U> for &Point<T>
+        impl<T: NumOps, U: Borrow<T>> $imp<U> for &Point<T>
         where
             for<'r> &'r T: RefNum<T>,
         {
@@ -122,7 +124,7 @@ macro_rules! mul_div {
 mul_div!(impl Mul, mul, *);
 mul_div!(impl Div, div, /);
 
-impl<T: NumRef + Ord + PartialOrd> Point<T>
+impl<T: NumOps> Point<T>
 where
     for<'r> &'r T: RefNum<T>,
 {
@@ -134,19 +136,32 @@ where
         &self.x * &rhs.borrow().y - &self.y * &rhs.borrow().x
     }
 
+    pub fn distance2<U: Borrow<Self>>(&self, b: U) -> T {
+        (self - b.borrow()).norm2()
+    }
+
+    pub fn norm2(&self) -> T {
+        self.dot(self)
+    }
+
     pub fn mul_complex<U: Borrow<Point<T>>>(&self, rhs: U) -> Point<T> {
         let x = &self.x * &rhs.borrow().x - &self.y * &rhs.borrow().y;
         let y = &self.x * &rhs.borrow().y + &self.y * &rhs.borrow().x;
         Point::new(x, y)
     }
+}
+
+impl<T: NumRef + Ord + PartialOrd> Point<T>
+where
+    for<'r> &'r T: RefNum<T>,
+{
+    pub fn div_complex<U: Borrow<Point<T>>>(&self, rhs: U) -> Point<T> {
+        self.mul_complex(rhs.borrow().inverse())
+    }
 
     pub fn inverse(&self) -> Point<T> {
         let d = &self.x * &self.x + &self.y * &self.y;
         Point::new(&self.x / &d, T::zero() - &self.y / d)
-    }
-
-    pub fn div_complex<U: Borrow<Point<T>>>(&self, rhs: U) -> Point<T> {
-        self.mul_complex(rhs.borrow().inverse())
     }
 
     // CCW: https://onlinejudge.u-aizu.ac.jp/problems/CGL_1_C
@@ -166,14 +181,6 @@ where
         } else {
             CCW::OnSegment
         }
-    }
-
-    pub fn distance2<U: Borrow<Self>>(&self, b: U) -> T {
-        (self - b.borrow()).norm2()
-    }
-
-    pub fn norm2(&self) -> T {
-        self.dot(self)
     }
 
     pub fn argcmp(self: &Self, other: &Self) -> Ordering {
