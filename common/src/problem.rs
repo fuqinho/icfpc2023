@@ -1,23 +1,31 @@
 use serde::{Deserialize, Serialize};
 
-use crate::Point;
+use euclid::default::{Box2D, Point2D};
+use std::convert::From;
 
-pub type P = Point<f64>;
+#[derive(Clone, Debug)]
+pub struct Problem {
+    pub room: Box2D<f64>,
+    pub stage: Box2D<f64>,
+    pub musicians: Vec<usize>,
+    pub attendees: Vec<Attendee>,
+}
 
-// pub struct Problem {
-//     room_width: f64,
-//     room_height: f64,
-//     stage_width: f64,
-//     stage_height: f64,
-//     stage_bottom_left: Point<f64>,
-//     musicians: Vec<usize>,
-//     attendees: Vec<
-// }
+#[derive(Clone, Debug)]
+pub struct Attendee {
+    pub position: Point2D<f64>,
+    pub tastes: Vec<f64>,
+}
 
-// pub struct Attendee {
-//     position: P,
-//     tastes: Vec<f64>,
-// }
+#[derive(Clone, Debug)]
+pub struct Solution {
+    pub placements: Vec<Placement>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Placement {
+    pub position: Point2D<f64>,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawProblem {
@@ -53,6 +61,60 @@ pub struct RawSolution {
 pub struct RawPlacement {
     pub x: f64,
     pub y: f64,
+}
+
+impl From<RawAttendee> for Attendee {
+    fn from(raw: RawAttendee) -> Self {
+        Self {
+            position: Point2D::new(raw.x, raw.y),
+            tastes: raw.tastes,
+        }
+    }
+}
+
+impl From<RawProblem> for Problem {
+    fn from(raw: RawProblem) -> Self {
+        Self {
+            room: Box2D::new(
+                Point2D::new(0.0, 0.0),
+                Point2D::new(raw.room_width, raw.room_height),
+            ),
+            stage: Box2D::new(
+                Point2D::new(raw.stage_bottom_left[0], raw.stage_bottom_left[1]),
+                Point2D::new(
+                    raw.stage_bottom_left[0] + raw.stage_width,
+                    raw.stage_bottom_left[1] + raw.stage_width,
+                ),
+            ),
+            musicians: raw.musicians,
+            attendees: raw
+                .attendees
+                .into_iter()
+                .map(Attendee::from)
+                .collect::<Vec<_>>(),
+        }
+    }
+}
+
+impl From<Solution> for RawSolution {
+    fn from(s: Solution) -> Self {
+        Self {
+            placements: s
+                .placements
+                .into_iter()
+                .map(RawPlacement::from)
+                .collect::<Vec<_>>(),
+        }
+    }
+}
+
+impl From<Placement> for RawPlacement {
+    fn from(p: Placement) -> Self {
+        Self {
+            x: p.position.x,
+            y: p.position.y,
+        }
+    }
 }
 
 #[cfg(test)]
