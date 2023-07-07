@@ -10,9 +10,6 @@ const nextConfig = {
       new WasmPackPlugin({
         crateDirectory: path.resolve(__dirname, "../sandbox/lifegame-wasm"),
       }),
-      new WasmPackPlugin({
-        crateDirectory: path.resolve(__dirname, "../wasm"),
-      }),
     );
     return config;
   },
