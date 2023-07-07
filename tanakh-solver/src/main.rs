@@ -33,6 +33,8 @@ struct Atendee {
 struct State {
     placement: Vec<Point2D<f64>>,
     attendee_to_musician: Vec<Vec<(LineSegment<f64>, f64)>>,
+    musician_to_musician: Vec<Vec<f64>>,
+    distance_penalty: f64,
 }
 
 struct Move {
@@ -87,6 +89,8 @@ impl State {
                 ];
                 s.attendees.len()
             ],
+            musician_to_musician: vec![vec![0.0; s.musicians.len()]; s.musicians.len()],
+            distance_penalty: 0.0,
         };
 
         for i in 0..s.attendees.len() {
@@ -105,6 +109,17 @@ impl State {
                 }
 
                 ret.attendee_to_musician[i][k] = (line, block_dist);
+            }
+        }
+
+        for i in 0..s.musicians.len() {
+            for j in i + 1..s.musicians.len() {
+                let d = ret.placement[i].distance_to(ret.placement[j]);
+                ret.musician_to_musician[i][j] = d;
+
+                if d < 10.0 {
+                    ret.distance_penalty += 1_000_000_000.0 / (d + 1.0);
+                }
             }
         }
 
@@ -154,6 +169,24 @@ impl State {
                 self.attendee_to_musician[i][l].1 = block_dist;
             }
         }
+
+        for i in 0..self.placement.len() {
+            if i == k {
+                continue;
+            }
+            let (i, k) = (i.min(k), i.max(k));
+
+            let prev_d = self.musician_to_musician[i][k];
+            if prev_d < 10.0 {
+                self.distance_penalty -= 1_000_000_000.0 / (prev_d + 1.0);
+            }
+
+            let d = self.placement[i].distance_to(self.placement[k]);
+            self.musician_to_musician[i][k] = d;
+            if d < 10.0 {
+                self.distance_penalty += 1_000_000_000.0 / (d + 1.0);
+            }
+        }
     }
 
     fn eval(&self, s: &Solver) -> (f64, bool) {
@@ -169,16 +202,18 @@ impl State {
             }
         }
 
-        let mut penalty = 0.0;
+        // let mut penalty = 0.0;
 
-        for i in 0..self.placement.len() {
-            for j in i + 1..self.placement.len() {
-                let d = (self.placement[i] - self.placement[j]).length();
-                if d < 10.0 {
-                    penalty += 1_000_000_000.0 / (d + 1.0);
-                }
-            }
-        }
+        // for i in 0..self.placement.len() {
+        //     for j in i + 1..self.placement.len() {
+        //         let d = (self.placement[i] - self.placement[j]).length();
+        //         if d < 10.0 {
+        //             penalty += 1_000_000_000.0 / (d + 1.0);
+        //         }
+        //     }
+        // }
+
+        let penalty = self.distance_penalty;
 
         (score - penalty, penalty == 0.0)
     }
