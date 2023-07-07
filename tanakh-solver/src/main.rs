@@ -251,7 +251,7 @@ impl saru::Annealer for Solver {
     }
 
     fn start_temp(&self, init_score: f64) -> f64 {
-        (init_score.abs() / 10.0).max(1e6)
+        (init_score.abs() / 10.0).max(1e9)
     }
 
     fn eval(
