@@ -1,52 +1,27 @@
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use rand::Rng;
 
-#[derive(Deserialize, Debug)]
-struct Problem {
-    room_width: f64,
-    room_height: f64,
-    stage_width: f64,
-    stage_height: f64,
-    stage_bottom_left: Vec<f64>,
-    musicians: Vec<usize>,
-    attendees: Vec<Atendee>,
-}
-
-#[derive(Deserialize, Debug)]
-struct Atendee {
-    x: f64,
-    y: f64,
-    tastes: Vec<f64>,
-}
-
-#[derive(Serialize)]
-struct Solution {
-    placements: Vec<Placement>,
-}
-
-#[derive(Serialize)]
-struct Placement {
-    x: f64,
-    y: f64,
-}
-
-#[derive(Deserialize, Debug)]
-struct Response {
-    #[serde(rename = "Success")]
-    success: String,
-}
-
-const ENDPOINT: &str = "https://api.icfpcontest.com";
-
-fn get_problem(problem_id: u32) -> Result<Problem> {
-    let url = format!("{ENDPOINT}/problem?problem_id={problem_id}");
-    let resp: Response = reqwest::blocking::get(&url)?.json()?;
-    let problem: Problem = serde_json::from_str(&resp.success)?;
-    Ok(problem)
-}
+use tanakh_solver::api::{get_problem, submit, Placement};
 
 fn main() -> Result<()> {
-    let problem = get_problem(1)?;
-    println!("{:?}", problem);
+    let problem_id = 42;
+
+    let problem = get_problem(problem_id)?;
+
+    let n = problem.musicians.len();
+    let mut placements = vec![];
+
+    let stage_x = problem.stage_bottom_left[0];
+    let stage_y = problem.stage_bottom_left[1];
+
+    for _ in 0..n {
+        let x = rand::thread_rng().gen_range(stage_x + 10.0..stage_x + problem.stage_width - 10.0);
+        let y = rand::thread_rng().gen_range(stage_y + 10.0..stage_y + problem.stage_height - 10.0);
+        placements.push(Placement { x, y });
+    }
+
+    let id = submit(problem_id, &placements)?;
+    eprintln!("{id:?}");
+
     Ok(())
 }
