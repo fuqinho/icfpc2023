@@ -80,12 +80,11 @@ export class Viewport {
   }
 
   private toCanvasCoordY(problemScaleY: number): number {
-    // TODO: 反転
     // Convert the problem-scale to the canvas-scale.
-    const cScale = this.toCanvasScale(problemScaleY);
+    const cScale = this.toCanvasScale(this.problem.room_height - problemScaleY);
     // Scale-wise, this is aligned with what is drawn on canvas. Now we pan the
     // coordinate based on the viewport position.
-    const cVpCenter = this.toCanvasScale(this.pVpCenter[1]);
+    const cVpCenter = this.toCanvasScale(this.problem.room_height - this.pVpCenter[1]);
     const cVpH = this.ctx.canvas.height;
     const cOrigin = -(cVpCenter - cVpH / 2);
     return cScale + cOrigin;
@@ -113,7 +112,7 @@ export class Viewport {
     this.ctx.beginPath();
     this.ctx.rect(
       this.toCanvasCoordX(pXY[0]),
-      this.toCanvasCoordY(pXY[1]),
+      this.toCanvasCoordY(pXY[1]) - this.toCanvasScale(pHeight),
       this.toCanvasScale(pWidth),
       this.toCanvasScale(pHeight),
     );
