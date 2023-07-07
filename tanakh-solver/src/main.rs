@@ -6,7 +6,7 @@ use rand::Rng;
 use tanakh_solver::api::{get_problem, submit, Placement, Problem};
 
 const PROBLEM_PATH: &str = "../problems";
-const EPS: f64 = 1e-9;
+const EPS: f64 = 1e-6;
 
 #[allow(unused)]
 fn get_problem_from_file(problem_id: u32) -> Result<Problem> {
@@ -112,17 +112,6 @@ impl State {
             }
         }
 
-        for i in 0..s.musicians.len() {
-            for j in i + 1..s.musicians.len() {
-                let d = ret.placement[i].distance_to(ret.placement[j]);
-                ret.musician_to_musician[i][j] = d;
-
-                if d < 10.0 {
-                    ret.distance_penalty += 1_000_000_000.0 / (d + 1.0);
-                }
-            }
-        }
-
         ret
     }
 
@@ -172,24 +161,6 @@ impl State {
                 self.attendee_to_musician[i][l].1 = block_dist;
             }
         }
-
-        for i in 0..self.placement.len() {
-            if i == k {
-                continue;
-            }
-            let (i, k) = (i.min(k), i.max(k));
-
-            let prev_d = self.musician_to_musician[i][k];
-            if prev_d < 10.0 {
-                self.distance_penalty -= 1_000_000_000.0 / (prev_d + 1.0);
-            }
-
-            let d = self.placement[i].distance_to(self.placement[k]);
-            self.musician_to_musician[i][k] = d;
-            if d < 10.0 {
-                self.distance_penalty += 1_000_000_000.0 / (d + 1.0);
-            }
-        }
     }
 
     fn eval(&self, s: &Solver) -> (f64, bool) {
@@ -204,17 +175,6 @@ impl State {
                 }
             }
         }
-
-        // let mut penalty = 0.0;
-
-        // for i in 0..self.placement.len() {
-        //     for j in i + 1..self.placement.len() {
-        //         let d = (self.placement[i] - self.placement[j]).length();
-        //         if d < 10.0 {
-        //             penalty += 1_000_000_000.0 / (d + 1.0);
-        //         }
-        //     }
-        // }
 
         let penalty = self.distance_penalty;
 
@@ -366,6 +326,16 @@ fn main(
 
     let resp = submit(problem_id, &placements)?;
     eprintln!("Submitted: {}", resp.0);
+
+    eprintln!("Statistics:");
+    eprintln!("Musicians:     {}", problem.musicians.len());
+    eprintln!("Atendees:      {}", problem.attendees.len());
+    eprintln!("Stage area:    {}", solver.stage.area());
+
+    let lx = ((solver.stage_valid.max_x() - solver.stage_valid.min_x()) / 10.0).floor();
+    let ly = ((solver.stage_valid.max_y() - solver.stage_valid.min_y()) / 10.0).floor();
+    eprintln!("Stage lattice: {}", (lx * ly) as i64);
+    eprintln!("Lattice/mucs:  {}", lx * ly / solver.musicians.len() as f64);
 
     Ok(())
 }
