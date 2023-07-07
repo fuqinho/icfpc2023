@@ -49,14 +49,11 @@ export default function Home() {
       <select
         className="select select-bordered select-sm w-full max-w-xs"
         onChange={(e) => setProblemID(e.target.value)}
+        value={problemID}
       >
         {problems.map((entry) => {
           return (
-            <option
-              key={entry.id}
-              selected={entry.id === problemID}
-              value={entry.id}
-            >
+            <option key={entry.id} value={entry.id}>
               {entry.id}
             </option>
           );
@@ -66,16 +63,15 @@ export default function Home() {
         placeholder="Solution"
         className="textarea textarea-bordered textarea-xs w-full max-w-xs"
         onChange={(e) => setRawSolution(e.target.value)}
-      >
-        {rawSolution}
-      </textarea>
+        defaultValue={rawSolution}
+      ></textarea>
       {jsonParseException ? `${jsonParseException}` : null}
 
       {problem ? (
         <Visualizer
           problem={problem}
           solution={solution}
-          className="w-[800px] h-[800px] m-4 border border-slate-700"
+          className="w-[800px] h-[800px] m-4 border border-slate-200"
         />
       ) : null}
     </div>
