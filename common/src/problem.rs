@@ -31,6 +31,12 @@ pub struct RawProblem {
     attendees: Vec<RawAttendee>,
 }
 
+impl RawProblem {
+    pub fn from_json(s: &str) -> anyhow::Result<Self> {
+        Ok(serde_json::from_str(&s)?)
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawAttendee {
     x: f64,
