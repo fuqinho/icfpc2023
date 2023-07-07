@@ -83,7 +83,7 @@ impl From<RawProblem> for Problem {
                 Point2D::new(raw.stage_bottom_left[0], raw.stage_bottom_left[1]),
                 Point2D::new(
                     raw.stage_bottom_left[0] + raw.stage_width,
-                    raw.stage_bottom_left[1] + raw.stage_width,
+                    raw.stage_bottom_left[1] + raw.stage_height,
                 ),
             ),
             musicians: raw.musicians,
