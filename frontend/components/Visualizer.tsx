@@ -9,9 +9,11 @@ const MUSICIAN_RADIUS = 10;
 export default function Visualizer({
   problem,
   solution,
+  className,
 }: {
   problem: Problem;
   solution: Solution | null;
+  className?: string;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -42,14 +44,12 @@ export default function Visualizer({
   }, [canvasRef, problem, solution]);
 
   return (
-    <div>
-      <canvas
-        ref={canvasRef}
-        style={{ width: "100vw", height: "100vh" }}
-        width={problem.room_width}
-        height={problem.room_height}
-      ></canvas>
-    </div>
+    <canvas
+      className={className}
+      ref={canvasRef}
+      width={problem.room_width}
+      height={problem.room_height}
+    ></canvas>
   );
 }
 
