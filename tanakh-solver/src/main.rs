@@ -126,11 +126,11 @@ impl State {
         ret
     }
 
-    fn change(&mut self, s: &Solver, k: usize) {
+    fn change(&mut self, s: &Solver, k: usize, new_pos: Point2D<f64>) {
         for i in 0..s.attendees.len() {
             let line = LineSegment {
                 from: s.attendees[i].pos,
-                to: self.placement[k],
+                to: new_pos,
             };
 
             let mut block_dist = f64::MAX;
@@ -144,6 +144,9 @@ impl State {
             self.attendee_to_musician[i][k] = (line, block_dist);
         }
 
+        let old_pos = self.placement[k];
+        self.placement[k] = new_pos;
+
         for i in 0..s.attendees.len() {
             for l in 0..self.placement.len() {
                 if l == k {
@@ -152,7 +155,7 @@ impl State {
 
                 let line = self.attendee_to_musician[i][l].0;
 
-                let d = line.distance_to_point(self.placement[k]);
+                let d = line.distance_to_point(old_pos);
                 if self.attendee_to_musician[i][l].1 <= d + EPS {
                     continue;
                 }
@@ -230,9 +233,17 @@ impl saru::Annealer for Solver {
         let mut placement = vec![];
 
         for _ in 0..n {
-            let x = rng.gen_range(self.stage_valid.min_x()..=self.stage_valid.max_x());
-            let y = rng.gen_range(self.stage_valid.min_y()..=self.stage_valid.max_y());
-            placement.push(point2(x, y));
+            loop {
+                let x = rng.gen_range(self.stage_valid.x_range());
+                let y = rng.gen_range(self.stage_valid.y_range());
+
+                let p = point2(x, y);
+                if placement.iter().any(|q| p.distance_to(*q) < 10.0) {
+                    continue;
+                }
+                placement.push(point2(x, y));
+                break;
+            }
         }
 
         State::new(placement, self)
@@ -259,36 +270,47 @@ impl saru::Annealer for Solver {
         rng: &mut impl Rng,
         _progress_ratio: f64,
     ) -> Self::Move {
-        let id = rng.gen_range(0..state.placement.len());
-        let dx = rng.gen_range(-10.0..10.0);
-        let dy = rng.gen_range(-10.0..10.0);
-        let new_pos = state.placement[id] + vec2(dx, dy);
-        let new_pos = point2(
-            new_pos
-                .x
-                .clamp(self.stage_valid.min_x(), self.stage_valid.max_x()),
-            new_pos
-                .y
-                .clamp(self.stage_valid.min_y(), self.stage_valid.max_y()),
-        );
+        loop {
+            let id = rng.gen_range(0..state.placement.len());
+            let dx = rng.gen_range(-50.0..50.0);
+            let dy = rng.gen_range(-50.0..50.0);
+            let new_pos = state.placement[id] + vec2(dx, dy);
+            let new_pos = point2(
+                new_pos
+                    .x
+                    .clamp(self.stage_valid.min_x(), self.stage_valid.max_x()),
+                new_pos
+                    .y
+                    .clamp(self.stage_valid.min_y(), self.stage_valid.max_y()),
+            );
 
-        // eprintln!("* {new_pos:?}");
+            if state.placement[id] == new_pos {
+                continue;
+            }
 
-        Move {
-            id,
-            new_pos,
-            old_pos: state.placement[id],
+            if state
+                .placement
+                .iter()
+                .enumerate()
+                .any(|(i, p)| i != id && p.distance_to(new_pos) < 10.0)
+            {
+                continue;
+            }
+
+            break Move {
+                id,
+                new_pos,
+                old_pos: state.placement[id],
+            };
         }
     }
 
     fn apply(&self, state: &mut Self::State, mov: &Self::Move) {
-        state.placement[mov.id] = mov.new_pos;
-        state.change(self, mov.id);
+        state.change(self, mov.id, mov.new_pos);
     }
 
     fn unapply(&self, state: &mut Self::State, mov: &Self::Move) {
-        state.placement[mov.id] = mov.old_pos;
-        state.change(self, mov.id);
+        state.change(self, mov.id, mov.old_pos);
     }
 }
 
