@@ -3,6 +3,7 @@ members = [
   "api",
   "chir-solver",
   "common",
+  "fuqinho-solver",
   "sandbox/hello",
   "sandbox/lifegame",
   "sandbox/lifegame-wasm",
