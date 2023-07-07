@@ -66,12 +66,12 @@ fn validate_solution(prob: &Problem, sol: &Solution) -> bool {
     true
 }
 
-fn score(prob: &Problem, sol: &Solution) -> f64 {
-    let raw_sol = convert_solution(prob, sol);
+fn score(prob: &Problem, sol: &Solution, pid: u32) -> f64 {
+    let raw_sol = convert_solution(prob, sol, pid);
     evaluate(prob, &raw_sol)
 }
 
-fn convert_solution(prob: &Problem, sol: &Solution) -> common::Solution {
+fn convert_solution(prob: &Problem, sol: &Solution, pid: u32) -> common::Solution {
     let mut musicians_by_inst = HashMap::new();
     for inst in prob.musicians.iter() {
         musicians_by_inst.insert(inst, vec![]);
@@ -95,6 +95,7 @@ fn convert_solution(prob: &Problem, sol: &Solution) -> common::Solution {
     }
 
     common::Solution {
+        problem_id: pid,
         placements: ps
             .iter()
             .map(|p| Placement {
@@ -221,16 +222,19 @@ fn main() -> Result<()> {
     if !args.swap_colors {
         sol = hill_climb_swap(&problem);
     }
-    info!("score = {:?}", score(&problem, &sol));
+    info!("score = {:?}", score(&problem, &sol, args.problem_id));
 
-    let raw_sol = convert_solution(&problem, &sol);
+    let raw_sol = convert_solution(&problem, &sol, args.problem_id);
     let raw_sol = serde_json::to_string(&RawSolution::from(raw_sol))?;
     let output = PathBuf::from(format!("{}-out.json", args.problem_id));
     std::fs::write(output, raw_sol)?;
 
     if args.submit {
         let c = Client::new();
-        c.post_submission(args.problem_id, convert_solution(&problem, &sol))?;
+        c.post_submission(
+            args.problem_id,
+            convert_solution(&problem, &sol, args.problem_id),
+        )?;
     }
 
     Ok(())
