@@ -1,6 +1,7 @@
 import Image from "next/image";
 import styles from "./page.module.css";
 import LifeGameBoard from "@/components/lifegame/LifeGameBoard";
+import Problem from "@/components/Problem";
 
 export default function Home() {
   return (
@@ -39,6 +40,7 @@ export default function Home() {
           priority
         />
         <LifeGameBoard />
+        <Problem id={1} />
       </div>
 
       <div className={styles.grid}>
