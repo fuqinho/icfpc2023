@@ -1,7 +1,10 @@
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
-use common::{problem::{Problem, Solution, Placement}, evaluate};
+use anyhow::{bail, Result};
+use common::{
+    evaluate,
+    problem::{Placement, Problem, Solution},
+};
 use euclid::default::Point2D;
 use lyon_geom::LineSegment;
 use rand::Rng;
@@ -20,7 +23,11 @@ fn generate_random_position(rng: &mut impl Rng, problem: &Problem) -> Vec<Point2
     pos
 }
 
-fn assign_musicians(rng: &mut impl Rng, problem: &Problem, pos: &[Point2D<f64>]) -> Vec<Point2D<f64>> {
+fn assign_musicians(
+    rng: &mut impl Rng,
+    problem: &Problem,
+    pos: &[Point2D<f64>],
+) -> Vec<Point2D<f64>> {
     // values[Pos][Inst].
     let mut values: Vec<Vec<f64>> = vec![];
     for i in 0..pos.len() {
@@ -33,7 +40,7 @@ fn assign_musicians(rng: &mut impl Rng, problem: &Problem, pos: &[Point2D<f64>])
             let mut blocked = false;
             for j in 0..pos.len() {
                 if i == j {
-                    continue
+                    continue;
                 }
                 if seg.distance_to_point(pos[j]) < 10. {
                     blocked = true;
@@ -59,7 +66,7 @@ fn assign_musicians(rng: &mut impl Rng, problem: &Problem, pos: &[Point2D<f64>])
         let mut max_score = f64::MIN;
         for (j, u) in used_list.iter().enumerate() {
             if *u {
-                continue
+                continue;
             }
             if max_score < values[j][inst] {
                 max_index = j;
@@ -86,10 +93,20 @@ fn main() -> Result<()> {
     let placements = assign_musicians(&mut rng, &problem, &pos);
     let solution = Solution {
         problem_id,
-        placements: placements.iter().map(|p| Placement{position: *p}).collect::<Vec<_>>(),
+        placements: placements
+            .iter()
+            .map(|p| Placement { position: *p })
+            .collect::<Vec<_>>(),
     };
     let score = evaluate(&problem, &solution);
     println!("{:?}", score);
-    Solution::write_to_file(format!("psh-solution/{}-{}.json", problem_id, chrono::Local::now().timestamp()), solution);
+    Solution::write_to_file(
+        format!(
+            "psh-solution/{}-{}.json",
+            problem_id,
+            chrono::Local::now().timestamp()
+        ),
+        solution,
+    );
     Ok(())
 }
