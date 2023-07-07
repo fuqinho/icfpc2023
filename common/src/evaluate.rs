@@ -1,45 +1,43 @@
-use crate::RawAttendee;
-use euclid::default::Point2D;
 use lyon_geom::LineSegment;
 
-use crate::problem::RawPlacement;
-use crate::problem::RawProblem;
-use crate::problem::RawSolution;
+use crate::problem::Attendee;
+use crate::problem::Placement;
+use crate::problem::Problem;
+use crate::problem::Solution;
 
-fn is_blocked(
-    attendee: &RawAttendee,
-    placement: &RawPlacement,
-    placements: &[RawPlacement],
-) -> bool {
-    let p1 = Point2D::new(attendee.x, attendee.y);
-    let p2 = Point2D::new(placement.x, placement.y);
-    let segment = LineSegment { from: p1, to: p2 };
+fn is_blocked(attendee: &Attendee, placement: &Placement, placements: &[Placement]) -> bool {
+    let segment = LineSegment {
+        from: attendee.position,
+        to: placement.position,
+    };
     for blocker in placements {
-        if blocker == placement {
+        if blocker.position == placement.position {
             continue;
         }
-        if segment.square_distance_to_point(Point2D::new(blocker.x, blocker.y)) <= 25. {
+        if segment.square_distance_to_point(blocker.position) <= 25. {
             return true;
         }
     }
     false
 }
 
-fn evaluate_attendee(attendee: &RawAttendee, solution: &RawSolution) -> u64 {
+fn evaluate_attendee(attendee: &Attendee, solution: &Solution) -> u64 {
     let mut score = 0u64;
     for (taste, placement) in attendee.tastes.iter().zip(solution.placements.iter()) {
         if is_blocked(attendee, placement, &solution.placements) {
             continue;
         }
-        let p1 = Point2D::new(attendee.x, attendee.y);
-        let p2 = Point2D::new(placement.x, placement.y);
-        let d2 = LineSegment { from: p1, to: p2 }.square_length();
+        let d2 = LineSegment {
+            from: attendee.position,
+            to: placement.position,
+        }
+        .square_length();
         score += (1000000000f64 * taste / d2).ceil() as u64;
     }
     score
 }
 
-pub fn evaluate(problem: &RawProblem, solution: &RawSolution) -> u64 {
+pub fn evaluate(problem: &Problem, solution: &Solution) -> u64 {
     problem
         .attendees
         .iter()
