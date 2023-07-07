@@ -16,7 +16,10 @@ fn validate(offset: u64, limit: i64, problem_id: Option<u32>) -> Result<()> {
         let problem = Problem::read_from_file(format!("problems/{problem_id}.json"))?;
         let score = evaluate(&problem, &entry.contents);
         if entry.submission.score != Score::Success(score as f64) {
-            println!("Wrong score {submission_id}, {:?}, {:?}", entry.submission.score, score);
+            println!(
+                "Wrong score {submission_id}, {:?}, {:?}",
+                entry.submission.score, score
+            );
         }
     }
     Ok(())
@@ -29,7 +32,6 @@ fn main() -> Result<()> {
     } else {
         None
     };
-    validate(args[1].parse::<u64>()?, args[2].parse::<i64>()?,
-             problem_id)?;
+    validate(args[1].parse::<u64>()?, args[2].parse::<i64>()?, problem_id)?;
     Ok(())
 }
