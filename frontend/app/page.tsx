@@ -40,7 +40,7 @@ export default function Home() {
           priority
         />
         <LifeGameBoard />
-        <Problem id={1} />
+        <Problem />
       </div>
 
       <div className={styles.grid}>
