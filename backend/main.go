@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"icfpc2023/backend/internal/database"
 	"icfpc2023/backend/internal/server"
 	"log"
 	"net/http"
 	"os"
 
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/urfave/cli/v3"
 )
 
@@ -16,15 +19,30 @@ var flagPort = &cli.IntFlag{
 	Value: 8080,
 }
 
+var flagDB = &cli.StringFlag{
+	Name:     "db",
+	Required: true,
+}
+
 var app = &cli.Command{
 	Name: "backend",
 	Flags: []cli.Flag{
 		flagPort,
+		flagDB,
 	},
 	Action: func(c *cli.Context) error {
 		port := c.Int(flagPort.Name)
+		dbURL := c.String(flagDB.Name)
 
-		handler := server.NewHandler()
+		rawDB, err := sql.Open("mysql", dbURL)
+		if err != nil {
+			return err
+		}
+		defer rawDB.Close()
+
+		db := database.New(rawDB)
+
+		handler := server.NewHandler(db)
 		log.Printf("Listening at :%d ...", port)
 		return http.ListenAndServe(fmt.Sprintf(":%d", port), handler)
 	},
