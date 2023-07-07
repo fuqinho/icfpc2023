@@ -55,12 +55,11 @@ pub struct RawPlacement {
     pub y: f64,
 }
 
-
 #[cfg(test)]
 mod tests {
+    use crate::problem::RawPlacement;
     use crate::problem::RawProblem;
     use crate::problem::RawSolution;
-    use crate::problem::RawPlacement;
 
     #[test]
     fn deserialize_test() {
@@ -91,10 +90,16 @@ mod tests {
     #[test]
     fn serialize_test() {
         let solution = RawSolution {
-            placements: vec![RawPlacement{x: 100.0, y: 200.0}, RawPlacement{x: 300.5, y: 400.5}],
+            placements: vec![
+                RawPlacement { x: 100.0, y: 200.0 },
+                RawPlacement { x: 300.5, y: 400.5 },
+            ],
         };
 
         let s = serde_json::to_string(&solution).expect("failed to serialize");
-        assert_eq!(s, r#"{"placements":[{"x":100.0,"y":200.0},{"x":300.5,"y":400.5}]}"#);
+        assert_eq!(
+            s,
+            r#"{"placements":[{"x":100.0,"y":200.0},{"x":300.5,"y":400.5}]}"#
+        );
     }
 }
