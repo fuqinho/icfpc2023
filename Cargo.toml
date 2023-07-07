@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "api",
+  "chir-solver",
   "common",
   "sandbox/hello",
   "sandbox/lifegame",
