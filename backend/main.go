@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 
+	"cloud.google.com/go/storage"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/urfave/cli/v3"
 )
@@ -24,15 +25,24 @@ var flagDB = &cli.StringFlag{
 	Required: true,
 }
 
+var flagBucket = &cli.StringFlag{
+	Name:     "bucket",
+	Required: true,
+}
+
 var app = &cli.Command{
 	Name: "backend",
 	Flags: []cli.Flag{
 		flagPort,
 		flagDB,
+		flagBucket,
 	},
 	Action: func(c *cli.Context) error {
+		ctx := c.Context
+
 		port := c.Int(flagPort.Name)
 		dbURL := c.String(flagDB.Name)
+		bucketName := c.String(flagBucket.Name)
 
 		rawDB, err := sql.Open("mysql", dbURL)
 		if err != nil {
@@ -40,7 +50,13 @@ var app = &cli.Command{
 		}
 		defer rawDB.Close()
 
-		db := database.New(rawDB)
+		store, err := storage.NewClient(ctx)
+		if err != nil {
+			return err
+		}
+		bucket := store.Bucket(bucketName)
+
+		db := database.New(rawDB, bucket)
 
 		handler := server.NewHandler(db)
 		log.Printf("Listening at :%d ...", port)
