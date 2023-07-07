@@ -38,8 +38,8 @@ impl Solver {
             stage_valid: rect(
                 p.stage_bottom_left[0] + 10.0,
                 p.stage_bottom_left[1] + 10.0,
-                p.stage_width - 10.0,
-                p.stage_height - 10.0,
+                p.stage_width - 20.0,
+                p.stage_height - 20.0,
             ),
             musicians: p.musicians.clone(),
             attendees: p
@@ -80,7 +80,7 @@ impl saru::Annealer for Solver {
     }
 
     fn start_temp(&self, init_score: f64) -> f64 {
-        init_score / 10.0
+        init_score.abs() / 10.0
     }
 
     fn eval(
