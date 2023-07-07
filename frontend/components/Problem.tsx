@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
 import { useEffect, useState } from "react";
 import type * as wasm from "wasm";
 
 export default function Problem() {
-    const [problem, setProblem] = useState<wasm.RawProblem | null>(null);
+  const [problem, setProblem] = useState<wasm.RawProblem | null>(null);
 
-    useEffect(() => {
-        (async () => {
-            const wasm = await import("wasm");
+  useEffect(() => {
+    (async () => {
+      const wasm = await import("wasm");
 
-            const problem = wasm.RawProblem.from_json(`
+      const problem = wasm.RawProblem.from_json(`
             {
                 "room_width": 2000.0,
                 "room_height": 5000.0,
@@ -27,13 +27,17 @@ export default function Problem() {
                 }
                 ]
             }`);
-            setProblem(problem);
-        })();
-    })
+      setProblem(problem);
+    })();
+  });
 
-    if (!problem) {
-        return <div>loading...</div>
-    }
+  if (!problem) {
+    return <div>loading...</div>;
+  }
 
-    return <div>Room {problem.room_width()} {problem.room_height()}</div>
+  return (
+    <div>
+      Room {problem.room_width()} {problem.room_height()}
+    </div>
+  );
 }
