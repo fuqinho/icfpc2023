@@ -30,6 +30,7 @@ func NewHandler(db *database.DB) *Handler {
 	r.HandleFunc("/api/health", h.handleHealth).Methods(http.MethodGet)
 	r.HandleFunc("/api/problems", h.handleProblems).Methods(http.MethodGet)
 	r.HandleFunc("/api/problems/{id}", h.handleProblem).Methods(http.MethodGet)
+	r.HandleFunc("/api/problems/{id}/spec", h.handleProblemSpec).Methods(http.MethodGet)
 	r.HandleFunc("/batch/update-problems", h.handleUpdateProblems).Methods(http.MethodPost)
 
 	h.router = r
@@ -47,7 +48,7 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleProblems(w http.ResponseWriter, r *http.Request) {
-	withJSONResponse(w, r, func() (interface{}, error) {
+	withJSONResponse(w, r, func() (any, error) {
 		ctx := r.Context()
 		problems, err := h.db.ListProblems(ctx)
 		if err != nil {
@@ -61,6 +62,21 @@ func (h *Handler) handleProblems(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleProblem(w http.ResponseWriter, r *http.Request) {
+	withJSONResponse(w, r, func() (any, error) {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		id := vars["id"]
+
+		problem, err := h.db.GetProblem(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+
+		return problem, nil
+	})
+}
+
+func (h *Handler) handleProblemSpec(w http.ResponseWriter, r *http.Request) {
 	withResponse(w, r, func() error {
 		ctx := r.Context()
 		vars := mux.Vars(r)
@@ -137,7 +153,7 @@ func withResponse(w http.ResponseWriter, r *http.Request, f func() error) {
 
 // withJSONResponse is a helper function to implement a handler function that
 // returns a JSON response.
-func withJSONResponse(w http.ResponseWriter, r *http.Request, f func() (interface{}, error)) {
+func withJSONResponse(w http.ResponseWriter, r *http.Request, f func() (any, error)) {
 	withResponse(w, r, func() error {
 		res, err := f()
 		if err != nil {
