@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	"github.com/google/uuid"
 )
 
 type Problem struct {
@@ -101,6 +102,23 @@ func (db *DB) AddProblem(ctx context.Context, id string, spec string) error {
 	return nil
 }
 
+func (db *DB) GetSolution(ctx context.Context, uuid string) (*Solution, error) {
+	row := db.raw.QueryRowContext(ctx, `SELECT problem_id, created FROM solutions WHERE uuid = ?`, uuid)
+
+	var problemID string
+	var created time.Time
+	if err := row.Scan(&problemID, &created); err != nil {
+		return nil, err
+	}
+
+	solution := &Solution{
+		UUID:      uuid,
+		ProblemID: problemID,
+		Created:   created,
+	}
+	return solution, nil
+}
+
 func (db *DB) ListSolutionsForProblem(ctx context.Context, problemID string) ([]*Solution, error) {
 	rows, err := db.raw.QueryContext(ctx, `SELECT uuid, created FROM solutions WHERE problem_id = ? ORDER BY created DESC`, problemID)
 	if err != nil {
@@ -147,11 +165,51 @@ func (db *DB) ListAllSolutions(ctx context.Context) ([]*Solution, error) {
 	return solutions, nil
 }
 
+func (db *DB) SubmitSolution(ctx context.Context, problemID string, solutionSpec string) (string, error) {
+	// Ensure the problem exists.
+	if _, err := db.GetProblem(ctx, problemID); err != nil {
+		return "", err
+	}
+
+	uuid := uuid.New().String()
+
+	// Create JSON on GCS.
+	w := db.solutionObject(uuid).NewWriter(ctx)
+	w.ContentType = "application/json"
+	w.ContentEncoding = "gzip"
+	gz := gzip.NewWriter(w)
+	if _, err := io.WriteString(gz, solutionSpec); err != nil {
+		return "", err
+	}
+	if err := gz.Close(); err != nil {
+		return "", err
+	}
+	if err := w.Close(); err != nil {
+		return "", err
+	}
+
+	// Finally create an entry in DB.
+	if _, err := db.raw.ExecContext(ctx, `INSERT INTO solutions (uuid, problem_id) VALUES (?, ?)`, uuid, problemID); err != nil {
+		return "", err
+	}
+
+	return uuid, nil
+}
+
 func (db *DB) ProblemURL(id string) string {
 	object := db.problemObject(id)
 	return fmt.Sprintf("https://%s.storage.googleapis.com/%s", object.BucketName(), object.ObjectName())
 }
 
+func (db *DB) SolutionURL(uuid string) string {
+	object := db.solutionObject(uuid)
+	return fmt.Sprintf("https://%s.storage.googleapis.com/%s", object.BucketName(), object.ObjectName())
+}
+
 func (db *DB) problemObject(id string) *storage.ObjectHandle {
 	return db.bucket.Object(fmt.Sprintf("problems/%s.json", id))
+}
+
+func (db *DB) solutionObject(uuid string) *storage.ObjectHandle {
+	return db.bucket.Object(fmt.Sprintf("solutions/%s.json", uuid))
 }

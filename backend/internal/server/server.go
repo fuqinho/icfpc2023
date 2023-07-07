@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"icfpc2023/backend/internal/database"
 	"icfpc2023/backend/internal/httputil"
@@ -33,6 +34,9 @@ func NewHandler(db *database.DB) *Handler {
 	r.HandleFunc("/api/problems/{id}/spec", h.handleProblemSpec).Methods(http.MethodGet)
 	r.HandleFunc("/api/problems/{id}/solutions", h.handleProblemSolutions).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions", h.handleSolutions).Methods(http.MethodGet)
+	r.HandleFunc("/api/solutions/{uuid}", h.handleSolution).Methods(http.MethodGet)
+	r.HandleFunc("/api/solutions/{uuid}/spec", h.handleSolutionSpec).Methods(http.MethodGet)
+	r.HandleFunc("/api/submit", h.handleSubmit).Methods(http.MethodPost)
 	r.HandleFunc("/batch/update-problems", h.handleUpdateProblems).Methods(http.MethodPost)
 
 	h.router = r
@@ -122,6 +126,65 @@ func (h *Handler) handleSolutions(w http.ResponseWriter, r *http.Request) {
 			solutions = []*database.Solution{}
 		}
 		return solutions, nil
+	})
+}
+
+func (h *Handler) handleSolution(w http.ResponseWriter, r *http.Request) {
+	withJSONResponse(w, r, func() (interface{}, error) {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		uuid := vars["uuid"]
+
+		solution, err := h.db.GetSolution(ctx, uuid)
+		if err != nil {
+			return nil, err
+		}
+		return solution, nil
+	})
+}
+
+func (h *Handler) handleSolutionSpec(w http.ResponseWriter, r *http.Request) {
+	withResponse(w, r, func() error {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		uuid := vars["uuid"]
+
+		if _, err := h.db.GetSolution(ctx, uuid); err != nil {
+			return err
+		}
+
+		w.Header().Set("Location", h.db.SolutionURL(uuid))
+		w.WriteHeader(http.StatusFound)
+		return nil
+	})
+}
+
+func (h *Handler) handleSubmit(w http.ResponseWriter, r *http.Request) {
+	withResponse(w, r, func() error {
+		ctx := r.Context()
+
+		var req map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return err
+		}
+
+		problemID, ok := req["id"].(string)
+		if !ok {
+			return errors.New("problem ID missing")
+		}
+
+		solutionSpec, err := json.Marshal(req)
+		if err != nil {
+			return err
+		}
+
+		uuid, err := h.db.SubmitSolution(ctx, problemID, string(solutionSpec))
+		if err != nil {
+			return err
+		}
+
+		io.WriteString(w, uuid)
+		return nil
 	})
 }
 
