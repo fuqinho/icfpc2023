@@ -1,3 +1,4 @@
+pub mod api;
 pub mod evaluate;
 pub mod problem;
 

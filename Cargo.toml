@@ -1,5 +1,6 @@
 [workspace]
 members = [
+  "api",
   "common",
   "sandbox/hello",
   "sandbox/lifegame",

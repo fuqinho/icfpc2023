@@ -83,7 +83,7 @@ impl From<RawProblem> for Problem {
                 Point2D::new(raw.stage_bottom_left[0], raw.stage_bottom_left[1]),
                 Point2D::new(
                     raw.stage_bottom_left[0] + raw.stage_width,
-                    raw.stage_bottom_left[1] + raw.stage_width,
+                    raw.stage_bottom_left[1] + raw.stage_height,
                 ),
             ),
             musicians: raw.musicians,
@@ -108,11 +108,31 @@ impl From<Solution> for RawSolution {
     }
 }
 
+impl From<RawSolution> for Solution {
+    fn from(raw: RawSolution) -> Self {
+        Self {
+            placements: raw
+                .placements
+                .into_iter()
+                .map(Placement::from)
+                .collect::<Vec<_>>(),
+        }
+    }
+}
+
 impl From<Placement> for RawPlacement {
     fn from(p: Placement) -> Self {
         Self {
             x: p.position.x,
             y: p.position.y,
+        }
+    }
+}
+
+impl From<RawPlacement> for Placement {
+    fn from(raw: RawPlacement) -> Self {
+        Self {
+            position: Point2D::new(raw.x, raw.y),
         }
     }
 }
