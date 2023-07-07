@@ -21,14 +21,14 @@ pub type P = Point<f64>;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawProblem {
-    room_width: f64,
-    room_height: f64,
-    stage_width: f64,
-    stage_height: f64,
+    pub room_width: f64,
+    pub room_height: f64,
+    pub stage_width: f64,
+    pub stage_height: f64,
     // x, y
-    stage_bottom_left: Vec<f64>,
-    musicians: Vec<usize>,
-    attendees: Vec<RawAttendee>,
+    pub stage_bottom_left: Vec<f64>,
+    pub musicians: Vec<usize>,
+    pub attendees: Vec<RawAttendee>,
 }
 
 impl RawProblem {
@@ -39,20 +39,20 @@ impl RawProblem {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawAttendee {
-    x: f64,
-    y: f64,
-    tastes: Vec<f64>,
+    pub x: f64,
+    pub y: f64,
+    pub tastes: Vec<f64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawSolution {
-    placements: Vec<RawPlacement>,
+    pub placements: Vec<RawPlacement>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawPlacement {
-    x: f64,
-    y: f64,
+    pub x: f64,
+    pub y: f64,
 }
 
 
