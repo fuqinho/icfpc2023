@@ -14,8 +14,9 @@ fn validate(offset: u64, limit: i64, problem_id: Option<u32>) -> Result<()> {
         let entry = client.get_submission(submission_id)?;
         let problem_id = entry.submission.problem_id;
         let problem = Problem::read_from_file(format!("problems/{problem_id}.json"))?;
+        println!("Checking...: {:?}, {:?}", submission_id, problem_id);
         let score = evaluate(&problem, &entry.contents);
-        if entry.submission.score != Score::Success(score as f64) {
+        if entry.submission.score != Score::Success(score) {
             println!(
                 "Wrong score {submission_id}, {:?}, {:?}",
                 entry.submission.score, score
