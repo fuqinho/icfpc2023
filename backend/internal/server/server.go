@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"icfpc2023/backend/internal/database"
 	"icfpc2023/backend/internal/httputil"
@@ -30,6 +31,12 @@ func NewHandler(db *database.DB) *Handler {
 	r.HandleFunc("/api/health", h.handleHealth).Methods(http.MethodGet)
 	r.HandleFunc("/api/problems", h.handleProblems).Methods(http.MethodGet)
 	r.HandleFunc("/api/problems/{id}", h.handleProblem).Methods(http.MethodGet)
+	r.HandleFunc("/api/problems/{id}/spec", h.handleProblemSpec).Methods(http.MethodGet)
+	r.HandleFunc("/api/problems/{id}/solutions", h.handleProblemSolutions).Methods(http.MethodGet)
+	r.HandleFunc("/api/solutions", h.handleSolutions).Methods(http.MethodGet)
+	r.HandleFunc("/api/solutions/{uuid}", h.handleSolution).Methods(http.MethodGet)
+	r.HandleFunc("/api/solutions/{uuid}/spec", h.handleSolutionSpec).Methods(http.MethodGet)
+	r.HandleFunc("/api/submit", h.handleSubmit).Methods(http.MethodPost)
 	r.HandleFunc("/batch/update-problems", h.handleUpdateProblems).Methods(http.MethodPost)
 
 	h.router = r
@@ -47,7 +54,7 @@ func (h *Handler) handleHealth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleProblems(w http.ResponseWriter, r *http.Request) {
-	withJSONResponse(w, r, func() (interface{}, error) {
+	withJSONResponse(w, r, func() (any, error) {
 		ctx := r.Context()
 		problems, err := h.db.ListProblems(ctx)
 		if err != nil {
@@ -61,10 +68,31 @@ func (h *Handler) handleProblems(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleProblem(w http.ResponseWriter, r *http.Request) {
+	withJSONResponse(w, r, func() (any, error) {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		id, err := strconv.Atoi(vars["id"])
+		if err != nil {
+			return nil, err
+		}
+
+		problem, err := h.db.GetProblem(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+
+		return problem, nil
+	})
+}
+
+func (h *Handler) handleProblemSpec(w http.ResponseWriter, r *http.Request) {
 	withResponse(w, r, func() error {
 		ctx := r.Context()
 		vars := mux.Vars(r)
-		id := vars["id"]
+		id, err := strconv.Atoi(vars["id"])
+		if err != nil {
+			return err
+		}
 
 		if _, err := h.db.GetProblem(ctx, id); err != nil {
 			return err
@@ -72,6 +100,100 @@ func (h *Handler) handleProblem(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Location", h.db.ProblemURL(id))
 		w.WriteHeader(http.StatusFound)
+		return nil
+	})
+}
+
+func (h *Handler) handleProblemSolutions(w http.ResponseWriter, r *http.Request) {
+	withJSONResponse(w, r, func() (any, error) {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		id, err := strconv.Atoi(vars["id"])
+		if err != nil {
+			return nil, err
+		}
+
+		solutions, err := h.db.ListSolutionsForProblem(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if solutions == nil {
+			solutions = []*database.Solution{}
+		}
+		return solutions, nil
+	})
+}
+
+func (h *Handler) handleSolutions(w http.ResponseWriter, r *http.Request) {
+	withJSONResponse(w, r, func() (any, error) {
+		ctx := r.Context()
+		solutions, err := h.db.ListAllSolutions(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if solutions == nil {
+			solutions = []*database.Solution{}
+		}
+		return solutions, nil
+	})
+}
+
+func (h *Handler) handleSolution(w http.ResponseWriter, r *http.Request) {
+	withJSONResponse(w, r, func() (any, error) {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		uuid := vars["uuid"]
+
+		solution, err := h.db.GetSolution(ctx, uuid)
+		if err != nil {
+			return nil, err
+		}
+		return solution, nil
+	})
+}
+
+func (h *Handler) handleSolutionSpec(w http.ResponseWriter, r *http.Request) {
+	withResponse(w, r, func() error {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		uuid := vars["uuid"]
+
+		if _, err := h.db.GetSolution(ctx, uuid); err != nil {
+			return err
+		}
+
+		w.Header().Set("Location", h.db.SolutionURL(uuid))
+		w.WriteHeader(http.StatusFound)
+		return nil
+	})
+}
+
+func (h *Handler) handleSubmit(w http.ResponseWriter, r *http.Request) {
+	withResponse(w, r, func() error {
+		ctx := r.Context()
+
+		var req map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			return err
+		}
+
+		problemIDFloat, ok := req["problem_id"].(float64)
+		if !ok {
+			return errors.New("problem ID missing")
+		}
+		problemID := int(problemIDFloat)
+
+		solutionSpec, err := json.Marshal(req)
+		if err != nil {
+			return err
+		}
+
+		uuid, err := h.db.SubmitSolution(ctx, problemID, string(solutionSpec))
+		if err != nil {
+			return err
+		}
+
+		io.WriteString(w, uuid)
 		return nil
 	})
 }
@@ -92,13 +214,12 @@ func (h *Handler) handleUpdateProblems(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		knownProblemIDs := make(map[string]struct{})
+		knownProblemIDs := make(map[int]struct{})
 		for _, p := range problems {
 			knownProblemIDs[p.ID] = struct{}{}
 		}
 
-		for i := 1; i <= problemsResponse.NumberOfProblems; i++ {
-			id := strconv.Itoa(i)
+		for id := 1; id <= problemsResponse.NumberOfProblems; id++ {
 			if _, ok := knownProblemIDs[id]; ok {
 				continue
 			}
@@ -108,12 +229,12 @@ func (h *Handler) handleUpdateProblems(w http.ResponseWriter, r *http.Request) {
 				Failure string `json:"Failure"`
 			}
 
-			if err := httputil.GetJSON(ctx, "http://api.icfpcontest.com/problem?problem_id="+id, &problemResponse); err != nil {
+			if err := httputil.GetJSON(ctx, fmt.Sprintf("http://api.icfpcontest.com/problem?problem_id=%d", id), &problemResponse); err != nil {
 				return err
 			}
 
 			if problemResponse.Success == "" {
-				return fmt.Errorf("failed to get problem %s: %s", id, problemResponse.Failure)
+				return fmt.Errorf("failed to get problem %d: %s", id, problemResponse.Failure)
 			}
 
 			if err := h.db.AddProblem(ctx, id, problemResponse.Success); err != nil {
@@ -137,7 +258,7 @@ func withResponse(w http.ResponseWriter, r *http.Request, f func() error) {
 
 // withJSONResponse is a helper function to implement a handler function that
 // returns a JSON response.
-func withJSONResponse(w http.ResponseWriter, r *http.Request, f func() (interface{}, error)) {
+func withJSONResponse(w http.ResponseWriter, r *http.Request, f func() (any, error)) {
 	withResponse(w, r, func() error {
 		res, err := f()
 		if err != nil {

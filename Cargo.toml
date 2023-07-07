@@ -1,10 +1,14 @@
 [workspace]
 members = [
   "api",
+  "chir-solver",
   "common",
+  "fuqinho-solver",
   "sandbox/hello",
   "sandbox/lifegame",
   "sandbox/lifegame-wasm",
+  "psh-solver",
+  "psh-validator",
   "tanakh-solver",
   "wasm",
 ]

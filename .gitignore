@@ -12,3 +12,6 @@ pkg/
 
 # We don't use Cargo.lock
 Cargo.lock
+
+# Editor settings
+.idea

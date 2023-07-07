@@ -1,7 +1,9 @@
-use serde::{Deserialize, Serialize};
-
-use euclid::default::{Box2D, Point2D};
 use std::convert::From;
+use std::path::Path;
+
+use anyhow::Result;
+use euclid::default::{Box2D, Point2D};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug)]
 pub struct Problem {
@@ -19,6 +21,7 @@ pub struct Attendee {
 
 #[derive(Clone, Debug)]
 pub struct Solution {
+    pub problem_id: u32,
     pub placements: Vec<Placement>,
 }
 
@@ -54,6 +57,7 @@ pub struct RawAttendee {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawSolution {
+    pub problem_id: u32,
     pub placements: Vec<RawPlacement>,
 }
 
@@ -61,6 +65,22 @@ pub struct RawSolution {
 pub struct RawPlacement {
     pub x: f64,
     pub y: f64,
+}
+
+impl Problem {
+    pub fn read_from_file<P: AsRef<Path>>(path: P) -> Result<Problem> {
+        let content = std::fs::read_to_string(path)?;
+        Ok(Problem::from(serde_json::from_str::<RawProblem>(&content)?))
+    }
+}
+
+impl Solution {
+    pub fn write_to_file<P: AsRef<Path>>(path: P, solution: Solution) -> Result<()> {
+        let raw = RawSolution::from(solution);
+        let s = serde_json::to_string(&raw)?;
+        std::fs::write(path, &s)?;
+        Ok(())
+    }
 }
 
 impl From<RawAttendee> for Attendee {
@@ -99,6 +119,7 @@ impl From<RawProblem> for Problem {
 impl From<Solution> for RawSolution {
     fn from(s: Solution) -> Self {
         Self {
+            problem_id: s.problem_id,
             placements: s
                 .placements
                 .into_iter()
@@ -111,6 +132,7 @@ impl From<Solution> for RawSolution {
 impl From<RawSolution> for Solution {
     fn from(raw: RawSolution) -> Self {
         Self {
+            problem_id: raw.problem_id,
             placements: raw
                 .placements
                 .into_iter()
@@ -172,6 +194,7 @@ mod tests {
     #[test]
     fn serialize_test() {
         let solution = RawSolution {
+            problem_id: 42,
             placements: vec![
                 RawPlacement { x: 100.0, y: 200.0 },
                 RawPlacement { x: 300.5, y: 400.5 },
@@ -181,7 +204,7 @@ mod tests {
         let s = serde_json::to_string(&solution).expect("failed to serialize");
         assert_eq!(
             s,
-            r#"{"placements":[{"x":100.0,"y":200.0},{"x":300.5,"y":400.5}]}"#
+            r#"{"problem_id":42,"placements":[{"x":100.0,"y":200.0},{"x":300.5,"y":400.5}]}"#
         );
     }
 }
