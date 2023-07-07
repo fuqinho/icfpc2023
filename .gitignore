@@ -9,3 +9,6 @@ pkg/
 
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
+
+# We don't use Cargo.lock
+Cargo.lock
