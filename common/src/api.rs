@@ -8,7 +8,7 @@ use crate::problem::{Problem, RawProblem, RawSolution, Solution};
 
 const ENDPOINT: &str = "https://api.icfpcontest.com";
 
-#[derive(Deserialize, Clone, Debug)]
+#[derive(Deserialize, Clone, Debug, PartialEq)]
 pub enum Score {
     Success(f64),
     Failure(String),

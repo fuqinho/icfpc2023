@@ -21,26 +21,42 @@ pub fn is_blocked(attendee: &Attendee, placement: &Placement, placements: &[Plac
     false
 }
 
-fn evaluate_attendee(attendee: &Attendee, solution: &Solution) -> u64 {
-    let mut score = 0u64;
-    for (taste, placement) in attendee.tastes.iter().zip(solution.placements.iter()) {
-        if is_blocked(attendee, placement, &solution.placements) {
+fn is_blocked_internal(
+    seg: &LineSegment<f64>,
+    current_index: usize,
+    placements: &[Placement],
+) -> bool {
+    for (i, blocker) in placements.iter().enumerate() {
+        if i == current_index {
             continue;
         }
-        let d2 = LineSegment {
+        if seg.distance_to_point(blocker.position) <= 5. {
+            return true;
+        }
+    }
+    false
+}
+
+fn evaluate_attendee(attendee: &Attendee, musicians: &[usize], solution: &Solution) -> f64 {
+    let mut score = 0f64;
+    for (index, (inst, placement)) in musicians.iter().zip(solution.placements.iter()).enumerate() {
+        let seg = LineSegment {
             from: attendee.position,
             to: placement.position,
+        };
+        if is_blocked_internal(&seg, index, &solution.placements) {
+            continue;
         }
-        .square_length();
-        score += (1000000000f64 * taste / d2).ceil() as u64;
+        let d = seg.length();
+        score += (1000000f64 * attendee.tastes[*inst] / (d * d)).ceil();
     }
     score
 }
 
-pub fn evaluate(problem: &Problem, solution: &Solution) -> u64 {
+pub fn evaluate(problem: &Problem, solution: &Solution) -> f64 {
     problem
         .attendees
         .iter()
-        .map(|attendee| evaluate_attendee(attendee, solution))
+        .map(|attendee| evaluate_attendee(attendee, &problem.musicians, solution))
         .sum()
 }
