@@ -18,15 +18,14 @@ pub struct Solver {
 impl Solver {
     pub fn new(problem_id: u32, problem: Problem, timeout_secs: u64, rng_seed: u64) -> Self {
         let board = Board::new(problem_id, problem);
-        let best_score = board.score();
-        let best_board = board.clone();
 
         let rng = StdRng::seed_from_u64(rng_seed);
 
         Self {
+            best_score: f64::NEG_INFINITY,
+            best_board: board.clone(),
+
             board,
-            best_score,
-            best_board,
             timeout_secs,
             rng,
         }
