@@ -37,12 +37,6 @@ struct State {
     distance_penalty: f64,
 }
 
-struct Move {
-    id: usize,
-    new_pos: Point2D<f64>,
-    old_pos: Point2D<f64>,
-}
-
 impl Solver {
     fn from_problem(p: &Problem) -> Self {
         Solver {
@@ -180,6 +174,53 @@ impl State {
 
         (score - penalty, penalty == 0.0)
     }
+
+    fn naive_eval(&self, s: &Solver) -> (f64, bool) {
+        let mut ret = 0.0;
+
+        for i in 0..s.attendees.len() {
+            for k in 0..self.placement.len() {
+                let line = LineSegment {
+                    from: s.attendees[i].pos,
+                    to: self.placement[k],
+                };
+
+                let mut block_dist = f64::MAX;
+                for l in 0..self.placement.len() {
+                    if l == k {
+                        continue;
+                    }
+                    block_dist = block_dist.min(line.distance_to_point(self.placement[l]));
+                }
+
+                if block_dist > 5.0 {
+                    let taste = s.attendees[i].tastes[s.musicians[k]];
+                    // ret += (1_000_000.0 * taste / line.length().powi(2)).ceil();
+                    if taste > 0.0 {
+                        ret += (1_000_000.0 * taste / line.length().powi(2)).ceil();
+                    } else {
+                        ret += (1_000_000.0 * (block_dist / 5.0).min(4.0) * taste
+                            / line.length().powi(2))
+                        .ceil();
+                    }
+                }
+            }
+        }
+
+        (ret, true)
+    }
+}
+
+enum Move {
+    Change {
+        id: usize,
+        new_pos: Point2D<f64>,
+        old_pos: Point2D<f64>,
+    },
+    Swap {
+        i: usize,
+        j: usize,
+    },
 }
 
 impl saru::Annealer for Solver {
@@ -221,6 +262,7 @@ impl saru::Annealer for Solver {
         _valid_best_score: f64,
     ) -> (f64, Option<f64>) {
         let (score, valid) = state.eval(self);
+        // let (score, valid) = state.naive_eval(self);
         (-score, if valid { Some(-score) } else { None })
     }
 
@@ -230,47 +272,80 @@ impl saru::Annealer for Solver {
         rng: &mut impl Rng,
         _progress_ratio: f64,
     ) -> Self::Move {
-        loop {
-            let id = rng.gen_range(0..state.placement.len());
-            let dx = rng.gen_range(-50.0..50.0);
-            let dy = rng.gen_range(-50.0..50.0);
-            let new_pos = state.placement[id] + vec2(dx, dy);
-            let new_pos = point2(
-                new_pos
-                    .x
-                    .clamp(self.stage_valid.min_x(), self.stage_valid.max_x()),
-                new_pos
-                    .y
-                    .clamp(self.stage_valid.min_y(), self.stage_valid.max_y()),
-            );
+        match rng.gen_range(0..=0) {
+            0 => loop {
+                let id = rng.gen_range(0..state.placement.len());
+                let dx = rng.gen_range(-50.0..=50.0);
+                let dy = rng.gen_range(-50.0..=50.0);
+                let new_pos = state.placement[id] + vec2(dx, dy);
+                let new_pos = point2(
+                    new_pos
+                        .x
+                        .clamp(self.stage_valid.min_x(), self.stage_valid.max_x()),
+                    new_pos
+                        .y
+                        .clamp(self.stage_valid.min_y(), self.stage_valid.max_y()),
+                );
 
-            if state.placement[id] == new_pos {
-                continue;
-            }
+                if state.placement[id] == new_pos {
+                    continue;
+                }
 
-            if state
-                .placement
-                .iter()
-                .enumerate()
-                .any(|(i, p)| i != id && p.distance_to(new_pos) < 10.0)
-            {
-                continue;
-            }
+                if state
+                    .placement
+                    .iter()
+                    .enumerate()
+                    .any(|(i, p)| i != id && p.distance_to(new_pos) < 10.0)
+                {
+                    continue;
+                }
 
-            break Move {
-                id,
-                new_pos,
-                old_pos: state.placement[id],
-            };
+                break Move::Change {
+                    id,
+                    new_pos,
+                    old_pos: state.placement[id],
+                };
+            },
+
+            1 => loop {
+                let i = rng.gen_range(0..state.placement.len());
+                let j = rng.gen_range(0..state.placement.len());
+                if i == j {
+                    continue;
+                }
+
+                break Move::Swap { i, j };
+            },
+            _ => unreachable!(),
         }
     }
 
     fn apply(&self, state: &mut Self::State, mov: &Self::Move) {
-        state.change(self, mov.id, mov.new_pos);
+        match mov {
+            Move::Change { id, new_pos, .. } => {
+                state.change(self, *id, *new_pos);
+            }
+            Move::Swap { i, j } => {
+                let pi = state.placement[*i];
+                let pj = state.placement[*j];
+                state.change(self, *i, pj);
+                state.change(self, *j, pi);
+            }
+        }
     }
 
     fn unapply(&self, state: &mut Self::State, mov: &Self::Move) {
-        state.change(self, mov.id, mov.old_pos);
+        match mov {
+            Move::Change { id, old_pos, .. } => {
+                state.change(self, *id, *old_pos);
+            }
+            Move::Swap { i, j } => {
+                let pi = state.placement[*i];
+                let pj = state.placement[*j];
+                state.change(self, *i, pj);
+                state.change(self, *j, pi);
+            }
+        }
     }
 }
 
@@ -306,7 +381,16 @@ fn main(
         rand::thread_rng().gen(),
     );
 
-    eprintln!("Score: {}", solution.score);
+    eprintln!("Statistics:");
+    eprintln!("Score:         {}", -solution.score);
+    eprintln!("Musicians:     {}", problem.musicians.len());
+    eprintln!("Atendees:      {}", problem.attendees.len());
+    eprintln!("Stage area:    {}", solver.stage.area());
+
+    let lx = ((solver.stage_valid.max_x() - solver.stage_valid.min_x()) / 10.0).floor();
+    let ly = ((solver.stage_valid.max_y() - solver.stage_valid.min_y()) / 10.0).floor();
+    eprintln!("Stage lattice: {}", (lx * ly) as i64);
+    eprintln!("Lattice/mucs:  {}", lx * ly / solver.musicians.len() as f64);
 
     let Some(state) = solution.state else {
         anyhow::bail!("Valid solution not found")
@@ -322,20 +406,22 @@ fn main(
         .map(|p| Placement { x: p.x, y: p.y })
         .collect::<Vec<_>>();
 
-    println!("{}", serde_json::json!({ "placements": placements }));
+    {
+        if !std::path::Path::new("results").is_dir() {
+            std::fs::create_dir_all("results")?;
+        }
+        let file_name = format!("results/sol-{problem_id:03}-{}.json", -solution.score);
+        std::fs::write(
+            file_name,
+            format!(
+                "{}",
+                serde_json::json!({ "problem_id": problem_id, "placements": placements })
+            ),
+        )?;
+    }
 
     let resp = submit(problem_id, &placements)?;
     eprintln!("Submitted: {}", resp.0);
-
-    eprintln!("Statistics:");
-    eprintln!("Musicians:     {}", problem.musicians.len());
-    eprintln!("Atendees:      {}", problem.attendees.len());
-    eprintln!("Stage area:    {}", solver.stage.area());
-
-    let lx = ((solver.stage_valid.max_x() - solver.stage_valid.min_x()) / 10.0).floor();
-    let ly = ((solver.stage_valid.max_y() - solver.stage_valid.min_y()) / 10.0).floor();
-    eprintln!("Stage lattice: {}", (lx * ly) as i64);
-    eprintln!("Lattice/mucs:  {}", lx * ly / solver.musicians.len() as f64);
 
     Ok(())
 }
