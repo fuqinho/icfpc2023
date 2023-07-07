@@ -11,6 +11,7 @@ export class Viewport {
   // Problem coordinate of Viewport center.
   private pVpWidth: number = 0;
   private pVpCenter: Coord = [0, 0];
+  private cVpCenterTempMove: Coord = [0, 0];
 
   constructor(
     ctx: CanvasRenderingContext2D,
@@ -68,12 +69,25 @@ export class Viewport {
     this.pVpWidth *= factor;
   }
 
+  public setVpCenterMove(diff: Coord) {
+    this.cVpCenterTempMove = diff;
+  }
+
+  public commitVpCenterMove() {
+    this.pVpCenter = [
+      this.pVpCenter[0] - this.toProblemScale(this.cVpCenterTempMove[0]),
+      this.pVpCenter[1] + this.toProblemScale(this.cVpCenterTempMove[1]),
+    ];
+    this.cVpCenterTempMove = [0, 0];
+  }
+
   private toCanvasCoordX(problemScaleX: number): number {
     // Convert the problem-scale to the canvas-scale.
     const cScale = this.toCanvasScale(problemScaleX);
     // Scale-wise, this is aligned with what is drawn on canvas. Now we pan the
     // coordinate based on the viewport position.
-    const cVpCenter = this.toCanvasScale(this.pVpCenter[0]);
+    const cVpCenter =
+      this.toCanvasScale(this.pVpCenter[0]) - this.cVpCenterTempMove[0];
     const cVpW = this.ctx.canvas.width;
     const cOrigin = -(cVpCenter - cVpW / 2);
     return cScale + cOrigin;
@@ -84,9 +98,9 @@ export class Viewport {
     const cScale = this.toCanvasScale(this.problem.room_height - problemScaleY);
     // Scale-wise, this is aligned with what is drawn on canvas. Now we pan the
     // coordinate based on the viewport position.
-    const cVpCenter = this.toCanvasScale(
-      this.problem.room_height - this.pVpCenter[1],
-    );
+    const cVpCenter =
+      this.toCanvasScale(this.problem.room_height - this.pVpCenter[1]) -
+      this.cVpCenterTempMove[1];
     const cVpH = this.ctx.canvas.height;
     const cOrigin = -(cVpCenter - cVpH / 2);
     return cScale + cOrigin;
@@ -94,6 +108,10 @@ export class Viewport {
 
   private toCanvasScale(problemScaleV: number): number {
     return (problemScaleV * this.ctx.canvas.width) / this.pVpWidth;
+  }
+
+  private toProblemScale(canvasScaleV: number): number {
+    return (canvasScaleV * this.pVpWidth) / this.ctx.canvas.width;
   }
 
   public drawRect({

@@ -26,7 +26,15 @@ export default function Visualizer({
     const ctx = canvas.getContext("2d")!;
     const vp = new Viewport(ctx, problem, solution);
     let animationFrameId: number = 0;
+    let dragStartCoord: [number, number] | undefined = undefined;
 
+    const getMouseCCoord = (e: MouseEvent): [number, number] => {
+      const c = canvas.getBoundingClientRect();
+      return [
+        ((e.pageX - c.left) * canvas.width) / c.width,
+        ((e.pageY - c.top) * canvas.height) / c.height,
+      ];
+    };
     const wheelEvent = (e: WheelEvent) => {
       if (e.deltaY < 0) {
         vp.zoom(0.8);
@@ -35,8 +43,28 @@ export default function Visualizer({
       }
       return false;
     };
+    const mousedownEvent = (e: MouseEvent) => {
+      dragStartCoord = getMouseCCoord(e);
+    };
+    const mousemoveEvent = (e: MouseEvent) => {
+      if (!dragStartCoord) {
+        return;
+      }
+      const current = getMouseCCoord(e);
+      vp.setVpCenterMove([
+        current[0] - dragStartCoord[0],
+        current[1] - dragStartCoord[1],
+      ]);
+    };
+    const mouseupEvent = () => {
+      dragStartCoord = undefined;
+      vp.commitVpCenterMove();
+    };
 
     canvas.addEventListener("wheel", wheelEvent);
+    canvas.addEventListener("mousedown", mousedownEvent);
+    canvas.addEventListener("mousemove", mousemoveEvent);
+    canvas.addEventListener("mouseup", mouseupEvent);
 
     const render = () => {
       vp.clear();
@@ -50,6 +78,9 @@ export default function Visualizer({
     render();
     return () => {
       canvas.removeEventListener("wheel", wheelEvent);
+      canvas.removeEventListener("mousedown", mousedownEvent);
+      canvas.removeEventListener("mousemove", mousemoveEvent);
+      canvas.removeEventListener("mouseup", mousedownEvent);
       window.cancelAnimationFrame(animationFrameId);
     };
   }, [canvasRef, problem, solution]);
