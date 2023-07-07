@@ -1,7 +1,9 @@
-use serde::{Deserialize, Serialize};
-
-use euclid::default::{Box2D, Point2D};
 use std::convert::From;
+use std::path::Path;
+
+use anyhow::Result;
+use euclid::default::{Box2D, Point2D};
+use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug)]
 pub struct Problem {
@@ -61,6 +63,13 @@ pub struct RawSolution {
 pub struct RawPlacement {
     pub x: f64,
     pub y: f64,
+}
+
+impl Problem {
+    pub fn read_from_file<P: AsRef<Path>>(path: P) -> Result<Problem> {
+        let content = std::fs::read_to_string(path)?;
+        Ok(Problem::from(serde_json::from_str::<RawProblem>(&content)?))
+    }
 }
 
 impl From<RawAttendee> for Attendee {
