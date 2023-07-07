@@ -55,7 +55,7 @@ pub fn submit(problem_id: u32, solution: &[Placement]) -> Result<SubmitId> {
     let url = format!("{ENDPOINT}/submission");
     let client = reqwest::blocking::Client::new();
     let token = std::env::var("API_TOKEN")?;
-    let resp: String = dbg!(client
+    let resp: String = client
         .post(&url)
         .bearer_auth(token)
         .json(&json!({
@@ -64,7 +64,7 @@ pub fn submit(problem_id: u32, solution: &[Placement]) -> Result<SubmitId> {
                 "placements": solution
             }))?
         }))
-        .send()?)
-    .text()?;
+        .send()?
+        .text()?;
     Ok(SubmitId(resp))
 }

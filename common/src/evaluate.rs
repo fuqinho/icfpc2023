@@ -5,7 +5,7 @@ use crate::problem::Placement;
 use crate::problem::Problem;
 use crate::problem::Solution;
 
-fn is_blocked(attendee: &Attendee, placement: &Placement, placements: &[Placement]) -> bool {
+pub fn is_blocked(attendee: &Attendee, placement: &Placement, placements: &[Placement]) -> bool {
     let segment = LineSegment {
         from: attendee.position,
         to: placement.position,
