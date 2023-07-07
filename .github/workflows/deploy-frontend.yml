@@ -12,18 +12,32 @@ jobs:
       contents: "read"
       id-token: "write"
     steps:
-      - uses: actions/checkout@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
       - name: Authenticate to Google Cloud
         id: auth
         uses: google-github-actions/auth@v0
         with:
+          token_format: access_token
           workload_identity_provider: projects/462797584958/locations/global/workloadIdentityPools/github/providers/github
           service_account: icfpc2023-github@icfp-contest-compute.iam.gserviceaccount.com
-      - uses: RafikFarhad/push-to-gcr-github-action@v5-beta
+
+      - name: Set up Cloud SDK
+        uses: "google-github-actions/setup-gcloud@v1"
+
+      - name: Login to Artifact Registry
+        uses: docker/login-action@v2
         with:
           registry: asia-northeast1-docker.pkg.dev
-          project_id: icfp-contest-compute/icfpc2023-frontend
-          image_name: icfpc2023-frontend
-          image_tag: ${{ github.sha }}
-          dockerfile: ./frontend/Dockerfile
-          context: .
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v4
+        with:
+          file: ./frontend/Dockerfile
+          push: true
+          tags: "asia-northeast1-docker.pkg.dev/icfp-contest-compute/icfpc2023-frontend/icfpc2023-frontend:${{ github.sha }}"
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
