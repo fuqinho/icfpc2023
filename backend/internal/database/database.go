@@ -7,12 +7,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"cloud.google.com/go/storage"
 )
 
 type Problem struct {
 	ID string `json:"id"`
+}
+
+type Solution struct {
+	UUID      string    `json:"uuid"`
+	ProblemID string    `json:"problem_id"`
+	Created   time.Time `json:"created"`
 }
 
 type DB struct {
@@ -92,6 +99,52 @@ func (db *DB) AddProblem(ctx context.Context, id string, spec string) error {
 	}
 
 	return nil
+}
+
+func (db *DB) ListSolutionsForProblem(ctx context.Context, problemID string) ([]*Solution, error) {
+	rows, err := db.raw.QueryContext(ctx, `SELECT uuid, created FROM solutions WHERE problem_id = ? ORDER BY created DESC`, problemID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var solutions []*Solution
+	for rows.Next() {
+		var uuid string
+		var created time.Time
+		if err := rows.Scan(&uuid, &created); err != nil {
+			return nil, err
+		}
+		solutions = append(solutions, &Solution{
+			UUID:      uuid,
+			ProblemID: problemID,
+			Created:   created,
+		})
+	}
+	return solutions, nil
+}
+
+func (db *DB) ListAllSolutions(ctx context.Context) ([]*Solution, error) {
+	rows, err := db.raw.QueryContext(ctx, `SELECT uuid, problem_id, created FROM solutions ORDER BY created DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var solutions []*Solution
+	for rows.Next() {
+		var uuid, problemID string
+		var created time.Time
+		if err := rows.Scan(&uuid, &problemID, &created); err != nil {
+			return nil, err
+		}
+		solutions = append(solutions, &Solution{
+			UUID:      uuid,
+			ProblemID: problemID,
+			Created:   created,
+		})
+	}
+	return solutions, nil
 }
 
 func (db *DB) ProblemURL(id string) string {
