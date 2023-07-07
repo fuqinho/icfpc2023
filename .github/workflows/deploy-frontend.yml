@@ -24,6 +24,6 @@ jobs:
           registry: asia-northeast1-docker.pkg.dev
           project_id: icfp-contest-compute/icfpc2023-frontend
           image_name: icfpc2023-frontend
-          image_tag: ${{ env.GITHUB_SHA }}
+          image_tag: ${{ github.sha }}
           dockerfile: ./frontend/Dockerfile
           context: .
