@@ -15,7 +15,6 @@ fn main(
     problem_id: u32,
 ) -> Result<()> {
     let mut rng = StdRng::seed_from_u64(42);
-    // let mut rng = rand::thread_rng();
 
     let problem = Problem::read_from_file(format!("problems/{}.json", problem_id))?;
 
