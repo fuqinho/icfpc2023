@@ -15,8 +15,10 @@ struct Args {
     problem_id: u32,
     #[arg(short, long)]
     submit: bool,
-    #[arg(short, long)]
+    #[arg(long)]
     swap_colors: bool,
+    #[arg(long)]
+    greedy: bool,
 }
 
 #[derive(Debug)]
@@ -31,20 +33,25 @@ fn convert_to_real_point(x: u32, y: u32, prob: &Problem) -> Point2D<f64> {
     )
 }
 
-fn generate_random_solution(prob: &Problem) -> Solution {
-    let mut rng = rand::thread_rng();
-
+fn generate_grid_points(prob: &Problem) -> Vec<(u32, u32)> {
     let h = prob.stage.height() as i32;
     let w = prob.stage.width() as i32;
     let sh = (h - 20) / 10 + 1;
     let sw = (w - 20) / 10 + 1;
 
-    let mut possible_points = vec![];
+    let mut grid_points = vec![];
     for x in 0..sw {
         for y in 0..sh {
-            possible_points.push((x as u32, y as u32));
+            grid_points.push((x as u32, y as u32));
         }
     }
+    grid_points
+}
+
+fn generate_random_solution(prob: &Problem) -> Solution {
+    let mut rng = rand::thread_rng();
+
+    let mut possible_points = generate_grid_points(prob);
     possible_points.shuffle(&mut rng);
 
     let mut sol = IndexMap::new();
@@ -64,11 +71,6 @@ fn validate_solution(prob: &Problem, sol: &Solution) -> bool {
         }
     }
     true
-}
-
-fn score(prob: &Problem, sol: &Solution, pid: u32) -> f64 {
-    let raw_sol = convert_solution(prob, sol, pid);
-    evaluate(prob, &raw_sol)
 }
 
 fn convert_solution(prob: &Problem, sol: &Solution, pid: u32) -> common::Solution {
@@ -207,6 +209,48 @@ fn hill_climb_swap(prob: &Problem) -> Solution {
     cur
 }
 
+// Greedy
+
+fn greedy(prob: &Problem, pid: u32) -> common::Solution {
+    let grid = generate_grid_points(prob);
+
+    let num_of_tastes = prob.musicians.iter().max().expect("Should not null") + 1;
+
+    let mut score = vec![vec![0.; grid.len()]; num_of_tastes];
+    for i in 0..grid.len() {
+        let p = convert_to_real_point(grid[i].0, grid[i].1, prob);
+        for j in 0..prob.attendees.len() {
+            let ap = prob.attendees[j].position;
+            for k in 0..num_of_tastes {
+                let d = ap.distance_to(p);
+                score[k][i] += (1000000.0 * prob.attendees[j].tastes[k] / (d * d)).ceil();
+            }
+        }
+    }
+
+    let mut sorted_scores = vec![];
+    for taste in 0..num_of_tastes {
+        let mut v = vec![];
+        for i in 0..score[taste].len() {
+            v.push((score[taste][i], i));
+        }
+        v.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("Should be able to compare"));
+        sorted_scores.push(v);
+    }
+
+    let mut placements = vec![];
+    for musician in prob.musicians.iter() {
+        let (sc, pos) = sorted_scores[*musician].pop().expect("Should not null");
+        placements.push(Placement {
+            position: convert_to_real_point(grid[pos].0, grid[pos].1, prob),
+        });
+    }
+    common::Solution {
+        problem_id: pid,
+        placements: placements,
+    }
+}
+
 fn main() -> Result<()> {
     env_logger::init();
     let args = Args::parse();
@@ -219,12 +263,16 @@ fn main() -> Result<()> {
     let problem: Problem = Problem::from(raw_problem);
 
     let mut sol = generate_random_solution(&problem);
-    if !args.swap_colors {
+    if args.swap_colors {
         sol = hill_climb_swap(&problem);
     }
-    info!("score = {:?}", score(&problem, &sol, args.problem_id));
 
-    let raw_sol = convert_solution(&problem, &sol, args.problem_id);
+    let mut raw_sol = convert_solution(&problem, &sol, args.problem_id);
+    if args.greedy {
+        raw_sol = greedy(&problem, args.problem_id);
+    }
+
+    info!("score = {:?}", evaluate(&problem, &raw_sol));
     let raw_sol = serde_json::to_string(&RawSolution::from(raw_sol))?;
     let output = PathBuf::from(format!("{}-out.json", args.problem_id));
     std::fs::write(output, raw_sol)?;
