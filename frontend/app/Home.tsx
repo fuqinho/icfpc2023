@@ -1,8 +1,9 @@
 "use client";
 
 import Visualizer from "@/components/Visualizer";
-import { Solution, problems } from "@/components/problems";
-import { useState } from "react";
+import { useProblemList, useProblemSpec } from "@/components/api";
+import { Solution } from "@/components/problems";
+import { useEffect, useState } from "react";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -11,9 +12,28 @@ import { useState } from "react";
 // が入っているので、そこにあるやつはコピペで使えます。
 
 export default function Home() {
-  const problemNames = Array.from(problems.keys());
-  const [problemName, setProblemName] = useState(problemNames[0]);
+  const { data: problems, error: errorProblems } = useProblemList();
+  const [problemID, setProblemID] = useState<string | number | undefined>(
+    undefined,
+  );
+  const { data: problem, error: errorProblem } = useProblemSpec(problemID);
   const [rawSolution, setRawSolution] = useState("");
+
+  useEffect(() => {
+    if (problems && !problemID) {
+      setProblemID(problems[0].id);
+    }
+  }, [problems, problemID]);
+
+  if (errorProblems) {
+    throw errorProblems;
+  }
+  if (errorProblem) {
+    throw errorProblem;
+  }
+  if (!problems) {
+    return <div>Loading...</div>;
+  }
 
   let jsonParseException = null;
   let solution: Solution | null = null;
@@ -28,12 +48,16 @@ export default function Home() {
     <div>
       <select
         className="select select-bordered select-sm w-full max-w-xs"
-        onChange={(e) => setProblemName(e.target.value)}
+        onChange={(e) => setProblemID(e.target.value)}
       >
-        {problemNames.map((name) => {
+        {problems.map((entry) => {
           return (
-            <option key={name} selected={name === problemName}>
-              {name}
+            <option
+              key={entry.id}
+              selected={entry.id === problemID}
+              value={entry.id}
+            >
+              {entry.id}
             </option>
           );
         })}
@@ -47,7 +71,13 @@ export default function Home() {
       </textarea>
       {jsonParseException ? `${jsonParseException}` : null}
 
-      <Visualizer problem={problems.get(problemName)!} solution={solution} />
+      {problem ? (
+        <Visualizer
+          problem={problem}
+          solution={solution}
+          className="w-[800px] h-[800px] m-4 border border-slate-700"
+        />
+      ) : null}
     </div>
   );
 }

@@ -71,7 +71,10 @@ func (h *Handler) handleProblem(w http.ResponseWriter, r *http.Request) {
 	withJSONResponse(w, r, func() (any, error) {
 		ctx := r.Context()
 		vars := mux.Vars(r)
-		id := vars["id"]
+		id, err := strconv.Atoi(vars["id"])
+		if err != nil {
+			return nil, err
+		}
 
 		problem, err := h.db.GetProblem(ctx, id)
 		if err != nil {
@@ -86,7 +89,10 @@ func (h *Handler) handleProblemSpec(w http.ResponseWriter, r *http.Request) {
 	withResponse(w, r, func() error {
 		ctx := r.Context()
 		vars := mux.Vars(r)
-		id := vars["id"]
+		id, err := strconv.Atoi(vars["id"])
+		if err != nil {
+			return err
+		}
 
 		if _, err := h.db.GetProblem(ctx, id); err != nil {
 			return err
@@ -99,10 +105,13 @@ func (h *Handler) handleProblemSpec(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleProblemSolutions(w http.ResponseWriter, r *http.Request) {
-	withJSONResponse(w, r, func() (interface{}, error) {
+	withJSONResponse(w, r, func() (any, error) {
 		ctx := r.Context()
 		vars := mux.Vars(r)
-		id := vars["id"]
+		id, err := strconv.Atoi(vars["id"])
+		if err != nil {
+			return nil, err
+		}
 
 		solutions, err := h.db.ListSolutionsForProblem(ctx, id)
 		if err != nil {
@@ -116,7 +125,7 @@ func (h *Handler) handleProblemSolutions(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *Handler) handleSolutions(w http.ResponseWriter, r *http.Request) {
-	withJSONResponse(w, r, func() (interface{}, error) {
+	withJSONResponse(w, r, func() (any, error) {
 		ctx := r.Context()
 		solutions, err := h.db.ListAllSolutions(ctx)
 		if err != nil {
@@ -130,7 +139,7 @@ func (h *Handler) handleSolutions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleSolution(w http.ResponseWriter, r *http.Request) {
-	withJSONResponse(w, r, func() (interface{}, error) {
+	withJSONResponse(w, r, func() (any, error) {
 		ctx := r.Context()
 		vars := mux.Vars(r)
 		uuid := vars["uuid"]
@@ -168,10 +177,11 @@ func (h *Handler) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		problemID, ok := req["id"].(string)
+		problemIDFloat, ok := req["problem_id"].(float64)
 		if !ok {
 			return errors.New("problem ID missing")
 		}
+		problemID := int(problemIDFloat)
 
 		solutionSpec, err := json.Marshal(req)
 		if err != nil {
@@ -204,13 +214,12 @@ func (h *Handler) handleUpdateProblems(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		knownProblemIDs := make(map[string]struct{})
+		knownProblemIDs := make(map[int]struct{})
 		for _, p := range problems {
 			knownProblemIDs[p.ID] = struct{}{}
 		}
 
-		for i := 1; i <= problemsResponse.NumberOfProblems; i++ {
-			id := strconv.Itoa(i)
+		for id := 1; id <= problemsResponse.NumberOfProblems; id++ {
 			if _, ok := knownProblemIDs[id]; ok {
 				continue
 			}
@@ -220,12 +229,12 @@ func (h *Handler) handleUpdateProblems(w http.ResponseWriter, r *http.Request) {
 				Failure string `json:"Failure"`
 			}
 
-			if err := httputil.GetJSON(ctx, "http://api.icfpcontest.com/problem?problem_id="+id, &problemResponse); err != nil {
+			if err := httputil.GetJSON(ctx, fmt.Sprintf("http://api.icfpcontest.com/problem?problem_id=%d", id), &problemResponse); err != nil {
 				return err
 			}
 
 			if problemResponse.Success == "" {
-				return fmt.Errorf("failed to get problem %s: %s", id, problemResponse.Failure)
+				return fmt.Errorf("failed to get problem %d: %s", id, problemResponse.Failure)
 			}
 
 			if err := h.db.AddProblem(ctx, id, problemResponse.Success); err != nil {
