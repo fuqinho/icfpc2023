@@ -66,7 +66,7 @@ fn validate_solution(prob: &Problem, sol: &Solution) -> bool {
     true
 }
 
-fn score(prob: &Problem, sol: &Solution) -> u64 {
+fn score(prob: &Problem, sol: &Solution) -> f64 {
     let raw_sol = convert_solution(prob, sol);
     evaluate(prob, &raw_sol)
 }
@@ -127,8 +127,8 @@ fn swap_taste(sol: &mut Solution, i: usize, j: usize) {
     }
 }
 
-fn score_by_musician(i: usize, cur: &Solution, blocked: &Vec<Vec<bool>>, prob: &Problem) -> u64 {
-    let mut s = 0;
+fn score_by_musician(i: usize, cur: &Solution, blocked: &Vec<Vec<bool>>, prob: &Problem) -> f64 {
+    let mut s: f64 = 0.;
     let v = cur.musicians.get_index(i).expect("Should exist");
     let taste = *v.1;
     let p = convert_to_real_point(v.0 .0, v.0 .1, prob);
@@ -138,7 +138,7 @@ fn score_by_musician(i: usize, cur: &Solution, blocked: &Vec<Vec<bool>>, prob: &
         }
         let pa = prob.attendees[j].position;
         let d2 = (pa.x - p.x) * (pa.x - p.x) + (pa.y - p.y) * (pa.y - p.y);
-        s += (1000000f64 * prob.attendees[j].tastes[taste] / d2).ceil() as u64;
+        s += (1000000f64 * prob.attendees[j].tastes[taste] / d2).ceil();
     }
     s
 }
@@ -169,14 +169,14 @@ fn hill_climb_swap(prob: &Problem) -> Solution {
     }
     info!("block map is calculated");
 
-    let mut score_by_m = vec![0; cur.musicians.len()];
+    let mut score_by_m = vec![0.; cur.musicians.len()];
     for i in 0..cur.musicians.len() {
         score_by_m[i] = score_by_musician(i, &cur, &blocked, prob);
     }
     info!("score by musician is calculated");
 
     loop {
-        let cur_score: u64 = score_by_m.iter().sum();
+        let cur_score: f64 = score_by_m.iter().sum();
         let mut s = cur_score;
         // Swap taste
         for i in 0..cur.musicians.len() {
@@ -185,7 +185,7 @@ fn hill_climb_swap(prob: &Problem) -> Solution {
                 score_by_m[i] = score_by_musician(i, &cur, &blocked, prob);
                 score_by_m[j] = score_by_musician(j, &cur, &blocked, prob);
 
-                let new_score: u64 = score_by_m.iter().sum();
+                let new_score: f64 = score_by_m.iter().sum();
                 if new_score <= s {
                     swap_taste(&mut cur, i, j);
                     score_by_m[i] = score_by_musician(i, &cur, &blocked, prob);
