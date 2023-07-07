@@ -4,6 +4,8 @@ import Visualizer from "@/components/Visualizer";
 import { useProblemList, useProblemSpec } from "@/components/api";
 import { Solution } from "@/components/problems";
 import { useEffect, useState } from "react";
+import ProblemInfo from "./ProblemInfo";
+import clsx from "clsx";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -39,40 +41,61 @@ export default function Home() {
   let solution: Solution | null = null;
   if (rawSolution !== "") {
     try {
-      solution = JSON.parse(rawSolution) as Solution;
+      const s = JSON.parse(rawSolution) as Solution;
+      if (Object.hasOwn(s, "placements")) {
+        solution = s;
+      } else {
+        jsonParseException = "Object doesn't have placements.";
+      }
     } catch (e) {
       jsonParseException = e;
     }
   }
   return (
-    <div>
-      <select
-        className="select select-bordered select-sm w-full max-w-xs"
-        onChange={(e) => setProblemID(e.target.value)}
-        value={problemID}
-      >
+    <div className="m-4">
+      <div className="tabs">
         {problems.map((entry) => {
           return (
-            <option key={entry.id} value={entry.id}>
+            <a
+              key={entry.id}
+              className={clsx(
+                "tab tab-lifted",
+                entry.id === problemID ? "tab-active" : null,
+              )}
+              onClick={() => {
+                setProblemID(entry.id);
+                setRawSolution("");
+              }}
+            >
               {entry.id}
-            </option>
+            </a>
           );
         })}
-      </select>
-      <textarea
-        placeholder="Solution"
-        className="textarea textarea-bordered textarea-xs w-full max-w-xs"
-        onChange={(e) => setRawSolution(e.target.value)}
-        defaultValue={rawSolution}
-      ></textarea>
-      {jsonParseException ? `${jsonParseException}` : null}
+      </div>
 
       {problem ? (
-        <Visualizer
-          problem={problem}
-          solution={solution}
-          className="w-[800px] h-[800px] m-4 border border-slate-200"
-        />
+        <div>
+          <div className="flex">
+            <Visualizer
+              problem={problem}
+              solution={solution}
+              className="w-[800px] h-[800px] m-4 border border-slate-200"
+            />
+            <ProblemInfo problem={problem} />
+          </div>
+          <div className="m-4">
+            <h2 className="text-xl my-2">解答</h2>
+            <textarea
+              placeholder="Solution"
+              className="textarea textarea-bordered w-[800px] h-[100px] font-mono"
+              onChange={(e) => setRawSolution(e.target.value)}
+              defaultValue={rawSolution}
+            ></textarea>
+            <pre>
+              <code>{jsonParseException ? `${jsonParseException}` : null}</code>
+            </pre>
+          </div>
+        </div>
       ) : null}
     </div>
   );
