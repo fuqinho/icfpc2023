@@ -500,8 +500,8 @@ impl saru::Annealer for Solver2 {
         let scale_x = (scale_x / grid).round() as i32;
         let scale_y = (scale_y / grid).round() as i32;
 
-        match rng.gen_range(0..=1) {
-            0 => loop {
+        match rng.gen_range(0..=3) {
+            0..=2 => loop {
                 let id = rng.gen_range(0..state.board.musicians().len());
                 let d = vec2(
                     rng.gen_range(-scale_x..=scale_x) as f64 * grid,
@@ -530,7 +530,7 @@ impl saru::Annealer for Solver2 {
                 };
             },
 
-            1 => loop {
+            3 => loop {
                 let i = rng.gen_range(0..self.0.musicians.len());
                 let j = rng.gen_range(0..self.0.musicians.len());
                 if i != j {
@@ -673,7 +673,7 @@ fn main(
         &solver,
         &saru::AnnealingOptions {
             time_limit,
-            limit_temp: 0.1,
+            limit_temp: 10.0,
             restart: 0,
             threads,
             silent: false,
