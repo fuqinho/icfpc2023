@@ -6,14 +6,14 @@ import {
   useEffect,
   useImperativeHandle,
   useRef,
+  useState,
 } from "react";
 import { Problem, Solution } from "./problems";
 import { Renderer, RenderingOption } from "./visualizer/renderer";
-import type { EvaluationResult } from "wasm";
+import { EvaluationResult } from "./evaluation_result";
+import { CANVAS_SIZE, initialViewportState } from "./visualizer/viewport";
 
 export interface VisualizerElement {}
-
-const CANVAS_SIZE = 4000;
 
 const Visualizer = forwardRef(function Visualizer(
   {
@@ -32,10 +32,17 @@ const Visualizer = forwardRef(function Visualizer(
   ref: ForwardedRef<VisualizerElement>,
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [viewportState, setViewportState] = useState(() =>
+    initialViewportState(problem, solution),
+  );
 
-  useImperativeHandle(ref, () => {
-    return {};
-  });
+  useImperativeHandle(
+    ref,
+    () => {
+      return {};
+    },
+    [],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -45,12 +52,12 @@ const Visualizer = forwardRef(function Visualizer(
 
     const renderer = new Renderer(
       canvas.getContext("2d")!,
-      CANVAS_SIZE,
-      CANVAS_SIZE,
       problem,
       solution,
       evalResult,
       option,
+      viewportState,
+      setViewportState,
     );
     const remove = renderer.addEventListeners(canvas);
 
@@ -64,7 +71,15 @@ const Visualizer = forwardRef(function Visualizer(
       remove();
       window.cancelAnimationFrame(animationFrameId);
     };
-  }, [canvasRef, problem, solution, evalResult, option]);
+  }, [
+    canvasRef,
+    problem,
+    solution,
+    evalResult,
+    option,
+    viewportState,
+    setViewportState,
+  ]);
 
   return (
     <canvas

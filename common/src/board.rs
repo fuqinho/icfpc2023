@@ -1,12 +1,12 @@
 use anyhow::bail;
-use euclid::{Angle, Box2D, Vector2D};
+use euclid::{Box2D, Vector2D};
 use lyon_geom::Point;
 
 use crate::{geom::tangent_to_circle, Placement, Problem, Solution};
 
 type P = Vector2D<f64, euclid::UnknownUnit>;
 
-const R: f64 = 5.;
+const MUSICIAN_R: f64 = 5.;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 struct F64(pub f64);
@@ -32,11 +32,16 @@ pub struct Board {
     pub prob: Problem,
 
     // m -> position
-    ps: Vec<Option<P>>,
+    // musicians + pillars
+    ps: Vec<Option<(P, f64)>>,
     // m -> audience ids sorted by args
     aids: Vec<Vec<(F64, usize)>>,
     // m -> a -> block count
     blocks: Vec<Vec<usize>>,
+    // m -> closeness factor
+    qs: Vec<f64>,
+    // m -> I
+    impacts: Vec<Option<f64>>,
 
     score: f64,
 }
@@ -45,10 +50,16 @@ impl Board {
     pub fn new(problem_id: u32, mut prob: Problem) -> Self {
         let n = prob.musicians.len();
         let m = prob.attendees.len();
+        let p = prob.pillars.len();
 
-        let ps = vec![None; n];
+        let mut ps = vec![None; n + p];
+        for i in 0..p {
+            ps[i + n] = Some((prob.pillars[i].center.to_vector(), prob.pillars[i].radius));
+        }
         let aids = vec![vec![]; n];
         let blocks = vec![vec![0; m]; n];
+        let qs = vec![1.; n];
+        let impacts = vec![None; n];
 
         prob.stage = Box2D::new(
             prob.stage.min + P::new(10., 10.),
@@ -61,6 +72,8 @@ impl Board {
             ps,
             aids,
             blocks,
+            qs,
+            impacts,
             score: 0.,
         }
     }
@@ -69,8 +82,8 @@ impl Board {
         self.score
     }
 
-    pub fn musicians(&self) -> &Vec<Option<P>> {
-        &self.ps
+    pub fn musicians(&self) -> &[Option<(P, f64)>] {
+        &self.ps[0..self.prob.musicians.len()]
     }
 
     // The musician's contribution to the score
@@ -102,8 +115,8 @@ impl Board {
         if !bb.contains(position) {
             bail!("not on stage");
         }
-        for p in self.ps.iter() {
-            if let Some(p) = p {
+        for p in self.ps[0..self.prob.musicians.len()].iter() {
+            if let Some((p, _)) = p {
                 if (*p - position.to_vector()).square_length() < 100. {
                     bail!("too close to another musician");
                 }
@@ -118,11 +131,29 @@ impl Board {
 
     fn place(&mut self, m: usize, p: P) {
         // Update ps
-        self.ps[m] = Some(p);
+        self.ps[m] = Some((p, MUSICIAN_R));
 
         assert!(self.aids[m].is_empty());
 
+        // Update qs
+        if self.prob.is_v2() {
+            let mut qm = 1.;
+            for i in 0..self.prob.musicians.len() {
+                if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
+                    continue;
+                }
+                if let Some((q, _)) = self.ps[i] {
+                    let d = 1. / (p - q).length();
+                    qm += d;
+                    self.qs[i] += d;
+                    self.score += d * self.impacts[i].unwrap();
+                }
+            }
+            self.qs[m] = qm;
+        }
+
         // Update aids and score
+        let mut new_impacts = 0.;
         for (i, a) in self.prob.attendees.iter().enumerate() {
             let r: F64 = (a.position - p)
                 .to_vector()
@@ -131,20 +162,22 @@ impl Board {
                 .into();
             self.aids[m].push((r, i));
 
-            self.score += self.impact(m, i)
+            new_impacts += self.impact(m, i);
         }
         self.aids[m].sort_unstable();
+        self.impacts[m] = Some(new_impacts);
+        self.score += self.qs[m] * new_impacts;
 
         // Update blocks
         self.update_blocks(m, p, true);
     }
 
     pub fn can_place(&self, i: usize, position: Point<f64>) -> bool {
-        for (ix, p) in self.ps.iter().enumerate() {
+        for (ix, p) in self.ps[0..self.prob.musicians.len()].iter().enumerate() {
             if ix == i {
                 continue;
             }
-            if let Some(p) = p {
+            if let Some((p, _)) = p {
                 if (*p - position.to_vector()).square_length() < 100. {
                     return false;
                 }
@@ -154,15 +187,30 @@ impl Board {
     }
 
     pub fn unplace(&mut self, m: usize) {
-        let p = self.ps[m].unwrap();
+        let (p, _) = self.ps[m].unwrap();
 
         // Update blocks
         self.update_blocks(m, p, false);
 
         // Update aids and score
         self.aids[m].clear();
-        for (i, _) in self.prob.attendees.iter().enumerate() {
-            self.score -= self.impact(m, i)
+        self.score -= self.qs[m] * self.impacts[m].unwrap();
+        self.impacts[m] = None;
+
+        // Update qs
+        if self.prob.is_v2() {
+            self.qs[m] = 1.;
+            let p = self.ps[m].unwrap().0;
+            for i in 0..self.prob.musicians.len() {
+                if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
+                    continue;
+                }
+                if let Some((q, _)) = self.ps[i] {
+                    let d = 1. / (p - q).length();
+                    self.score -= d * self.impacts[i].unwrap();
+                    self.qs[i] -= d;
+                }
+            }
         }
 
         // Update ps
@@ -175,13 +223,21 @@ impl Board {
                 continue;
             }
 
-            if let Some(q) = q {
+            if let Some((q, r)) = q {
                 for rev in [false, true] {
-                    let (blocking, blocked, _, i) = if rev { (q, p, i, m) } else { (p, q, m, i) };
+                    let (blocking, blocked, _, i, r, _) = if rev {
+                        (q, p, i, m, r, MUSICIAN_R)
+                    } else {
+                        (p, q, m, i, MUSICIAN_R, r)
+                    };
+                    if i >= self.prob.musicians.len() {
+                        // blocked is pillar, we don't need to calculate impact
+                        continue;
+                    }
 
                     // Update for blocked musician.
 
-                    let (t1, t2) = tangent_to_circle(blocked, blocking, R);
+                    let (t1, t2) = tangent_to_circle(blocked, blocking, r);
 
                     let r1: F64 = (t1 - blocked).angle_from_x_axis().radians.into();
                     let r2: F64 = (t2 - blocked).angle_from_x_axis().radians.into();
@@ -215,7 +271,12 @@ impl Board {
         let b = &mut self.blocks[i][a];
         *b += 1;
         if *b == 1 {
-            self.score -= self.impact(i, a);
+            // Is it okay to "ceiled" value here? probably not.
+            let d_impact = self.impact(i, a);
+            self.impacts[i].as_mut().map(|im| {
+                *im -= d_impact;
+            });
+            self.score -= self.qs[i] * d_impact;
         }
     }
 
@@ -223,12 +284,17 @@ impl Board {
         let b = &mut self.blocks[i][a];
         *b -= 1;
         if *b == 0 {
-            self.score += self.impact(i, a);
+            // Is it okay to "ceiled" value here? probably not.
+            let d_impact = self.impact(i, a);
+            self.impacts[i].as_mut().map(|im| {
+                *im += d_impact;
+            });
+            self.score += self.qs[i] * d_impact;
         }
     }
 
     fn impact(&self, m: usize, a: usize) -> f64 {
-        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap())
+        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap().0)
             .to_vector()
             .square_length();
         let impact = 1_000_000.0 * self.prob.attendees[a].tastes[self.prob.musicians[m]] / d2;
@@ -236,7 +302,7 @@ impl Board {
     }
 
     fn impact_if_kind(&self, m: usize, a: usize, k: usize) -> f64 {
-        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap())
+        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap().0)
             .to_vector()
             .square_length();
         let impact = 1_000_000.0 * self.prob.attendees[a].tastes[k] / d2;
@@ -249,8 +315,8 @@ impl TryInto<Solution> for Board {
 
     fn try_into(self) -> Result<Solution, Self::Error> {
         let mut placements = vec![];
-        for p in self.ps {
-            if let Some(p) = p {
+        for p in self.ps[0..self.prob.musicians.len()].iter() {
+            if let Some((p, _)) = p {
                 placements.push(Placement {
                     position: p.to_point(),
                 });
@@ -267,10 +333,10 @@ impl TryInto<Solution> for Board {
 
 #[cfg(test)]
 mod tests {
-    use lyon_geom::Point;
+    use lyon_geom::{Box2D, Point};
     use rand::{rngs::StdRng, Rng, SeedableRng};
 
-    use crate::{board::Board, evaluate, Problem, Solution};
+    use crate::{board::Board, evaluate, Attendee, Problem, Solution};
 
     #[test]
     fn test_board() {
@@ -303,5 +369,47 @@ mod tests {
         }
 
         assert_eq!(board.score(), 0.0);
+    }
+
+    #[test]
+    fn test_tangent() {
+        for flip in [false, true] {
+            let pnt = |x: f64, y: f64| {
+                if flip {
+                    Point::new(y, x)
+                } else {
+                    Point::new(x, y)
+                }
+            };
+
+            let problem = Problem {
+                room: Box2D::new(Point::new(0.0, 0.0), Point::new(1000.0, 1000.0)),
+                stage: Box2D::new(Point::new(0.0, 0.0), Point::new(100.0, 100.0)),
+                musicians: vec![0, 0, 1],
+                attendees: vec![Attendee {
+                    position: pnt(110., 15.),
+                    tastes: vec![0.0, 1.0],
+                }],
+                pillars: vec![],
+            };
+
+            let mut board = Board::new(0, problem.clone());
+
+            board.try_place(0, pnt(20.0, 10.0)).unwrap();
+            board.try_place(1, pnt(20.0, 20.0)).unwrap();
+            board.try_place(2, pnt(10.0, 15.0)).unwrap();
+
+            let score = board.score();
+            let expected_score = 1e6 / 100.0 / 100.0;
+
+            assert_eq!(score, expected_score);
+
+            for eps in [1e-9, -1e-9] {
+                board.unplace(2);
+                board.try_place(2, pnt(10.0, 15.0 + eps)).unwrap();
+
+                assert_eq!(board.score(), 0.);
+            }
+        }
     }
 }
