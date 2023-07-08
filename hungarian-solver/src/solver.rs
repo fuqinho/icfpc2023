@@ -87,19 +87,33 @@ impl Solver {
             weights[0].len()
         );
 
-        let weights = Matrix::from_rows(weights).unwrap();
-
-        let (score, assignments) = kuhn_munkres(&weights);
+        let matrix = Matrix::from_rows(weights.clone()).unwrap();
 
         let mut to_place: BTreeSet<usize> = (0..self.board.prob.musicians.len()).collect();
 
-        for (i, j) in assignments.iter().enumerate() {
-            self.board
-                .try_place(*j, outer[i])
-                .context("failed to place")
-                .unwrap();
+        if weights.len() <= weights[0].len() {
+            let (_score, assignments) = kuhn_munkres(&matrix);
 
-            to_place.remove(j);
+            for (i, j) in assignments.iter().enumerate() {
+                self.board
+                    .try_place(*j, outer[i])
+                    .context("failed to place")
+                    .unwrap();
+
+                to_place.remove(j);
+            }
+        } else {
+            // musician -> circle -> weight
+            let (_score, assignments) = kuhn_munkres(&matrix.transposed());
+
+            for (j, i) in assignments.iter().enumerate() {
+                self.board
+                    .try_place(j, outer[*i])
+                    .context("failed to place")
+                    .unwrap();
+
+                to_place.remove(&j);
+            }
         }
 
         for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize - D)).step_by(D) {
