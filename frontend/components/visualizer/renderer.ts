@@ -218,7 +218,7 @@ export class Renderer {
     const mouseleaveEvent = this.mouseleaveEvent.bind(this);
     const mousemoveEvent = (e: MouseEvent) => this.mousemoveEvent(canvas, e);
     const mouseupEvent = this.mouseupEvent.bind(this);
-    const wheelEvent = this.wheelEvent.bind(this);
+    const wheelEvent = (e: WheelEvent) => this.wheelEvent(canvas, e);
     canvas.addEventListener("mousedown", mousedownEvent);
     canvas.addEventListener("mouseleave", mouseleaveEvent);
     canvas.addEventListener("mousemove", mousemoveEvent);
@@ -244,12 +244,12 @@ export class Renderer {
     ];
   }
 
-  private wheelEvent(e: WheelEvent) {
+  private wheelEvent(canvas: HTMLCanvasElement, e: WheelEvent) {
     e.preventDefault();
     if (e.deltaY < 0) {
-      this.vp.zoom(0.8);
+      this.vp.zoomWithMousePos(0.8, this.getMouseCCoord(canvas, e));
     } else {
-      this.vp.zoom(1.2);
+      this.vp.zoomWithMousePos(1.2, this.getMouseCCoord(canvas, e));
     }
     return false;
   }

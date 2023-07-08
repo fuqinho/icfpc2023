@@ -100,6 +100,26 @@ export class Viewport {
     this.pVpWidth *= factor;
   }
 
+  public zoomWithMousePos(factor: number, cPos: Coord) {
+    const pVpHeight = (this.pVpWidth * this.canvasHeight) / this.canvasWidth;
+    const pPos = [
+      this.pVpCenter[0] - this.pVpWidth / 2 + this.toProblemScale(cPos[0]),
+      this.pVpCenter[1] -
+        pVpHeight / 2 +
+        this.toProblemScale(this.canvasHeight - cPos[1]),
+    ];
+    const newPvpWidth = this.pVpWidth * factor;
+    const newPvpHeight = (newPvpWidth * this.canvasHeight) / this.canvasWidth;
+    const newPvpCenter: Coord = [
+      pPos[0] + newPvpWidth / 2 - (cPos[0] * newPvpWidth) / this.canvasWidth,
+      pPos[1] +
+        newPvpHeight / 2 -
+        ((this.canvasHeight - cPos[1]) * newPvpWidth) / this.canvasWidth,
+    ];
+    this.pVpWidth = newPvpWidth;
+    this.pVpCenter = newPvpCenter;
+  }
+
   public setVpCenterMove(diff: Coord) {
     this.cVpCenterTempMove = diff;
   }
