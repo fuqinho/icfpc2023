@@ -1,14 +1,15 @@
 import tinycolor from "tinycolor2";
 import { Attendee, Musician, Pillar, Problem, Solution } from "../problems";
 import { Viewport } from "./viewport";
-import type { EvaluationResult } from "wasm";
 import type { CanvasRenderingContext2D as ServerCanvasContext2D } from "canvas";
+import { EvaluationResult } from "../evaluation_result";
 
 const ATTENDEE_RADIUS = 10;
 const MUSICIAN_RADIUS = 5;
 
 export interface RenderingOption {
   tasteHeatmapInstrument?: number;
+  scoreHeatmapMusicians?: boolean;
 }
 
 export class Renderer {
@@ -54,6 +55,7 @@ export class Renderer {
   public render() {
     this.vp.clear();
     this.drawRoomAndStage();
+
     if (this.option.tasteHeatmapInstrument === undefined) {
       this.problem.attendees.forEach((a) => this.drawAttendeeNormal(a));
     } else {
@@ -72,7 +74,24 @@ export class Renderer {
     }
 
     this.problem.pillars.forEach((p) => this.drawPillar(p));
-    this.solution?.placements.forEach((m, i) => this.drawMusician(m, i));
+    if (this.solution) {
+      if (this.option.scoreHeatmapMusicians) {
+        let maxScore = Number.MIN_SAFE_INTEGER;
+        let minScore = Number.MAX_SAFE_INTEGER;
+        this.solution.placements.forEach((_, i) => {
+          const score = this.evalResult?.musicians.at(i)?.score!;
+          maxScore = Math.max(maxScore, score);
+          minScore = Math.min(minScore, score);
+        });
+        this.solution.placements.forEach((m, i) =>
+          this.drawMusicianWithHeat(m, i, maxScore, minScore),
+        );
+      } else {
+        this.solution.placements.forEach((m, i) =>
+          this.drawMusicianNormal(m, i),
+        );
+      }
+    }
     this.vp.drawCursorPos();
   }
 
@@ -135,7 +154,7 @@ export class Renderer {
     });
   }
 
-  private drawMusician(musician: Musician, index: number) {
+  private drawMusicianNormal(musician: Musician, index: number) {
     const col = tinycolor({
       h: (this.problem.musicians[index] / this.instruments.size) * 360,
       s: 100,
@@ -146,6 +165,39 @@ export class Renderer {
       pXY: [musician.x, musician.y],
       pRadius: MUSICIAN_RADIUS,
       fillStyle: col.toRgbString(),
+    });
+  }
+
+  private drawMusicianWithHeat(
+    musician: Musician,
+    index: number,
+    maxScore: number,
+    minScore: number,
+  ) {
+    const score = this.evalResult?.musicians.at(index)?.score!;
+    let color: tinycolor.Instance;
+    if (score == 0) {
+      color = tinycolor("#ffffff");
+    } else if (score > 0) {
+      color = tinycolor({
+        // Red
+        h: 0,
+        s: (score / maxScore) * 100,
+        v: 100,
+      });
+    } else {
+      color = tinycolor({
+        // Blue
+        h: 240,
+        s: (score / minScore) * 100,
+        v: 100,
+      });
+    }
+
+    this.vp.drawCircle({
+      pXY: [musician.x, musician.y],
+      pRadius: MUSICIAN_RADIUS,
+      fillStyle: color.toRgbString(),
     });
   }
 

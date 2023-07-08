@@ -1,5 +1,6 @@
 use euclid::default::{Box2D, Point2D, Vector2D};
 use lyon_geom::LineSegment;
+use serde::{Deserialize, Serialize};
 
 use crate::problem::Attendee;
 use crate::problem::Pillar;
@@ -97,6 +98,70 @@ pub fn evaluate(problem: &Problem, solution: &Solution) -> f64 {
         .iter()
         .map(|attendee| evaluate_attendee(attendee, &problem.musicians, &problem.pillars, solution))
         .sum()
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
+pub struct MusicianStat {
+    pub score: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
+pub struct InstrumentStat {
+    pub score: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
+pub struct EvaluationResult {
+    pub score: f64,
+    pub musicians: Vec<MusicianStat>,
+    pub instruments: Vec<InstrumentStat>,
+}
+
+impl EvaluationResult {
+    pub fn to_json(&self) -> String {
+        return serde_json::to_string(&self).unwrap();
+    }
+
+    pub fn evaluate(problem: &Problem, solution: &Solution) -> Self {
+        let mut total_score = 0f64;
+        let mut musician_stats = vec![MusicianStat { score: 0f64 }; problem.musicians.len()];
+        let instrument_count = {
+            let mut instrs = problem.musicians.to_vec();
+            instrs.dedup();
+            instrs.len()
+        };
+        let mut instrument_stats = vec![InstrumentStat { score: 0f64 }; instrument_count];
+
+        let q = create_q_vector(&problem.musicians, solution);
+        for attendee in problem.attendees.iter() {
+            for (musician, (inst, placement)) in problem
+                .musicians
+                .iter()
+                .zip(solution.placements.iter())
+                .enumerate()
+            {
+                let seg = LineSegment {
+                    from: attendee.position,
+                    to: placement.position,
+                };
+                if is_blocked_internal(&seg, musician, &solution.placements, &problem.pillars) {
+                    continue;
+                }
+                let d = seg.length();
+                let attendee_musician_score =
+                    (q[musician] * 1000000f64 * attendee.tastes[*inst] / (d * d)).ceil();
+                total_score += attendee_musician_score;
+                musician_stats[musician].score += attendee_musician_score;
+                instrument_stats[*inst].score += attendee_musician_score;
+            }
+        }
+
+        return Self {
+            score: total_score,
+            musicians: musician_stats,
+            instruments: instrument_stats,
+        };
+    }
 }
 
 // Find rough upper bound.

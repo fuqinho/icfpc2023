@@ -1,12 +1,18 @@
+import { EvaluationResult } from "@/components/evaluation_result";
 import { formatNumber } from "@/components/number_format";
 import { Problem } from "@/components/problems";
 import { RenderingOption } from "@/components/visualizer/renderer";
 import { orderBy } from "natural-orderby";
 import { useState } from "react";
 import tinycolor from "tinycolor2";
-import type { EvaluationResult } from "wasm";
 
-function Instruments({ instruments }: { instruments: Map<number, number[]> }) {
+function Instruments({
+  instruments,
+  evalResult,
+}: {
+  instruments: Map<number, number[]>;
+  evalResult: EvaluationResult | null;
+}) {
   const [instrumentsPage, setInstrumentsPage] = useState(1);
   const [order, setOrder] = useState("by-instr");
   let instrumentsKeys = Array.from(instruments.keys());
@@ -28,6 +34,20 @@ function Instruments({ instruments }: { instruments: Map<number, number[]> }) {
         ["asc", "asc"],
       );
       break;
+    case "by-score-desc":
+      instrumentsKeys = orderBy(
+        instrumentsKeys,
+        [(v) => evalResult?.instruments?.at(v)?.score, (v) => v],
+        ["desc", "asc"],
+      );
+      break;
+    case "by-score-asc":
+      instrumentsKeys = orderBy(
+        instrumentsKeys,
+        [(v) => evalResult?.instruments?.at(v)?.score, (v) => v],
+        ["asc", "asc"],
+      );
+      break;
   }
 
   const instrumentsCurrentPage = instrumentsKeys.slice(
@@ -46,8 +66,18 @@ function Instruments({ instruments }: { instruments: Map<number, number[]> }) {
         <option value="by-instr">楽器番号順</option>
         <option value="by-num-musicians-desc">奏者が多い順</option>
         <option value="by-num-musicians-asc">奏者が少ない順</option>
+        <option value="by-score-desc">スコアの高い順</option>
+        <option value="by-score-asc">スコアの低い順</option>
       </select>
-      <table className="table">
+      <table className="table w-auto">
+        <thead>
+          <tr>
+            <th></th>
+            <th></th>
+            <th>奏者の人数</th>
+            <th>スコア</th>
+          </tr>
+        </thead>
         <tbody>
           {instrumentsCurrentPage.map((instr) => {
             const col = tinycolor({
@@ -64,7 +94,10 @@ function Instruments({ instruments }: { instruments: Map<number, number[]> }) {
                 >
                   &nbsp;
                 </td>
-                <td>奏者 {instruments.get(instr)?.length}人</td>
+                <td>{instruments.get(instr)?.length}人</td>
+                <td className="font-mono text-right">
+                  {formatNumber(evalResult?.instruments.at(instr)?.score)}
+                </td>
               </tr>
             );
           })}
@@ -139,7 +172,7 @@ function ProblemInfo({
           </tbody>
         </table>
       </div>
-      <Instruments instruments={instruments} />
+      <Instruments instruments={instruments} evalResult={evalResult} />
     </div>
   );
 }
@@ -203,6 +236,22 @@ export default function VisualizerControl({
             <span className="label-text-alt">
               赤(Taste最大)→白(0)→青(Taste最低)
             </span>
+          </label>
+        </div>
+
+        <div className="form-control w-full max-w-xs">
+          <label className="label cursor-pointer">
+            <span className="label-text">奏者のスコアでヒートマップ表示</span>
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={option.scoreHeatmapMusicians ?? false}
+              onChange={(e) => {
+                setOption((o) => {
+                  return { ...o, scoreHeatmapMusicians: e.target.checked };
+                });
+              }}
+            />
           </label>
         </div>
       </div>
