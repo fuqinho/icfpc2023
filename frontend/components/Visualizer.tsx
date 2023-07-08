@@ -13,6 +13,8 @@ import type { EvaluationResult } from "wasm";
 
 export interface VisualizerElement {}
 
+const CANVAS_SIZE = 4000;
+
 const Visualizer = forwardRef(function Visualizer(
   {
     problem,
@@ -43,12 +45,14 @@ const Visualizer = forwardRef(function Visualizer(
 
     const renderer = new Renderer(
       canvas.getContext("2d")!,
+      CANVAS_SIZE,
+      CANVAS_SIZE,
       problem,
       solution,
       evalResult,
       option,
     );
-    const remove = renderer.addEventListeners();
+    const remove = renderer.addEventListeners(canvas);
 
     let animationFrameId: number = 0;
     const render = () => {
@@ -66,8 +70,8 @@ const Visualizer = forwardRef(function Visualizer(
     <canvas
       className={className}
       ref={canvasRef}
-      width={4000}
-      height={4000}
+      width={CANVAS_SIZE}
+      height={CANVAS_SIZE}
     ></canvas>
   );
 });
