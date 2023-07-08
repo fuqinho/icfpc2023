@@ -429,7 +429,11 @@ impl saru::Annealer for Solver {
     }
 }
 
-struct Solver2(common::Problem, Option<common::Solution>);
+struct Solver2 {
+    problem_id: u32,
+    problem: common::Problem,
+    initial_solution: Option<common::Solution>,
+}
 
 #[derive(Clone)]
 struct State2 {
@@ -442,9 +446,9 @@ impl saru::Annealer for Solver2 {
     type Move = Move;
 
     fn init_state(&self, rng: &mut impl Rng) -> Self::State {
-        let mut board = Board::new(0, self.0.clone());
+        let mut board = Board::new(self.problem_id, self.problem.clone());
 
-        if let Some(initial_solution) = &self.1 {
+        if let Some(initial_solution) = &self.initial_solution {
             for (i, p) in initial_solution.placements.iter().enumerate() {
                 board.try_place(i, p.position).unwrap();
             }
@@ -548,9 +552,9 @@ impl saru::Annealer for Solver2 {
             },
 
             3 => loop {
-                let i = rng.gen_range(0..self.0.musicians.len());
-                let j = rng.gen_range(0..self.0.musicians.len());
-                if i != j && self.0.musicians[i] != self.0.musicians[j] {
+                let i = rng.gen_range(0..self.problem.musicians.len());
+                let j = rng.gen_range(0..self.problem.musicians.len());
+                if i != j && self.problem.musicians[i] != self.problem.musicians[j] {
                     break Move::Swap { i, j };
                 }
             },
@@ -588,74 +592,6 @@ impl saru::Annealer for Solver2 {
     }
 }
 
-// struct PreSolver(Solver);
-
-// #[derive(Clone)]
-// struct PreState {
-//     placement: Vec<Point2D<f64>>,
-//     // atendee_to_musician: Vec<(Vec<f64>, f64)>,
-// }
-
-// impl saru::Annealer for PreSolver {
-//     type State = PreState;
-
-//     type Move = Move;
-
-//     fn init_state(&self, rng: &mut impl Rng) -> Self::State {
-//         let s = &self.0;
-//         let n = s.musicians.len();
-
-//         let mut placement = vec![];
-
-//         for _ in 0..n {
-//             loop {
-//                 let x = rng.gen_range(s.stage_valid.min_x()..=s.stage_valid.max_x());
-//                 let y = rng.gen_range(s.stage_valid.min_y()..=s.stage_valid.max_y());
-
-//                 let p = point2(x, y);
-//                 if placement.iter().any(|q| p.distance_to(*q) < 10.0) {
-//                     continue;
-//                 }
-//                 placement.push(point2(x, y));
-//                 break;
-//             }
-//         }
-
-//         PreState { placement }
-//     }
-
-//     fn start_temp(&self, init_score: f64) -> f64 {
-//         (init_score.abs() / 10.0).max(1e8)
-//     }
-
-//     fn eval(
-//         &self,
-//         state: &Self::State,
-//         _progress_ratio: f64,
-//         _best_score: f64,
-//         _valid_best_score: f64,
-//     ) -> (f64, Option<f64>) {
-//         todo!()
-//     }
-
-//     fn neighbour(
-//         &self,
-//         state: &mut Self::State,
-//         rng: &mut impl Rng,
-//         progress_ratio: f64,
-//     ) -> Self::Move {
-//         todo!()
-//     }
-
-//     fn apply(&self, state: &mut Self::State, mov: &Self::Move) {
-//         todo!()
-//     }
-
-//     fn unapply(&self, state: &mut Self::State, mov: &Self::Move) {
-//         todo!()
-//     }
-// }
-
 #[argopt::cmd]
 fn main(
     /// time limit in seconds
@@ -684,7 +620,11 @@ fn main(
         None
     };
 
-    let solver = Solver2(problem, initial_solution);
+    let solver = Solver2 {
+        problem_id,
+        problem,
+        initial_solution,
+    };
 
     let solution = saru::annealing(
         &solver,
@@ -702,9 +642,9 @@ fn main(
     eprintln!("Statistics:");
     eprintln!("Problem ID:    {}", problem_id);
     eprintln!("Score:         {}", -solution.score);
-    eprintln!("Musicians:     {}", solver.0.musicians.len());
-    eprintln!("Atendees:      {}", solver.0.attendees.len());
-    eprintln!("Stage area:    {}", solver.0.stage.area());
+    eprintln!("Musicians:     {}", solver.problem.musicians.len());
+    eprintln!("Atendees:      {}", solver.problem.attendees.len());
+    eprintln!("Stage area:    {}", solver.problem.stage.area());
 
     // let lx = (solver.0.stage_valid().width() / 10.0).floor();
     // let ly = (solver.stage_valid().height() / 10.0).floor();
