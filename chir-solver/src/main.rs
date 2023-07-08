@@ -21,6 +21,8 @@ struct Args {
     pick_and_move: bool,
     #[arg(long)]
     initial_solution: Option<PathBuf>,
+    #[arg(long, default_value_t = 1.0)]
+    step: f64,
 }
 
 #[derive(Debug)]
@@ -226,10 +228,20 @@ fn calc_neighbor(i: usize, p: Point2D<f64>) -> Point2D<f64> {
     point(p.x + MULT * d[i].x, p.y + MULT * d[i].y)
 }
 
+fn output_to_results(pid: u32, score: f64, sol: common::Solution) -> Result<()> {
+    if !std::path::Path::new("results").is_dir() {
+        std::fs::create_dir_all("results")?;
+    }
+    let output = PathBuf::from(format!("results/{}-{}.json", pid, score as i32));
+    common::Solution::write_to_file(output, sol)?;
+    Ok(())
+}
+
 fn pick_and_move(
     prob: &Problem,
     pid: u32,
     initial_board: Option<common::Solution>,
+    step: f64,
 ) -> Result<common::Solution> {
     let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
     let mut board = Board::new(pid, prob.clone());
@@ -256,6 +268,7 @@ fn pick_and_move(
             info!("{}: max updated {}", cnt, board.score());
             max_board = board.clone();
             max_score = board.score();
+            let _ = output_to_results(pid, max_score, board.clone().try_into()?);
         }
 
         // Pick neighbor
@@ -294,8 +307,10 @@ fn pick_and_move(
                 let start_y = (prob.stage.min.y + 10.).ceil() as u32;
                 let end_x = (prob.stage.max.x - 10.).floor() as u32;
                 let end_y = (prob.stage.max.y - 10.).floor() as u32;
-                for x in start_x..=end_x {
-                    for y in start_y..=end_y {
+                let mut x = start_x as f64;
+                while x <= end_x as f64 {
+                    let mut y = start_y as f64;
+                    while y <= end_y as f64 {
                         let np = point(x as f64, y as f64);
                         let mut new_board = board.clone();
                         new_board.unplace(m);
@@ -306,7 +321,9 @@ fn pick_and_move(
                                 next_pos = Some(np);
                             }
                         }
+                        y += step;
                     }
+                    x += step;
                 }
                 if cur_score > board.score() {
                     info!(
@@ -322,10 +339,8 @@ fn pick_and_move(
             }
         }
 
+        info!("{}/{} done", cnt, MAX_LOOP);
         cnt += 1;
-        if cnt % 10 == 0 {
-            info!("{}/{} done", cnt, MAX_LOOP);
-        }
         if cnt >= MAX_LOOP {
             break;
         }
@@ -363,7 +378,7 @@ fn main() -> Result<()> {
 
     let mut raw_sol = convert_solution(&problem, &sol, args.problem_id);
     if args.pick_and_move {
-        raw_sol = pick_and_move(&problem, args.problem_id, initial_solution)?;
+        raw_sol = pick_and_move(&problem, args.problem_id, initial_solution, args.step)?;
     }
 
     let score = evaluate(&problem, &raw_sol);
