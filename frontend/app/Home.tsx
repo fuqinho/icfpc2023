@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ProblemMetadata,
   SolutionMetadata,
+  problemImage,
   useBestSolutions,
   useProblemList,
   useProblemSpec,
@@ -41,7 +42,7 @@ function ProblemListItem({
       <td>
         <Link href={`/problem/${problem.id}`}>
           <Image
-            src={`/api/render/problem/${problem.id}`}
+            src={problemImage(problem.id)}
             alt=""
             width={200}
             height={200}
