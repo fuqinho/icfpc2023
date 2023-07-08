@@ -433,6 +433,7 @@ struct Solver2 {
     problem_id: u32,
     problem: common::Problem,
     initial_solution: Option<common::Solution>,
+    start_temp: Option<f64>,
 }
 
 #[derive(Clone)]
@@ -482,11 +483,8 @@ impl saru::Annealer for Solver2 {
     }
 
     fn start_temp(&self, init_score: f64) -> f64 {
-        if let Some(start_temp) = std::env::var("START_TEMP")
-            .ok()
-            .and_then(|s| s.parse().ok())
-        {
-            return start_temp;
+        if let Some(start_temp) = self.start_temp {
+            start_temp
         } else {
             (init_score.abs() * 0.1).max(1e6)
         }
@@ -601,6 +599,9 @@ fn main(
     #[opt(long, default_value = "1")]
     threads: usize,
     #[opt(long)] initial_solution: Option<PathBuf>,
+    /// specify start temperature
+    #[opt(long)]
+    start_temp: Option<f64>,
     /// problem id
     problem_id: u32,
 ) -> Result<()> {
@@ -623,6 +624,7 @@ fn main(
     let solver = Solver2 {
         problem_id,
         problem,
+        start_temp,
         initial_solution,
     };
 
