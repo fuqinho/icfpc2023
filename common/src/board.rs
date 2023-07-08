@@ -85,6 +85,17 @@ impl Board {
         res
     }
 
+    pub fn contribution_if_instrument(&self, m: usize, ins: usize) -> f64 {
+        let mut res = 0.;
+        for (a, b) in self.blocks[m].iter().enumerate() {
+            if *b > 0 {
+                continue;
+            }
+            res += self.impact_if_kind(m, a, ins);
+        }
+        res
+    }
+
     pub fn try_place(&mut self, i: usize, position: Point<f64>) -> anyhow::Result<()> {
         let mut bb = self.prob.stage;
         bb.max += P::new(1e-9, 1e-9);
@@ -221,6 +232,14 @@ impl Board {
             .to_vector()
             .square_length();
         let impact = 1_000_000.0 * self.prob.attendees[a].tastes[self.prob.musicians[m]] / d2;
+        impact.ceil()
+    }
+
+    fn impact_if_kind(&self, m: usize, a: usize, k: usize) -> f64 {
+        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap())
+            .to_vector()
+            .square_length();
+        let impact = 1_000_000.0 * self.prob.attendees[a].tastes[k] / d2;
         impact.ceil()
     }
 }
