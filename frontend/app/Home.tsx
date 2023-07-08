@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import clsx from "clsx";
 import { RenderingOption } from "@/components/visualizer/renderer";
 import VisualizerControl from "./VisualizerControl";
+import type { EvaluationResult } from "wasm";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -16,18 +17,61 @@ import VisualizerControl from "./VisualizerControl";
 
 export default function Home() {
   const { data: problems, error: errorProblems } = useProblemList();
-  const [problemID, setProblemID] = useState<string | number | undefined>(
-    undefined,
-  );
+  const [problemID, setProblemID] = useState<number | undefined>(undefined);
   const { data: problem, error: errorProblem } = useProblemSpec(problemID);
   const [rawSolution, setRawSolution] = useState("");
+  const [solution, setSolution] = useState<Solution | null>(null);
+  const [jsonParseException, setJSONParseException] = useState<any>(null);
   const [option, setOption] = useState<RenderingOption>({});
+  const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
 
   useEffect(() => {
     if (problems && !problemID) {
       setProblemID(problems[0].id);
     }
   }, [problems, problemID]);
+
+  useEffect(() => {
+    if (!problem || !solution) {
+      return;
+    }
+    (async () => {
+      const wasm = await import("wasm");
+      setEvalResult(
+        wasm.EvaluationResult.from_json(
+          JSON.stringify(problem),
+          JSON.stringify(solution),
+        ),
+      );
+    })();
+  }, [problem, solution]);
+
+  const updateRawSolution = (rs: string) => {
+    setRawSolution(rs);
+    if (problemID && rawSolution !== "") {
+      try {
+        const s = JSON.parse(rawSolution) as Solution;
+        if (s.placements) {
+          if (!s.problem_id) {
+            s.problem_id = problemID!;
+          }
+          setSolution(s);
+          setJSONParseException(null);
+        } else {
+          setSolution(null);
+          setJSONParseException("Object doesn't have placements.");
+        }
+      } catch (e) {
+        setSolution(null);
+        setJSONParseException(e);
+      }
+    }
+    return {
+      jsonParseException: jsonParseException,
+      solution: solution,
+      evalResult: evalResult,
+    };
+  };
 
   if (errorProblems) {
     throw errorProblems;
@@ -39,20 +83,6 @@ export default function Home() {
     return <div>Loading...</div>;
   }
 
-  let jsonParseException = null;
-  let solution: Solution | null = null;
-  if (rawSolution !== "") {
-    try {
-      const s = JSON.parse(rawSolution) as Solution;
-      if (Object.hasOwn(s, "placements")) {
-        solution = s;
-      } else {
-        jsonParseException = "Object doesn't have placements.";
-      }
-    } catch (e) {
-      jsonParseException = e;
-    }
-  }
   return (
     <div className="m-4">
       <div className="tabs">
@@ -84,11 +114,13 @@ export default function Home() {
             <Visualizer
               problem={problem}
               solution={solution}
+              evalResult={evalResult}
               option={option}
               className="w-[800px] h-[800px] m-4 border border-slate-200"
             />
             <VisualizerControl
               problem={problem}
+              evalResult={evalResult}
               option={option}
               setOption={setOption}
             />
@@ -98,7 +130,7 @@ export default function Home() {
             <textarea
               placeholder="Solution"
               className="textarea textarea-bordered w-[800px] h-[100px] font-mono"
-              onChange={(e) => setRawSolution(e.target.value)}
+              onChange={(e) => updateRawSolution(e.target.value)}
               value={rawSolution}
             ></textarea>
             <pre>

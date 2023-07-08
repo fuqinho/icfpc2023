@@ -61,6 +61,12 @@ pub struct RawSolution {
     pub placements: Vec<RawPlacement>,
 }
 
+impl RawSolution {
+    pub fn from_json(s: &str) -> anyhow::Result<Self> {
+        Ok(serde_json::from_str(&s)?)
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawPlacement {
     pub x: f64,
