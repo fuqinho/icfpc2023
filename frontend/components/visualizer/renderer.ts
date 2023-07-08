@@ -1,14 +1,15 @@
 import tinycolor from "tinycolor2";
-import { Attendee, Musician, Problem, Solution } from "../problems";
-import { Viewport } from "./viewport";
-import type { EvaluationResult } from "wasm";
+import { Attendee, Musician, Pillar, Problem, Solution } from "../problems";
+import { Viewport, ViewportState } from "./viewport";
 import type { CanvasRenderingContext2D as ServerCanvasContext2D } from "canvas";
+import { EvaluationResult } from "../evaluation_result";
 
 const ATTENDEE_RADIUS = 10;
 const MUSICIAN_RADIUS = 5;
 
 export interface RenderingOption {
   tasteHeatmapInstrument?: number;
+  scoreHeatmapMusicians?: boolean;
 }
 
 export class Renderer {
@@ -24,14 +25,14 @@ export class Renderer {
 
   constructor(
     ctx: CanvasRenderingContext2D | ServerCanvasContext2D,
-    canvasWidth: number,
-    canvasHeight: number,
     problem: Problem,
     solution: Solution | null,
     evalResult: EvaluationResult | null,
     option: RenderingOption,
+    viewportState: ViewportState,
+    setViewportState: (s: ViewportState) => void,
   ) {
-    this.vp = new Viewport(ctx, canvasWidth, canvasHeight, problem, solution);
+    this.vp = new Viewport(ctx, problem, viewportState, setViewportState);
     this.problem = problem;
     this.solution = solution;
     this.option = option;
@@ -54,6 +55,7 @@ export class Renderer {
   public render() {
     this.vp.clear();
     this.drawRoomAndStage();
+
     if (this.option.tasteHeatmapInstrument === undefined) {
       this.problem.attendees.forEach((a) => this.drawAttendeeNormal(a));
     } else {
@@ -70,7 +72,26 @@ export class Renderer {
         this.drawAttendeeWithHeat(a, instr, maxTaste, minTaste),
       );
     }
-    this.solution?.placements.forEach((m, i) => this.drawMusician(m, i));
+
+    this.problem.pillars.forEach((p) => this.drawPillar(p));
+    if (this.solution) {
+      if (this.option.scoreHeatmapMusicians) {
+        let maxScore = Number.MIN_SAFE_INTEGER;
+        let minScore = Number.MAX_SAFE_INTEGER;
+        this.solution.placements.forEach((_, i) => {
+          const score = this.evalResult?.musicians.at(i)?.score!;
+          maxScore = Math.max(maxScore, score);
+          minScore = Math.min(minScore, score);
+        });
+        this.solution.placements.forEach((m, i) =>
+          this.drawMusicianWithHeat(m, i, maxScore, minScore),
+        );
+      } else {
+        this.solution.placements.forEach((m, i) =>
+          this.drawMusicianNormal(m, i),
+        );
+      }
+    }
     this.vp.drawCursorPos();
   }
 
@@ -133,7 +154,7 @@ export class Renderer {
     });
   }
 
-  private drawMusician(musician: Musician, index: number) {
+  private drawMusicianNormal(musician: Musician, index: number) {
     const col = tinycolor({
       h: (this.problem.musicians[index] / this.instruments.size) * 360,
       s: 100,
@@ -147,6 +168,47 @@ export class Renderer {
     });
   }
 
+  private drawMusicianWithHeat(
+    musician: Musician,
+    index: number,
+    maxScore: number,
+    minScore: number,
+  ) {
+    const score = this.evalResult?.musicians.at(index)?.score!;
+    let color: tinycolor.Instance;
+    if (score == 0) {
+      color = tinycolor("#ffffff");
+    } else if (score > 0) {
+      color = tinycolor({
+        // Red
+        h: 0,
+        s: (score / maxScore) * 100,
+        v: 100,
+      });
+    } else {
+      color = tinycolor({
+        // Blue
+        h: 240,
+        s: (score / minScore) * 100,
+        v: 100,
+      });
+    }
+
+    this.vp.drawCircle({
+      pXY: [musician.x, musician.y],
+      pRadius: MUSICIAN_RADIUS,
+      fillStyle: color.toRgbString(),
+    });
+  }
+
+  private drawPillar(pillar: Pillar) {
+    this.vp.drawCircle({
+      pXY: [pillar.center[0], pillar.center[1]],
+      pRadius: pillar.radius,
+      fillStyle: "#7f8791",
+    });
+  }
+
   // ===========================================================================
   // Event handling
   // ===========================================================================
@@ -156,7 +218,7 @@ export class Renderer {
     const mouseleaveEvent = this.mouseleaveEvent.bind(this);
     const mousemoveEvent = (e: MouseEvent) => this.mousemoveEvent(canvas, e);
     const mouseupEvent = this.mouseupEvent.bind(this);
-    const wheelEvent = this.wheelEvent.bind(this);
+    const wheelEvent = (e: WheelEvent) => this.wheelEvent(canvas, e);
     canvas.addEventListener("mousedown", mousedownEvent);
     canvas.addEventListener("mouseleave", mouseleaveEvent);
     canvas.addEventListener("mousemove", mousemoveEvent);
@@ -182,12 +244,12 @@ export class Renderer {
     ];
   }
 
-  private wheelEvent(e: WheelEvent) {
+  private wheelEvent(canvas: HTMLCanvasElement, e: WheelEvent) {
     e.preventDefault();
     if (e.deltaY < 0) {
-      this.vp.zoom(0.8);
+      this.vp.zoomWithMousePos(0.8, this.getMouseCCoord(canvas, e));
     } else {
-      this.vp.zoom(1.2);
+      this.vp.zoomWithMousePos(1.2, this.getMouseCCoord(canvas, e));
     }
     return false;
   }

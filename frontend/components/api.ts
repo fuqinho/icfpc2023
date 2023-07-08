@@ -31,6 +31,14 @@ export interface SubmissionMetadata {
   updated: string;
 }
 
+export function problemImage(problemID: number) {
+  return `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/${problemID}/image`;
+}
+
+export function solutionImage(solutionID: string) {
+  return `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/solutions/${solutionID}/image`;
+}
+
 export function useProblemList() {
   const { data, error, isLoading } = useSWR<AxiosResponse<ProblemMetadata[]>>(
     {
@@ -55,6 +63,30 @@ export function useProblemSpec(problemID: number | undefined) {
   return { data: data?.data, error, isLoading };
 }
 
+export function useBestSolutions() {
+  const { data, error, isLoading } = useSWR<AxiosResponse<SolutionMetadata[]>>(
+    {
+      method: "get",
+      url: `/api/solutions`,
+    },
+    client,
+  );
+
+  const allSolutions = data?.data ?? [];
+  allSolutions.sort(
+    (a, b) => (b.submission?.score ?? -1e100) - (a.submission?.score ?? -1e100),
+  );
+
+  const bestSolutions = new Map<number, SolutionMetadata>();
+  for (const s of allSolutions) {
+    if (!bestSolutions.has(s.problem_id)) {
+      bestSolutions.set(s.problem_id, s);
+    }
+  }
+
+  return { data: bestSolutions, error, isLoading };
+}
+
 export function useKnownSolutions(problemID: number | undefined) {
   const { data, error, isLoading } = useSWR<AxiosResponse<SolutionMetadata[]>>(
     problemID
@@ -65,6 +97,12 @@ export function useKnownSolutions(problemID: number | undefined) {
       : null,
     client,
   );
+  if (data?.data) {
+    data.data.sort(
+      (a, b) =>
+        (b.submission?.score ?? -1e100) - (a.submission?.score ?? -1e100),
+    );
+  }
   return { data: data?.data, error, isLoading };
 }
 

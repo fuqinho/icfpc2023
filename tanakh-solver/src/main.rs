@@ -525,7 +525,7 @@ impl saru::Annealer for Solver2 {
                     rng.gen_range(-scale_y..=scale_y) as f64 * grid,
                 );
 
-                let old_pos = state.board.musicians()[id].unwrap().to_point();
+                let old_pos = state.board.musicians()[id].unwrap().0.to_point();
                 let new_pos = old_pos + d;
                 let new_pos = point2(
                     new_pos.x.clamp(stage.min.x, stage.max.x),
@@ -565,8 +565,8 @@ impl saru::Annealer for Solver2 {
                 state.board.try_place(*id, *new_pos).unwrap();
             }
             Move::Swap { i, j } => {
-                let pi = state.board.musicians()[*i].unwrap().to_point();
-                let pj = state.board.musicians()[*j].unwrap().to_point();
+                let pi = state.board.musicians()[*i].unwrap().0.to_point();
+                let pj = state.board.musicians()[*j].unwrap().0.to_point();
                 state.board.unplace(*i);
                 state.board.unplace(*j);
                 state.board.try_place(*i, pj).unwrap();

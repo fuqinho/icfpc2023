@@ -78,9 +78,14 @@ fn validate(solution: &Solution) {
 }
 
 fn main() -> Result<()> {
-    let mut rng = rand::thread_rng();
+    // let mut rng = rand::thread_rng();
     let args: Vec<String> = std::env::args().collect();
     let problem_id = args[1].parse::<u32>()?;
+    let is_estimate = if args.len() >= 3 && args[2] == "estimate" {
+        true
+    } else {
+        false
+    };
     let f = PathBuf::from(format!("problems/{}.json", problem_id));
     if !f.is_file() {
         bail!("File not found: {}", f.display());
@@ -88,6 +93,7 @@ fn main() -> Result<()> {
     let problem = Problem::read_from_file(f)?;
 
     let solution = match problem_id {
+        _ if is_estimate => common::estimate(problem_id, &problem).1,
         10 => solver_10(&problem),
         _ => bail!("no solution for {:}", problem_id),
     };

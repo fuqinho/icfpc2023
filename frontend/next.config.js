@@ -8,15 +8,25 @@ const nextConfig = {
     config.experiments.asyncWebAssembly = true;
     config.plugins.push(
       new WasmPackPlugin({
-        crateDirectory: path.resolve(__dirname, "../sandbox/lifegame-wasm"),
-        forceMode: "production",
-      }),
-      new WasmPackPlugin({
         crateDirectory: path.resolve(__dirname, "../wasm"),
         forceMode: "production",
       }),
     );
     return config;
+  },
+  images: {
+    loader: "custom",
+    loaderFile: "./components/image_loader.js",
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "icfpc2023-backend-uadsges7eq-an.a.run.app",
+      },
+      {
+        protocol: "https",
+        hostname: "icfpc2023-data-uvjbiongouirno.storage.googleapis.com",
+      },
+    ],
   },
 };
 
