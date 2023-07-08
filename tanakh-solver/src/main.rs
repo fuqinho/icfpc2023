@@ -450,17 +450,27 @@ impl saru::Annealer for Solver2 {
             }
         } else {
             for i in 0..board.prob.musicians.len() {
-                loop {
-                    let x: f64 = rng
-                        .gen_range(board.prob.stage.min.x..=board.prob.stage.max.x)
-                        .round();
-                    let y: f64 = rng
-                        .gen_range(board.prob.stage.min.y..=board.prob.stage.max.y)
-                        .round();
-                    if board.try_place(i, Point::new(x, y)).is_ok() {
-                        break;
+                let mut best = (f64::MIN, Point::new(0.0, 0.0));
+                for _ in 0..100 {
+                    loop {
+                        let x: f64 = rng
+                            .gen_range(board.prob.stage.min.x..=board.prob.stage.max.x)
+                            .round();
+                        let y: f64 = rng
+                            .gen_range(board.prob.stage.min.y..=board.prob.stage.max.y)
+                            .round();
+                        if board.try_place(i, Point::new(x, y)).is_ok() {
+                            let score = board.score();
+                            if score > best.0 {
+                                best = (score, Point::new(x, y));
+                            }
+                            board.unplace(i);
+                            break;
+                        }
                     }
                 }
+
+                board.try_place(i, best.1).unwrap();
             }
         }
 
@@ -533,7 +543,7 @@ impl saru::Annealer for Solver2 {
             3 => loop {
                 let i = rng.gen_range(0..self.0.musicians.len());
                 let j = rng.gen_range(0..self.0.musicians.len());
-                if i != j {
+                if i != j && self.0.musicians[i] != self.0.musicians[j] {
                     break Move::Swap { i, j };
                 }
             },

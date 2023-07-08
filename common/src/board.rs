@@ -93,7 +93,7 @@ impl Board {
         }
         for p in self.ps.iter() {
             if let Some(p) = p {
-                if (*p - position.to_vector()).length() < 10. {
+                if (*p - position.to_vector()).square_length() < 100. {
                     bail!("too close to another musician");
                 }
             }
@@ -134,7 +134,7 @@ impl Board {
                 continue;
             }
             if let Some(p) = p {
-                if (*p - position.to_vector()).length() < 10. {
+                if (*p - position.to_vector()).square_length() < 100. {
                     return false;
                 }
             }
