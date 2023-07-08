@@ -1,18 +1,10 @@
+import { formatNumber } from "@/components/number_format";
 import { Problem } from "@/components/problems";
 import { RenderingOption } from "@/components/visualizer/renderer";
 import { orderBy } from "natural-orderby";
 import { useState } from "react";
 import tinycolor from "tinycolor2";
 import type { EvaluationResult } from "wasm";
-
-const numberFormat = new Intl.NumberFormat();
-
-function formatNumber(n?: number) {
-  if (!n) {
-    return "";
-  }
-  return numberFormat.format(n);
-}
 
 function Instruments({ instruments }: { instruments: Map<number, number[]> }) {
   const [instrumentsPage, setInstrumentsPage] = useState(1);
