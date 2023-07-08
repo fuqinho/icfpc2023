@@ -117,7 +117,7 @@ func (db *DB) GetSolution(ctx context.Context, uuid string) (*Solution, error) {
 func (db *DB) ListSolutionsForProblem(ctx context.Context, problemID int) ([]*Solution, error) {
 	rows, err := db.raw.QueryContext(ctx, querySolutions+`
 	WHERE problem_id = ?
-	ORDER BY created DESC`, problemID)
+	ORDER BY solutions.created DESC`, problemID)
 	if err != nil {
 		return nil, err
 	}
