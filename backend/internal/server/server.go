@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"cloud.google.com/go/storage"
 	"github.com/gorilla/mux"
 )
 
@@ -33,9 +34,11 @@ func NewHandler(db *database.DB) *Handler {
 	r.HandleFunc("/api/problems/{id}", h.handleProblem).Methods(http.MethodGet)
 	r.HandleFunc("/api/problems/{id}/spec", h.handleProblemSpec).Methods(http.MethodGet)
 	r.HandleFunc("/api/problems/{id}/solutions", h.handleProblemSolutions).Methods(http.MethodGet)
+	r.HandleFunc("/api/problems/{id}/image", h.handleProblemImage).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions", h.handleSolutions).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions/{uuid}", h.handleSolution).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions/{uuid}/spec", h.handleSolutionSpec).Methods(http.MethodGet)
+	r.HandleFunc("/api/solutions/{uuid}/image", h.handleSolutionImage).Methods(http.MethodGet)
 	r.HandleFunc("/api/submit", h.handleSubmit).Methods(http.MethodPost)
 	r.HandleFunc("/batch/update-problems", h.handleUpdateProblems).Methods(http.MethodPost)
 
@@ -124,6 +127,41 @@ func (h *Handler) handleProblemSolutions(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+func (h *Handler) handleProblemImage(w http.ResponseWriter, r *http.Request) {
+	withResponse(w, r, func() error {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		id, err := strconv.Atoi(vars["id"])
+		if err != nil {
+			return err
+		}
+
+		if _, err := h.db.GetProblem(ctx, id); err != nil {
+			return err
+		}
+
+		imageObj := h.db.ProblemImageObject(id)
+		if _, err := imageObj.Attrs(r.Context()); err == storage.ErrObjectNotExist {
+			bs, err := httputil.GetImage(r.Context(), id, "")
+			if err != nil {
+				return err
+			}
+			w := imageObj.NewWriter(ctx)
+			w.ContentType = "image/png"
+			if _, err := w.Write(bs); err != nil {
+				return err
+			}
+			if err := w.Close(); err != nil {
+				return err
+			}
+		}
+
+		w.Header().Set("Location", h.db.ProblemImageURL(id))
+		w.WriteHeader(http.StatusFound)
+		return nil
+	})
+}
+
 func (h *Handler) handleSolutions(w http.ResponseWriter, r *http.Request) {
 	withJSONResponse(w, r, func() (any, error) {
 		ctx := r.Context()
@@ -163,6 +201,39 @@ func (h *Handler) handleSolutionSpec(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Location", h.db.SolutionURL(uuid))
+		w.WriteHeader(http.StatusFound)
+		return nil
+	})
+}
+
+func (h *Handler) handleSolutionImage(w http.ResponseWriter, r *http.Request) {
+	withResponse(w, r, func() error {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		uuid := vars["uuid"]
+
+		solution, err := h.db.GetSolution(ctx, uuid)
+		if err != nil {
+			return err
+		}
+
+		imageObj := h.db.SolutionImageObject(solution.UUID)
+		if _, err := imageObj.Attrs(r.Context()); err == storage.ErrObjectNotExist {
+			bs, err := httputil.GetImage(r.Context(), solution.ProblemID, solution.UUID)
+			if err != nil {
+				return err
+			}
+			w := imageObj.NewWriter(ctx)
+			w.ContentType = "image/png"
+			if _, err := w.Write(bs); err != nil {
+				return err
+			}
+			if err := w.Close(); err != nil {
+				return err
+			}
+		}
+
+		w.Header().Set("Location", h.db.SolutionImageURL(solution.UUID))
 		w.WriteHeader(http.StatusFound)
 		return nil
 	})

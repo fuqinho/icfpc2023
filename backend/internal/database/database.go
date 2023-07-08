@@ -209,8 +209,18 @@ func (db *DB) ProblemURL(id int) string {
 	return fmt.Sprintf("https://%s.storage.googleapis.com/%s", object.BucketName(), object.ObjectName())
 }
 
+func (db *DB) ProblemImageURL(id int) string {
+	object := db.ProblemImageObject(id)
+	return fmt.Sprintf("https://%s.storage.googleapis.com/%s", object.BucketName(), object.ObjectName())
+}
+
 func (db *DB) SolutionURL(uuid string) string {
 	object := db.solutionObject(uuid)
+	return fmt.Sprintf("https://%s.storage.googleapis.com/%s", object.BucketName(), object.ObjectName())
+}
+
+func (db *DB) SolutionImageURL(uuid string) string {
+	object := db.SolutionImageObject(uuid)
 	return fmt.Sprintf("https://%s.storage.googleapis.com/%s", object.BucketName(), object.ObjectName())
 }
 
@@ -218,8 +228,16 @@ func (db *DB) problemObject(id int) *storage.ObjectHandle {
 	return db.bucket.Object(fmt.Sprintf("problems/%d.json", id))
 }
 
+func (db *DB) ProblemImageObject(id int) *storage.ObjectHandle {
+	return db.bucket.Object(fmt.Sprintf("problems/%d.png", id))
+}
+
 func (db *DB) solutionObject(uuid string) *storage.ObjectHandle {
 	return db.bucket.Object(fmt.Sprintf("solutions/%s.json", uuid))
+}
+
+func (db *DB) SolutionImageObject(uuid string) *storage.ObjectHandle {
+	return db.bucket.Object(fmt.Sprintf("solutions/%s.png", uuid))
 }
 
 type rowScanner interface {
