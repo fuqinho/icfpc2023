@@ -1,3 +1,4 @@
+use common::evaluate;
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -47,5 +48,21 @@ impl RawProblem {
 
     pub fn attendee_tastes(&self, i: usize) -> Vec<f64> {
         self.0.attendees[i].tastes.to_vec()
+    }
+}
+
+#[wasm_bindgen]
+pub struct EvaluationResult {
+    pub score: f64,
+}
+
+#[wasm_bindgen]
+impl EvaluationResult {
+    pub fn from_json(problem: &str, solution: &str) -> Self {
+        let problem = common::Problem::from(common::RawProblem::from_json(problem).unwrap());
+        let solution = common::Solution::from(common::RawSolution::from_json(solution).unwrap());
+        return Self {
+            score: evaluate(&problem, &solution),
+        };
     }
 }

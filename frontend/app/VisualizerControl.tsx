@@ -1,8 +1,24 @@
 import { Problem } from "@/components/problems";
 import { RenderingOption } from "@/components/visualizer/renderer";
 import tinycolor from "tinycolor2";
+import type { EvaluationResult } from "wasm";
 
-function ProblemInfo({ problem }: { problem: Problem }) {
+const numberFormat = new Intl.NumberFormat();
+
+function formatNumber(n?: number) {
+  if (!n) {
+    return "";
+  }
+  return numberFormat.format(n);
+}
+
+function ProblemInfo({
+  problem,
+  evalResult,
+}: {
+  problem: Problem;
+  evalResult: EvaluationResult | null;
+}) {
   const instruments = new Map<number, number[]>();
   for (let i = 0; i < problem.musicians.length; i++) {
     const instr = problem.musicians[i];
@@ -20,16 +36,22 @@ function ProblemInfo({ problem }: { problem: Problem }) {
           <tbody>
             <tr>
               <td>観客</td>
-              <td>{problem.attendees.length}</td>
+              <td>{formatNumber(problem.attendees.length)}</td>
             </tr>
             <tr>
               <td>奏者の数</td>
-              <td>{problem.musicians.length}</td>
+              <td>{formatNumber(problem.musicians.length)}</td>
             </tr>
             <tr>
               <td>楽器の種類</td>
-              <td>{instruments.size}</td>
+              <td>{formatNumber(instruments.size)}</td>
             </tr>
+            {evalResult ? (
+              <tr>
+                <td>スコア</td>
+                <td>{formatNumber(evalResult.score)}</td>
+              </tr>
+            ) : null}
           </tbody>
         </table>
       </div>
@@ -74,10 +96,12 @@ function ProblemInfo({ problem }: { problem: Problem }) {
 
 export default function VisualizerControl({
   problem,
+  evalResult,
   option,
   setOption,
 }: {
   problem: Problem;
+  evalResult: EvaluationResult | null;
   option: RenderingOption;
   setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
 }) {
@@ -87,7 +111,7 @@ export default function VisualizerControl({
 
   return (
     <div className="w-full">
-      <ProblemInfo problem={problem} />
+      <ProblemInfo problem={problem} evalResult={evalResult} />
 
       <div className="divider"></div>
 
