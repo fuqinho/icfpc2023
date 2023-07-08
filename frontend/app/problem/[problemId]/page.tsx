@@ -10,8 +10,8 @@ import { Solution } from "@/components/problems";
 import { ChangeEvent, useCallback, useEffect, useState } from "react";
 import { RenderingOption } from "@/components/visualizer/renderer";
 import SolutionList from "@/components/SolutionList";
-import VisualizerControl from "@/app/VisualizerControl";
 import { EvaluationResult } from "@/components/evaluation_result";
+import VisualizerControl from "@/components/VisualizerControl";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
