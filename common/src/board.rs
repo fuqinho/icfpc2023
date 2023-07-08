@@ -114,6 +114,20 @@ impl Board {
         self.update_blocks(m, p, true);
     }
 
+    pub fn can_place(&self, i: usize, position: Point<f64>) -> bool {
+        for (ix, p) in self.ps.iter().enumerate() {
+            if ix == i {
+                continue;
+            }
+            if let Some(p) = p {
+                if (*p - position.to_vector()).length() < 10. {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+
     pub fn unplace(&mut self, m: usize) {
         let p = self.ps[m].unwrap();
 
