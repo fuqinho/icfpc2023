@@ -9,6 +9,7 @@ members = [
   "sandbox/lifegame",
   "sandbox/lifegame-wasm",
   "oka-solver",
+  "psh-manual-solver",
   "psh-solver",
   "psh-validator",
   "tanakh-solver",
