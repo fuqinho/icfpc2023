@@ -10,7 +10,7 @@ const client = axios.create({
 });
 
 export interface ProblemListEntry {
-  id: string | number;
+  id: number;
 }
 
 export function useProblemList() {
@@ -24,7 +24,7 @@ export function useProblemList() {
   return { data: data?.data, error, isLoading };
 }
 
-export function useProblemSpec(problemID: string | number | undefined) {
+export function useProblemSpec(problemID: number | undefined) {
   const { data, error, isLoading } = useSWR<AxiosResponse<Problem>>(
     problemID
       ? {

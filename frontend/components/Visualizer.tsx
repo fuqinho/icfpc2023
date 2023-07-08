@@ -9,6 +9,7 @@ import {
 } from "react";
 import { Problem, Solution } from "./problems";
 import { Renderer, RenderingOption } from "./visualizer/renderer";
+import type { EvaluationResult } from "wasm";
 
 export interface VisualizerElement {}
 
@@ -16,11 +17,13 @@ const Visualizer = forwardRef(function Visualizer(
   {
     problem,
     solution,
+    evalResult,
     className,
     option,
   }: {
     problem: Problem;
     solution: Solution | null;
+    evalResult: EvaluationResult | null;
     option: RenderingOption;
     className?: string;
   },
@@ -42,6 +45,7 @@ const Visualizer = forwardRef(function Visualizer(
       canvas.getContext("2d")!,
       problem,
       solution,
+      evalResult,
       option,
     );
     const remove = renderer.addEventListeners();
@@ -56,7 +60,7 @@ const Visualizer = forwardRef(function Visualizer(
       remove();
       window.cancelAnimationFrame(animationFrameId);
     };
-  }, [canvasRef, problem, solution, option]);
+  }, [canvasRef, problem, solution, evalResult, option]);
 
   return (
     <canvas
