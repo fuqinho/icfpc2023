@@ -1,12 +1,12 @@
 use anyhow::bail;
-use euclid::{Angle, Box2D, Vector2D};
+use euclid::{Box2D, Vector2D};
 use lyon_geom::Point;
 
 use crate::{geom::tangent_to_circle, Placement, Problem, Solution};
 
 type P = Vector2D<f64, euclid::UnknownUnit>;
 
-const R: f64 = 5.;
+const MUSICIAN_R: f64 = 5.;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 struct F64(pub f64);
@@ -131,7 +131,7 @@ impl Board {
 
     fn place(&mut self, m: usize, p: P) {
         // Update ps
-        self.ps[m] = Some((p, 5.));
+        self.ps[m] = Some((p, MUSICIAN_R));
 
         assert!(self.aids[m].is_empty());
 
@@ -226,9 +226,9 @@ impl Board {
             if let Some((q, r)) = q {
                 for rev in [false, true] {
                     let (blocking, blocked, _, i, r, _) = if rev {
-                        (q, p, i, m, r, 5.)
+                        (q, p, i, m, r, MUSICIAN_R)
                     } else {
-                        (p, q, m, i, 5., r)
+                        (p, q, m, i, MUSICIAN_R, r)
                     };
                     if i >= self.prob.musicians.len() {
                         // blocked is pillar, we don't need to calculate impact
