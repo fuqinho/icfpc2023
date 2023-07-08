@@ -373,33 +373,43 @@ mod tests {
 
     #[test]
     fn test_tangent() {
-        let problem = Problem {
-            room: Box2D::new(Point::new(0.0, 0.0), Point::new(1000.0, 1000.0)),
-            stage: Box2D::new(Point::new(0.0, 0.0), Point::new(100.0, 100.0)),
-            musicians: vec![0, 0, 1],
-            attendees: vec![Attendee {
-                position: Point::new(110., 15.),
-                tastes: vec![0.0, 1.0],
-            }],
-            pillars: vec![],
-        };
+        for flip in [false, true] {
+            let pnt = |x: f64, y: f64| {
+                if flip {
+                    Point::new(y, x)
+                } else {
+                    Point::new(x, y)
+                }
+            };
 
-        let mut board = Board::new(0, problem.clone());
+            let problem = Problem {
+                room: Box2D::new(Point::new(0.0, 0.0), Point::new(1000.0, 1000.0)),
+                stage: Box2D::new(Point::new(0.0, 0.0), Point::new(100.0, 100.0)),
+                musicians: vec![0, 0, 1],
+                attendees: vec![Attendee {
+                    position: pnt(110., 15.),
+                    tastes: vec![0.0, 1.0],
+                }],
+                pillars: vec![],
+            };
 
-        board.try_place(0, Point::new(20.0, 10.0)).unwrap();
-        board.try_place(1, Point::new(20.0, 20.0)).unwrap();
-        board.try_place(2, Point::new(10.0, 15.0)).unwrap();
+            let mut board = Board::new(0, problem.clone());
 
-        let score = board.score();
-        let expected_score = 1e6 / 100.0 / 100.0;
+            board.try_place(0, pnt(20.0, 10.0)).unwrap();
+            board.try_place(1, pnt(20.0, 20.0)).unwrap();
+            board.try_place(2, pnt(10.0, 15.0)).unwrap();
 
-        assert_eq!(score, expected_score);
+            let score = board.score();
+            let expected_score = 1e6 / 100.0 / 100.0;
 
-        for eps in [1e-9, -1e-9] {
-            board.unplace(2);
-            board.try_place(2, Point::new(10.0, 15.0 + eps)).unwrap();
+            assert_eq!(score, expected_score);
 
-            assert_eq!(board.score(), 0.);
+            for eps in [1e-9, -1e-9] {
+                board.unplace(2);
+                board.try_place(2, pnt(10.0, 15.0 + eps)).unwrap();
+
+                assert_eq!(board.score(), 0.);
+            }
         }
     }
 }
