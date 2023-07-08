@@ -122,7 +122,7 @@ impl Board {
 
             self.score += self.impact(m, i)
         }
-        self.aids[m].sort();
+        self.aids[m].sort_unstable();
 
         // Update blocks
         self.update_blocks(m, p, true);
