@@ -11,12 +11,19 @@ pub struct Problem {
     pub stage: Box2D<f64>,
     pub musicians: Vec<usize>,
     pub attendees: Vec<Attendee>,
+    pub pillars: Vec<Pillar>,
 }
 
 #[derive(Clone, Debug)]
 pub struct Attendee {
     pub position: Point2D<f64>,
     pub tastes: Vec<f64>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Pillar {
+    pub center: Point2D<f64>,
+    pub radius: f64,
 }
 
 #[derive(Clone, Debug)]
@@ -40,6 +47,7 @@ pub struct RawProblem {
     pub stage_bottom_left: Vec<f64>,
     pub musicians: Vec<usize>,
     pub attendees: Vec<RawAttendee>,
+    pub pillars: Vec<RawPillar>,
 }
 
 impl RawProblem {
@@ -73,6 +81,12 @@ pub struct RawPlacement {
     pub y: f64,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
+pub struct RawPillar {
+    pub center: [f64; 2],
+    pub radius: f64,
+}
+
 impl Problem {
     pub fn read_from_file<P: AsRef<Path>>(path: P) -> Result<Problem> {
         let content = std::fs::read_to_string(path)?;
@@ -98,6 +112,15 @@ impl From<RawAttendee> for Attendee {
     }
 }
 
+impl From<RawPillar> for Pillar {
+    fn from(raw: RawPillar) -> Self {
+        Self {
+            center: Point2D::new(raw.center[0], raw.center[1]),
+            radius: raw.radius,
+        }
+    }
+}
+
 impl From<RawProblem> for Problem {
     fn from(raw: RawProblem) -> Self {
         Self {
@@ -117,6 +140,11 @@ impl From<RawProblem> for Problem {
                 .attendees
                 .into_iter()
                 .map(Attendee::from)
+                .collect::<Vec<_>>(),
+            pillars: raw
+                .pillars
+                .into_iter()
+                .map(Pillar::from)
                 .collect::<Vec<_>>(),
         }
     }
