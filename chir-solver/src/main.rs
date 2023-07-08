@@ -1,13 +1,13 @@
-use std::{collections::HashMap, fs::read_to_string, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use common::{api::Client, evaluate, Placement, Problem, RawProblem, RawSolution};
+use common::{api::Client, board::Board, evaluate, Placement, Problem, RawSolution};
 use euclid::default::Point2D;
 use indexmap::IndexMap;
 use log::{debug, info};
-use lyon_geom::LineSegment;
-use rand::seq::SliceRandom;
+use lyon_geom::{point, LineSegment};
+use rand::{seq::SliceRandom, Rng};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -18,7 +18,9 @@ struct Args {
     #[arg(long)]
     swap_colors: bool,
     #[arg(long)]
-    greedy: bool,
+    pick_and_move: bool,
+    #[arg(long)]
+    initial_solution: Option<PathBuf>,
 }
 
 #[derive(Debug)]
@@ -209,46 +211,133 @@ fn hill_climb_swap(prob: &Problem) -> Solution {
     cur
 }
 
-// Greedy
+fn calc_neighbor(i: usize, p: Point2D<f64>) -> Point2D<f64> {
+    const MULT: f64 = 1.0;
+    let d: [Point2D<f64>; 8] = [
+        point(0., 1.),
+        point(0.5, 0.5),
+        point(1., 0.),
+        point(0.5, -0.5),
+        point(0., -1.),
+        point(-0.5, -0.5),
+        point(-1., 0.),
+        point(-0.5, 0.5),
+    ];
+    point(p.x + MULT * d[i].x, p.y + MULT * d[i].y)
+}
 
-fn greedy(prob: &Problem, pid: u32) -> common::Solution {
-    let grid = generate_grid_points(prob);
+fn pick_and_move(
+    prob: &Problem,
+    pid: u32,
+    initial_board: Option<common::Solution>,
+) -> Result<common::Solution> {
+    let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
+    let mut board = Board::new(pid, prob.clone());
+    for i in 0..cur.placements.len() {
+        board
+            .try_place(i, cur.placements[i].position)
+            .expect(&format!(
+                "Should be on stage {:?}",
+                cur.placements[i].position
+            ));
+    }
+    let mut rng = rand::thread_rng();
 
-    let num_of_tastes = prob.musicians.iter().max().expect("Should not null") + 1;
+    let mut cnt = 0;
 
-    let mut score = vec![vec![0.; grid.len()]; num_of_tastes];
-    for i in 0..grid.len() {
-        let p = convert_to_real_point(grid[i].0, grid[i].1, prob);
-        for j in 0..prob.attendees.len() {
-            let ap = prob.attendees[j].position;
-            for k in 0..num_of_tastes {
-                let d = ap.distance_to(p);
-                score[k][i] += (1000000.0 * prob.attendees[j].tastes[k] / (d * d)).ceil();
+    info!("initial = {}", evaluate(prob, &cur));
+
+    let mut max_score = board.score();
+    let mut max_board = board.clone();
+
+    const MAX_LOOP: usize = 100;
+    loop {
+        if max_score < board.score() {
+            info!("{}: max updated {}", cnt, board.score());
+            max_board = board.clone();
+            max_score = board.score();
+        }
+
+        // Pick neighbor
+        match rng.gen_range(0..=100) {
+            0..=10 => {
+                let m = rng.gen_range(0..cur.placements.len());
+                let p = board.musicians()[m].expect("Should not null");
+                let neighbor = rng.gen_range(0..8);
+                let cur_s = board.score();
+                let np = calc_neighbor(neighbor, p.to_point());
+                board.unplace(m);
+                if board
+                    .try_place(rng.gen_range(0..cur.placements.len()), np)
+                    .is_ok()
+                {
+                    if board.score() > cur_s || rng.gen_range(0..=30) == 0 {
+                        debug!(
+                            "{}: Found good neighbor for {}: {:?} -> {:?}",
+                            cnt, m, p, np
+                        );
+                        continue;
+                    }
+                    board.unplace(m);
+                }
+                board.try_place(m, p.to_point()).expect(&format!(
+                    "Should be on okay {:?}, {:?}",
+                    p,
+                    p.to_point()
+                ));
+            }
+            _ => {
+                let m = rng.gen_range(0..cur.placements.len());
+                let mut cur_score = board.score();
+                let mut next_pos = None;
+                let start_x = (prob.stage.min.x + 10.).ceil() as u32;
+                let start_y = (prob.stage.min.y + 10.).ceil() as u32;
+                let end_x = (prob.stage.max.x - 10.).floor() as u32;
+                let end_y = (prob.stage.max.y - 10.).floor() as u32;
+                for x in start_x..=end_x {
+                    for y in start_y..=end_y {
+                        let np = point(x as f64, y as f64);
+                        let mut new_board = board.clone();
+                        new_board.unplace(m);
+                        if new_board.can_place(m, np) {
+                            new_board.try_place(m, np)?;
+                            if new_board.score() > cur_score {
+                                cur_score = new_board.score();
+                                next_pos = Some(np);
+                            }
+                        }
+                    }
+                }
+                if cur_score > board.score() {
+                    info!(
+                        "Found new place for {}: {} -> {}",
+                        m,
+                        board.score(),
+                        cur_score
+                    );
+
+                    board.unplace(m);
+                    board.try_place(m, next_pos.unwrap())?;
+                }
             }
         }
-    }
 
-    let mut sorted_scores = vec![];
-    for taste in 0..num_of_tastes {
-        let mut v = vec![];
-        for i in 0..score[taste].len() {
-            v.push((score[taste][i], i));
+        cnt += 1;
+        if cnt % 10 == 0 {
+            info!("{}/{} done", cnt, MAX_LOOP);
         }
-        v.sort_by(|a, b| a.0.partial_cmp(&b.0).expect("Should be able to compare"));
-        sorted_scores.push(v);
+        if cnt >= MAX_LOOP {
+            break;
+        }
     }
 
-    let mut placements = vec![];
-    for musician in prob.musicians.iter() {
-        let (sc, pos) = sorted_scores[*musician].pop().expect("Should not null");
-        placements.push(Placement {
-            position: convert_to_real_point(grid[pos].0, grid[pos].1, prob),
-        });
-    }
-    common::Solution {
-        problem_id: pid,
-        placements: placements,
-    }
+    info!(
+        "max = {}, cnt = {}, score = {}",
+        max_score,
+        cnt,
+        max_board.score()
+    );
+    max_board.try_into()
 }
 
 fn main() -> Result<()> {
@@ -258,9 +347,14 @@ fn main() -> Result<()> {
     if !f.is_file() {
         return Err(anyhow!("File not found: {}", f.display()));
     }
-    let json = read_to_string(f)?;
-    let raw_problem: RawProblem = serde_json::from_str(&json)?;
-    let problem: Problem = Problem::from(raw_problem);
+    let problem: Problem = Problem::read_from_file(f)?;
+
+    // Load initial solution if given.
+    let initial_solution: Option<common::Solution> = args.initial_solution.map(|path| {
+        let content = std::fs::read_to_string(path).expect("File not found");
+        let raw_sol = RawSolution::from_json(&content).expect("Failed to parse");
+        common::Solution::from(raw_sol)
+    });
 
     let mut sol = generate_random_solution(&problem);
     if args.swap_colors {
@@ -268,14 +362,20 @@ fn main() -> Result<()> {
     }
 
     let mut raw_sol = convert_solution(&problem, &sol, args.problem_id);
-    if args.greedy {
-        raw_sol = greedy(&problem, args.problem_id);
+    if args.pick_and_move {
+        raw_sol = pick_and_move(&problem, args.problem_id, initial_solution)?;
     }
 
-    info!("score = {:?}", evaluate(&problem, &raw_sol));
-    let raw_sol = serde_json::to_string(&RawSolution::from(raw_sol))?;
-    let output = PathBuf::from(format!("{}-out.json", args.problem_id));
-    std::fs::write(output, raw_sol)?;
+    let score = evaluate(&problem, &raw_sol);
+    info!("score = {:?}", score);
+
+    {
+        if !std::path::Path::new("results").is_dir() {
+            std::fs::create_dir_all("results")?;
+        }
+        let output = PathBuf::from(format!("results/{}-{}.json", args.problem_id, score));
+        common::Solution::write_to_file(output, raw_sol)?;
+    }
 
     if args.submit {
         let c = Client::new();
