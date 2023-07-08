@@ -138,6 +138,8 @@ func (w *worker) Tick(ctx context.Context) error {
 }
 
 func Run(ctx context.Context, db *database.DB, client *official.Client) error {
+	log.Print("Worker started")
+
 	worker := newWorker(db, client)
 
 	for {
