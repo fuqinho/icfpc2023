@@ -9,6 +9,7 @@ import {
   useProblemList,
   useProblemSpec,
 } from "@/components/api";
+import { formatNumber } from "@/components/number_format";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -47,7 +48,13 @@ function ProblemListItem({
           />
         </Link>
       </td>
-      <td className="text-mono">{bestSolution?.submission?.score}</td>
+      <td className="text-mono">
+        <div className="stat">
+          <div className="stat-value">
+            {formatNumber(bestSolution?.submission?.score)}
+          </div>
+        </div>
+      </td>
     </tr>
   );
 }
