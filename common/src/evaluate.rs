@@ -38,7 +38,32 @@ fn is_blocked_internal(
     false
 }
 
+fn create_q_vector(musicians: &[usize], solution: &Solution) -> Vec<f64> {
+    let mut ret = vec![0.; solution.placements.len()];
+    if solution.problem_id <= 55 {
+        return ret;
+    }
+    for i in 0..solution.placements.len() {
+        for j in 0..i {
+            if musicians[i] != musicians[j] {
+                continue;
+            }
+            let q = 1.
+                / LineSegment {
+                    from: solution.placements[i].position,
+                    to: solution.placements[j].position,
+                }
+                .length();
+            ret[i] += q;
+            ret[j] += q;
+        }
+    }
+    ret
+}
+
 fn evaluate_attendee(attendee: &Attendee, musicians: &[usize], solution: &Solution) -> f64 {
+    let q = create_q_vector(musicians, solution);
+
     let mut score = 0f64;
     for (index, (inst, placement)) in musicians.iter().zip(solution.placements.iter()).enumerate() {
         let seg = LineSegment {
@@ -49,7 +74,7 @@ fn evaluate_attendee(attendee: &Attendee, musicians: &[usize], solution: &Soluti
             continue;
         }
         let d = seg.length();
-        score += (1000000f64 * attendee.tastes[*inst] / (d * d)).ceil();
+        score += (q[index] * 1000000f64 * attendee.tastes[*inst] / (d * d)).ceil();
     }
     score
 }
@@ -91,7 +116,7 @@ pub fn estimate(problem_id: u32, problem: &Problem) -> (f64, Solution) {
     candidates.push(problem.stage.center());
 
     let mut placements = vec![];
-    for (idx, inst) in problem.musicians.iter().enumerate() {
+    for inst in problem.musicians.iter() {
         let mut pos = Point2D::new(0., 0.);
         let mut max_score = f64::MIN;
         for candidate in candidates.iter() {
@@ -125,7 +150,7 @@ pub fn estimate(problem_id: u32, problem: &Problem) -> (f64, Solution) {
                 max: problem.stage.max - Vector2D::new(10., 10.),
             };
             let mut found = false;
-            for i in (1..problem.musicians.len() as isize) {
+            for i in 1..problem.musicians.len() as isize {
                 let mut max_score = f64::MIN;
                 let mut max_pos = Point2D::new(0., 0.);
                 for ix in -i..=i {

@@ -78,7 +78,7 @@ fn validate(solution: &Solution) {
 }
 
 fn main() -> Result<()> {
-    let mut rng = rand::thread_rng();
+    // let mut rng = rand::thread_rng();
     let args: Vec<String> = std::env::args().collect();
     let problem_id = args[1].parse::<u32>()?;
     let is_estimate = if args.len() >= 3 && args[2] == "estimate" {
