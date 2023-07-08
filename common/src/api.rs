@@ -100,7 +100,7 @@ impl Client {
         let res: Response<RawSubmissionEntry> = self
             .client
             .get(&url)
-            .bearer_auth(&self.token.as_ref().unwrap().0)
+            .bearer_auth(&self.token.as_ref().expect("API_TOKEN is missing").0)
             .send()?
             .json()?;
         match res {
@@ -114,7 +114,7 @@ impl Client {
         let res = self
             .client
             .post(&url)
-            .bearer_auth(&self.token.as_ref().unwrap().0)
+            .bearer_auth(&self.token.as_ref().expect("API_TOKEN is missing").0)
             .json(&json!({
                 "problem_id": problem_id,
                 "contents": serde_json::to_string(&RawSolution::from(s))?,
@@ -137,7 +137,7 @@ impl Client {
         let res: Response<Vec<Submission>> = self
             .client
             .get(&url)
-            .bearer_auth(&self.token.as_ref().unwrap().0)
+            .bearer_auth(&self.token.as_ref().expect("API_TOKEN is missing").0)
             .send()?
             .json()?;
         match res {
@@ -173,7 +173,7 @@ impl Client {
         let res: Response<Userboard> = self
             .client
             .get(&url)
-            .bearer_auth(&self.token.as_ref().unwrap().0)
+            .bearer_auth(&self.token.as_ref().expect("API_TOKEN is missing").0)
             .send()?
             .json()?;
         match res {
