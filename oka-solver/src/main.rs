@@ -1,9 +1,7 @@
 mod solver;
 
 use anyhow::Result;
-use common::{api::Client, board::Board, evaluate, Problem, Solution};
-use lyon_geom::Point;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use common::{api::Client, Problem, Solution};
 
 use crate::solver::Solver;
 
