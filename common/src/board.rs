@@ -38,6 +38,8 @@ pub struct Board {
     aids: Vec<Vec<(F64, usize)>>,
     // m -> a -> block count
     blocks: Vec<Vec<usize>>,
+    // m -> closeness factor
+    qs: Vec<Option<f64>>,
 
     score: f64,
 }
@@ -54,6 +56,7 @@ impl Board {
         }
         let aids = vec![vec![]; n];
         let blocks = vec![vec![0; m]; n];
+        let qs = vec![None; n];
 
         prob.stage = Box2D::new(
             prob.stage.min + P::new(10., 10.),
@@ -66,6 +69,7 @@ impl Board {
             ps,
             aids,
             blocks,
+            qs,
             score: 0.,
         }
     }
@@ -75,7 +79,6 @@ impl Board {
     }
 
     pub fn musicians(&self) -> &[Option<(P, f64)>] {
-        // TODO: Do no return pillars
         &self.ps[0..self.prob.musicians.len()]
     }
 
@@ -128,6 +131,22 @@ impl Board {
 
         assert!(self.aids[m].is_empty());
 
+        // Update qs
+        let mut qm = 0.;
+        for i in 0..self.prob.musicians.len() {
+            if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
+                continue;
+            }
+            if let Some((q, _)) = self.ps[i] {
+                let d = 1. / (p - q).length();
+                qm += d;
+                self.qs[i].as_mut().map(|qq| {
+                    *qq += d;
+                });
+            }
+        }
+        self.qs[m] = Some(qm);
+
         // Update aids and score
         for (i, a) in self.prob.attendees.iter().enumerate() {
             let r: F64 = (a.position - p)
@@ -169,6 +188,21 @@ impl Board {
         self.aids[m].clear();
         for (i, _) in self.prob.attendees.iter().enumerate() {
             self.score -= self.impact(m, i)
+        }
+
+        // Update qs
+        self.qs[m] = None;
+        let p = self.ps[m].unwrap().0;
+        for i in 0..self.prob.musicians.len() {
+            if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
+                continue;
+            }
+            if let Some((q, _)) = self.ps[i] {
+                let d = (p - q).length();
+                self.qs[i].as_mut().map(|qq| {
+                    *qq -= 1. / d;
+                });
+            }
         }
 
         // Update ps
