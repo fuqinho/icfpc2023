@@ -73,8 +73,22 @@ impl Board {
         &self.ps
     }
 
+    // The musician's contribution to the score
+    pub fn contribution(&self, m: usize) -> f64 {
+        let mut res = 0.;
+        for (a, b) in self.blocks[m].iter().enumerate() {
+            if *b > 0 {
+                continue;
+            }
+            res += self.impact(m, a);
+        }
+        res
+    }
+
     pub fn try_place(&mut self, i: usize, position: Point<f64>) -> anyhow::Result<()> {
-        if !self.prob.stage.contains(position) {
+        let mut bb = self.prob.stage;
+        bb.max += P::new(1e-9, 1e-9);
+        if !bb.contains(position) {
             bail!("not on stage");
         }
         for p in self.ps.iter() {

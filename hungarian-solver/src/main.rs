@@ -1,21 +1,12 @@
 mod solver;
 
 use anyhow::Result;
-use common::{api::Client, Problem, Solution};
+use common::{api::Client, evaluate, Solution};
 
 use crate::solver::Solver;
 
 #[argopt::cmd]
-fn main(
-    /// time limit in seconds
-    #[opt(long, default_value = "5")]
-    time_limit: u64,
-    /// number of threads
-    #[opt(long, default_value = "1")]
-    threads: usize,
-    /// problem id
-    problem_id: u32,
-) -> Result<()> {
+fn main(problem_id: u32) -> Result<()> {
     let cl = Client::new();
     let userboard = cl.get_userboard()?;
 
@@ -23,9 +14,9 @@ fn main(
 
     println!("our best score: {}", best_score);
 
-    let problem = Problem::read_from_file(format!("problems/{}.json", problem_id))?;
+    let problem = cl.get_problem(problem_id)?;
 
-    let solver = Solver::new(problem_id, problem, time_limit as u64, 42);
+    let mut solver = Solver::new(problem_id, problem.clone());
 
     let (score, board) = solver.solve();
 
@@ -33,7 +24,11 @@ fn main(
 
     let solution: Solution = board.try_into().unwrap();
 
-    if score > best_score {
+    let eval_score = evaluate(&problem, &solution);
+
+    // assert_eq!(score, eval_score);
+
+    if eval_score > best_score {
         cl.post_submission(problem_id, solution)?;
 
         println!("Submitted solution for problem {}!", problem_id);
