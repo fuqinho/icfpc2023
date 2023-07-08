@@ -30,8 +30,8 @@ var flagBucket = &cli.StringFlag{
 	Required: true,
 }
 
-var app = &cli.Command{
-	Name: "backend",
+var cmdServer = &cli.Command{
+	Name: "server",
 	Flags: []cli.Flag{
 		flagPort,
 		flagDB,
@@ -61,6 +61,13 @@ var app = &cli.Command{
 		handler := server.NewHandler(db)
 		log.Printf("Listening at :%d ...", port)
 		return http.ListenAndServe(fmt.Sprintf(":%d", port), handler)
+	},
+}
+
+var app = &cli.Command{
+	Name: "backend",
+	Commands: []*cli.Command{
+		cmdServer,
 	},
 }
 
