@@ -38,12 +38,14 @@ export default function Home() {
     }
     (async () => {
       const wasm = await import("wasm");
+      console.time("wasm-eval-time");
       setEvalResult(
         wasm.EvaluationResult.from_json(
           JSON.stringify(problem),
           JSON.stringify(solution),
         ),
       );
+      console.timeEnd("wasm-eval-time");
     })();
   }, [problem, solution]);
 
