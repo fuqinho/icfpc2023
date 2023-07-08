@@ -22,6 +22,16 @@ type Solution struct {
 	Created   time.Time `json:"created"`
 }
 
+type Submission struct {
+	SolutionUUID string    `json:"solution_uuid"`
+	ID           string    `json:"id"`
+	State        string    `json:"state"`
+	Accepted     bool      `json:"accepted"`
+	Score        int64     `json:"score"`
+	Error        string    `json:"error"`
+	Created      time.Time `json:"created"`
+}
+
 type DB struct {
 	raw    *sql.DB
 	bucket *storage.BucketHandle
@@ -134,7 +144,10 @@ func (db *DB) ListSolutionsForProblem(ctx context.Context, problemID int) ([]*So
 }
 
 func (db *DB) ListAllSolutions(ctx context.Context) ([]*Solution, error) {
-	rows, err := db.raw.QueryContext(ctx, `SELECT uuid, problem_id, created FROM solutions ORDER BY created DESC`)
+	rows, err := db.raw.QueryContext(ctx, `
+	SELECT uuid, problem_id, created
+	FROM solutions
+	ORDER BY created DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -186,6 +199,51 @@ func (db *DB) SubmitSolution(ctx context.Context, problemID int, solutionSpec st
 	}
 
 	return uuid, nil
+}
+
+func (db *DB) GetSolutionBySubmissionID(ctx context.Context, submissionID string) (*Solution, error) {
+	row := db.raw.QueryRowContext(ctx, `
+	SELECT
+	  solutions.uuid,
+		solutions.problem_id,
+		solutions.created,
+		submissions.state,
+		submissions.accepted,
+		submissions.score,
+		submissions.error
+	FROM solutions
+	LEFT OUTER JOIN submissions USING (uuid)
+	WHERE submissions.submission_id = ?
+	`, submissionID)
+
+	var uuid string
+	var problemID int
+	var created time.Time
+	var state string
+	var accepted bool
+	var score int64
+	var errorMsg string
+	if err := row.Scan(&uuid, &problemID, &created, &state, &accepted, &score, &errorMsg); err != nil {
+		return nil, err
+	}
+
+	solution := &Solution{
+		UUID:      uuid,
+		ProblemID: problemID,
+		Created:   created,
+	}
+	// TODO: Return evaluation results.
+	return solution, nil
+}
+
+func (db *DB) ReplaceSubmission(ctx context.Context, submission *Submission) error {
+	if _, err := db.raw.ExecContext(ctx, `
+	REPLACE INTO submissions (uuid, submission_id, state, accepted, score, error, created)
+	VALUES (?, ?, ?, ?, ?, ?, ?)
+	`, submission.SolutionUUID, submission.ID, submission.State, submission.Accepted, submission.Score, submission.Error, submission.Created); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (db *DB) ProblemURL(id int) string {

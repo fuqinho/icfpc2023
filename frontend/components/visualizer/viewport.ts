@@ -1,9 +1,12 @@
 import { Problem, Solution } from "../problems";
+import type { CanvasRenderingContext2D as ServerCanvasContext2D } from "canvas";
 
 type Coord = [number, number];
 
 export class Viewport {
-  private readonly ctx: CanvasRenderingContext2D;
+  private readonly ctx: CanvasRenderingContext2D | ServerCanvasContext2D;
+  private readonly canvasWidth: number;
+  private readonly canvasHeight: number;
   private readonly problem: Problem;
   private readonly solution: Solution | null;
 
@@ -15,11 +18,15 @@ export class Viewport {
   private cCursor: Coord | undefined = undefined;
 
   constructor(
-    ctx: CanvasRenderingContext2D,
+    ctx: CanvasRenderingContext2D | ServerCanvasContext2D,
+    canvasWidth: number,
+    canvasHeight: number,
     problem: Problem,
     solution: Solution | null,
   ) {
     this.ctx = ctx;
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
     this.problem = problem;
     this.solution = solution;
     this.calculateInitialViewport();
@@ -50,35 +57,34 @@ export class Viewport {
     this.pVpCenter = [(maxX + minY) / 2, (maxY + minY) / 2];
 
     let vpW = maxX - minX + 100;
-    let vpH = (vpW * this.ctx.canvas.height) / this.ctx.canvas.width;
+    let vpH = (vpW * this.canvasHeight) / this.canvasWidth;
     if (vpH > maxY - minY + 100) {
       this.pVpWidth = vpW;
       return;
     }
     vpH = maxY - minY + 100;
-    vpW = (vpH * this.ctx.canvas.width) / this.ctx.canvas.height;
+    vpW = (vpH * this.canvasWidth) / this.canvasHeight;
     this.pVpWidth = vpW;
   }
 
   public clear() {
     this.ctx.globalAlpha = 1;
     this.ctx.fillStyle = "rgb(255, 255, 255)";
-    this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
+    this.ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
   }
 
   public drawCursorPos() {
     if (!this.cCursor) {
       return;
     }
-    const pVpHeight =
-      (this.pVpWidth * this.ctx.canvas.height) / this.ctx.canvas.width;
+    const pVpHeight = (this.pVpWidth * this.canvasHeight) / this.canvasWidth;
     const c = [
       this.pVpCenter[0] -
         this.pVpWidth / 2 +
         this.toProblemScale(this.cCursor[0]),
       this.pVpCenter[1] -
         pVpHeight / 2 +
-        this.toProblemScale(this.ctx.canvas.height - this.cCursor[1]),
+        this.toProblemScale(this.canvasHeight - this.cCursor[1]),
     ];
     this.ctx.font = "64px monospace";
     const text = `(${c[0]}, ${c[1]})`;
@@ -117,7 +123,7 @@ export class Viewport {
     // coordinate based on the viewport position.
     const cVpCenter =
       this.toCanvasScale(this.pVpCenter[0]) - this.cVpCenterTempMove[0];
-    const cVpW = this.ctx.canvas.width;
+    const cVpW = this.canvasWidth;
     const cOrigin = -(cVpCenter - cVpW / 2);
     return cScale + cOrigin;
   }
@@ -130,17 +136,17 @@ export class Viewport {
     const cVpCenter =
       this.toCanvasScale(this.problem.room_height - this.pVpCenter[1]) -
       this.cVpCenterTempMove[1];
-    const cVpH = this.ctx.canvas.height;
+    const cVpH = this.canvasHeight;
     const cOrigin = -(cVpCenter - cVpH / 2);
     return cScale + cOrigin;
   }
 
   private toCanvasScale(problemScaleV: number): number {
-    return (problemScaleV * this.ctx.canvas.width) / this.pVpWidth;
+    return (problemScaleV * this.canvasWidth) / this.pVpWidth;
   }
 
   private toProblemScale(canvasScaleV: number): number {
-    return (canvasScaleV * this.pVpWidth) / this.ctx.canvas.width;
+    return (canvasScaleV * this.pVpWidth) / this.canvasWidth;
   }
 
   public drawRect({

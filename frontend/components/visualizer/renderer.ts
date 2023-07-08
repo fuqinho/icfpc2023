@@ -1,9 +1,8 @@
-"use client";
-
 import tinycolor from "tinycolor2";
 import { Attendee, Musician, Problem, Solution } from "../problems";
 import { Viewport } from "./viewport";
 import type { EvaluationResult } from "wasm";
+import type { CanvasRenderingContext2D as ServerCanvasContext2D } from "canvas";
 
 const ATTENDEE_RADIUS = 10;
 const MUSICIAN_RADIUS = 5;
@@ -14,7 +13,6 @@ export interface RenderingOption {
 
 export class Renderer {
   private readonly vp: Viewport;
-  private readonly canvas: HTMLCanvasElement;
   private readonly problem: Problem;
   private readonly solution: Solution | null;
   private readonly evalResult: EvaluationResult | null;
@@ -25,14 +23,15 @@ export class Renderer {
   private dragStartCoord: [number, number] | undefined = undefined;
 
   constructor(
-    ctx: CanvasRenderingContext2D,
+    ctx: CanvasRenderingContext2D | ServerCanvasContext2D,
+    canvasWidth: number,
+    canvasHeight: number,
     problem: Problem,
     solution: Solution | null,
     evalResult: EvaluationResult | null,
     option: RenderingOption,
   ) {
-    this.vp = new Viewport(ctx, problem, solution);
-    this.canvas = ctx.canvas;
+    this.vp = new Viewport(ctx, canvasWidth, canvasHeight, problem, solution);
     this.problem = problem;
     this.solution = solution;
     this.option = option;
@@ -152,31 +151,34 @@ export class Renderer {
   // Event handling
   // ===========================================================================
 
-  public addEventListeners(): () => void {
-    const mousedownEvent = this.mousedownEvent.bind(this);
+  public addEventListeners(canvas: HTMLCanvasElement): () => void {
+    const mousedownEvent = (e: MouseEvent) => this.mousedownEvent(canvas, e);
     const mouseleaveEvent = this.mouseleaveEvent.bind(this);
-    const mousemoveEvent = this.mousemoveEvent.bind(this);
+    const mousemoveEvent = (e: MouseEvent) => this.mousemoveEvent(canvas, e);
     const mouseupEvent = this.mouseupEvent.bind(this);
     const wheelEvent = this.wheelEvent.bind(this);
-    this.canvas.addEventListener("mousedown", mousedownEvent);
-    this.canvas.addEventListener("mouseleave", mouseleaveEvent);
-    this.canvas.addEventListener("mousemove", mousemoveEvent);
-    this.canvas.addEventListener("mouseup", mouseupEvent);
-    this.canvas.addEventListener("wheel", wheelEvent);
+    canvas.addEventListener("mousedown", mousedownEvent);
+    canvas.addEventListener("mouseleave", mouseleaveEvent);
+    canvas.addEventListener("mousemove", mousemoveEvent);
+    canvas.addEventListener("mouseup", mouseupEvent);
+    canvas.addEventListener("wheel", wheelEvent);
     return () => {
-      this.canvas.removeEventListener("mousedown", mousedownEvent);
-      this.canvas.removeEventListener("mouseleave", mouseleaveEvent);
-      this.canvas.removeEventListener("mousemove", mousemoveEvent);
-      this.canvas.removeEventListener("mouseup", mousedownEvent);
-      this.canvas.removeEventListener("wheel", wheelEvent);
+      canvas.removeEventListener("mousedown", mousedownEvent);
+      canvas.removeEventListener("mouseleave", mouseleaveEvent);
+      canvas.removeEventListener("mousemove", mousemoveEvent);
+      canvas.removeEventListener("mouseup", mousedownEvent);
+      canvas.removeEventListener("wheel", wheelEvent);
     };
   }
 
-  private getMouseCCoord(e: MouseEvent): [number, number] {
-    const c = this.canvas.getBoundingClientRect();
+  private getMouseCCoord(
+    canvas: HTMLCanvasElement,
+    e: MouseEvent,
+  ): [number, number] {
+    const c = canvas.getBoundingClientRect();
     return [
-      ((e.pageX - c.left) * this.canvas.width) / c.width,
-      ((e.pageY - c.top) * this.canvas.height) / c.height,
+      ((e.pageX - c.left) * canvas.width) / c.width,
+      ((e.pageY - c.top) * canvas.height) / c.height,
     ];
   }
 
@@ -190,8 +192,8 @@ export class Renderer {
     return false;
   }
 
-  private mousedownEvent(e: MouseEvent) {
-    this.dragStartCoord = this.getMouseCCoord(e);
+  private mousedownEvent(canvas: HTMLCanvasElement, e: MouseEvent) {
+    this.dragStartCoord = this.getMouseCCoord(canvas, e);
   }
 
   private mouseupEvent() {
@@ -199,8 +201,8 @@ export class Renderer {
     this.vp.commitVpCenterMove();
   }
 
-  private mousemoveEvent(e: MouseEvent) {
-    const current = this.getMouseCCoord(e);
+  private mousemoveEvent(canvas: HTMLCanvasElement, e: MouseEvent) {
+    const current = this.getMouseCCoord(canvas, e);
     this.vp.setCursorPos(current);
     if (this.dragStartCoord) {
       this.vp.setVpCenterMove([

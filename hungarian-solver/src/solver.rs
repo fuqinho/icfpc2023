@@ -1,14 +1,38 @@
-use std::collections::BTreeSet;
+use std::{
+    cmp::Ordering,
+    collections::{BTreeSet, HashSet},
+    str::FromStr,
+};
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use common::{board::Board, Problem};
-use lyon_geom::Point;
+use lyon_geom::{Point, Vector};
 use pathfinding::prelude::{kuhn_munkres, Matrix};
 
 pub struct Solver {
     orig_problem: Problem,
     board: Board,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Algorithm {
+    Normal,
+    ZigZag,
+}
+
+impl FromStr for Algorithm {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "normal" => Ok(Self::Normal),
+            "zigzag" => Ok(Self::ZigZag),
+            _ => bail!("unknown algorithm name {}", s),
+        }
+    }
+}
+
+type P = Point<f64>;
 
 const D: usize = 10;
 
@@ -22,23 +46,28 @@ impl Solver {
         }
     }
 
-    pub fn solve(&mut self) -> (f64, Board) {
-        let mut outer = vec![];
+    pub fn solve(&mut self, algo: Algorithm) -> (f64, Board) {
+        let mut outer = self.compute_outer(algo);
+
+        let mut max_x: f64 = 0.;
+        let mut max_y: f64 = 0.;
+        for p in outer.iter() {
+            max_x = max_x.max(p.x);
+            max_y = max_y.max(p.y);
+        }
 
         let bb = self.board.prob.stage;
 
-        for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize)).step_by(D) {
-            if bb.min.y > D as f64 {
-                outer.push(Point::new(x as f64, bb.min.y));
-            }
-            outer.push(Point::new(x as f64, bb.max.y));
-        }
+        for p in outer.iter_mut() {
+            p.x += bb.max.x - max_x;
+            p.y += bb.max.y - max_y;
 
-        for y in ((bb.min.y).ceil() as usize + D..bb.max.y.floor() as usize - D).step_by(D) {
-            if bb.min.x > D as f64 {
-                outer.push(Point::new(bb.min.x, y as f64));
+            if p.x > bb.max.x {
+                p.x = bb.max.x
             }
-            outer.push(Point::new(bb.max.x, y as f64));
+            if p.y > bb.max.y {
+                p.y = bb.max.y
+            }
         }
 
         // Compute scores for outer points
@@ -130,10 +159,15 @@ impl Solver {
                     continue;
                 }
 
-                let i = to_place.pop_first().unwrap();
-                self.board
-                    .try_place(i, Point::new(x as f64, y as f64))
-                    .unwrap();
+                let i = to_place.first().unwrap();
+
+                if self
+                    .board
+                    .try_place(*i, Point::new(x as f64, y as f64))
+                    .is_ok()
+                {
+                    to_place.pop_first().unwrap();
+                }
             }
         }
 
@@ -141,5 +175,82 @@ impl Solver {
         // assert_eq!(self.board.score(), score as f64);
 
         return (self.board.score() as f64, self.board.clone());
+    }
+
+    fn compute_outer(&self, algo: Algorithm) -> Vec<P> {
+        let mut outer = vec![];
+
+        let bb = self.board.prob.stage;
+
+        if algo == Algorithm::Normal {
+            for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize)).step_by(D) {
+                if bb.min.y > D as f64 {
+                    outer.push(Point::new(x as f64, bb.min.y));
+                }
+                outer.push(Point::new(x as f64, bb.max.y));
+            }
+
+            for y in ((bb.min.y).ceil() as usize + D..bb.max.y.floor() as usize - D).step_by(D) {
+                if bb.min.x > D as f64 {
+                    outer.push(Point::new(bb.min.x, y as f64));
+                }
+                outer.push(Point::new(bb.max.x, y as f64));
+            }
+        } else if algo == Algorithm::ZigZag {
+            let mut queue = vec![];
+            let mut visited = HashSet::<Point<i64>>::new();
+
+            let mul = 1_000_000i64;
+            let sqrt2_5 = 7_071_068i64;
+
+            let init = Point::new(bb.min.x.ceil() as i64 * mul, bb.min.y.ceil() as i64 * mul);
+            queue.push(init);
+            visited.insert(init);
+
+            let eps = Vector::new(1e-9, 1e-9);
+            let mut bb_outer = bb;
+            bb_outer.max += eps;
+
+            let mut bb_inner = bb;
+            bb_inner.min +=
+                Vector::new(sqrt2_5 as f64 / mul as f64, sqrt2_5 as f64 / mul as f64) + eps;
+            bb_inner.max -=
+                Vector::new(sqrt2_5 as f64 / mul as f64, sqrt2_5 as f64 / mul as f64) * 2. + eps;
+
+            while let Some(p) = queue.pop() {
+                for dx in [-1, 1] {
+                    for dy in [-1, 1] {
+                        let np = p + Vector::new(dx * sqrt2_5, dy * sqrt2_5);
+
+                        if visited.contains(&np) {
+                            continue;
+                        }
+
+                        let real_np = np.to_f64() / mul as f64;
+
+                        if bb_outer.contains(real_np) && !bb_inner.contains(real_np) {
+                            queue.push(np);
+                            visited.insert(np);
+                        }
+                    }
+                }
+            }
+
+            outer = visited
+                .into_iter()
+                .map(|p| p.to_f64() / mul as f64)
+                .collect();
+
+            outer.sort_by(|x, y| {
+                let o = x.x.partial_cmp(&y.x).unwrap();
+                if o == Ordering::Equal {
+                    x.y.partial_cmp(&y.y).unwrap()
+                } else {
+                    o
+                }
+            });
+        }
+
+        outer
     }
 }
