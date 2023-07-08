@@ -394,5 +394,12 @@ mod tests {
         let expected_score = 1e6 / 100.0 / 100.0;
 
         assert_eq!(score, expected_score);
+
+        for eps in [1e-9, -1e-9] {
+            board.unplace(2);
+            board.try_place(2, Point::new(10.0, 15.0 + eps)).unwrap();
+
+            assert_eq!(board.score(), 0.);
+        }
     }
 }
