@@ -6,6 +6,7 @@ import {
   ProblemMetadata,
   SolutionMetadata,
   problemImage,
+  solutionImage,
   useBestSolutions,
   useProblemList,
   useProblemSpec,
@@ -41,12 +42,21 @@ function ProblemListItem({
       <td>{problem.id}</td>
       <td>
         <Link href={`/problem/${problem.id}`}>
-          <Image
-            src={problemImage(problem.id)}
-            alt=""
-            width={200}
-            height={200}
-          />
+          {bestSolution ? (
+            <Image
+              src={solutionImage(bestSolution.uuid)}
+              alt=""
+              width={200}
+              height={200}
+            />
+          ) : (
+            <Image
+              src={problemImage(problem.id)}
+              alt=""
+              width={200}
+              height={200}
+            />
+          )}
         </Link>
       </td>
       <td className="text-mono">
