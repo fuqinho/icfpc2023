@@ -6,7 +6,11 @@ use common::{api::Client, evaluate, Solution};
 use crate::solver::Solver;
 
 #[argopt::cmd]
-fn main(problem_id: u32) -> Result<()> {
+fn main(
+    problem_id: u32,
+    #[opt(short, long, default_value = "normal")] algo: solver::Algorithm,
+    #[opt(short, long, default_value = "")] out: String,
+) -> Result<()> {
     let cl = Client::new();
     let userboard = cl.get_userboard()?;
 
@@ -18,7 +22,7 @@ fn main(problem_id: u32) -> Result<()> {
 
     let mut solver = Solver::new(problem_id, problem.clone());
 
-    let (score, board) = solver.solve();
+    let (score, board) = solver.solve(algo);
 
     eprintln!("final score: {}", score);
 
@@ -29,9 +33,14 @@ fn main(problem_id: u32) -> Result<()> {
     // assert_eq!(score, eval_score);
 
     if eval_score > best_score {
-        cl.post_submission(problem_id, solution)?;
+        cl.post_submission(problem_id, solution.clone())?;
 
         eprintln!("Submitted solution for problem {}!", problem_id);
+    }
+
+    if out != "" {
+        eprintln!("Writing solution to {}", out);
+        Solution::write_to_file(out, solution)?;
     }
 
     Ok(())
