@@ -1,13 +1,13 @@
 "use client";
 
-import Visualizer from "@/components/Visualizer";
+import Visualizer, { VisualizerElement } from "@/components/Visualizer";
 import {
   loadSolutionSpec,
   useKnownSolutions,
   useProblemSpec,
 } from "@/components/api";
 import { Solution } from "@/components/problems";
-import { ChangeEvent, useCallback, useEffect, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import { RenderingOption } from "@/components/visualizer/renderer";
 import SolutionList from "@/components/SolutionList";
 import { EvaluationResult } from "@/components/evaluation_result";
@@ -41,6 +41,7 @@ export default function Home({ params }: { params: { problemId: string } }) {
   const [jsonParseException, setJSONParseException] = useState<any>(null);
   const [option, setOption] = useState<RenderingOption>({});
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
+  const visualizer = useRef<VisualizerElement>(null);
 
   const { data: problem, error: errorProblem } = useProblemSpec(problemID);
   const { data: knownSolutions, error: errorKnownSolutions } =
@@ -110,6 +111,7 @@ export default function Home({ params }: { params: { problemId: string } }) {
       <div>
         <div className="flex">
           <Visualizer
+            ref={visualizer}
             problem={problem}
             solution={solution}
             evalResult={evalResult}
@@ -117,6 +119,7 @@ export default function Home({ params }: { params: { problemId: string } }) {
             className="w-[800px] h-[800px] m-4 border border-slate-200"
           />
           <VisualizerControl
+            visualizer={visualizer.current}
             problem={problem}
             evalResult={evalResult}
             option={option}

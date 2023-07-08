@@ -1,5 +1,9 @@
 import { Problem } from "@/components/problems";
 import { Renderer } from "@/components/visualizer/renderer";
+import {
+  CANVAS_SIZE,
+  initialViewportState,
+} from "@/components/visualizer/viewport";
 import axios, { AxiosResponse } from "axios";
 import { createCanvas } from "canvas";
 import { NextRequest } from "next/server";
@@ -18,9 +22,17 @@ export async function GET(
   );
   const problem = response.data;
 
-  const offscreen = createCanvas(4000, 4000);
+  const offscreen = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
   const ctx = offscreen.getContext("2d")!;
-  const renderer = new Renderer(ctx, 4000, 4000, problem, null, null, {});
+  const renderer = new Renderer(
+    ctx,
+    problem,
+    null,
+    null,
+    {},
+    initialViewportState(problem, null),
+    () => {},
+  );
   renderer.render();
 
   const resized = createCanvas(400, 400);
