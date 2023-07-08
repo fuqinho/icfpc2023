@@ -219,7 +219,8 @@ mod tests {
             },
             { "x": 1100.0, "y": 800.0, "tastes": [800.0, 1500.0]
             }
-            ]
+            ],
+            "pillars": []
             }"#;
 
         let p: RawProblem = serde_json::from_str(&example).unwrap();
