@@ -1,5 +1,8 @@
 import { useCallback } from "react";
 import { SolutionMetadata } from "./api";
+import clsx from "clsx";
+import { formatNumber } from "./number_format";
+import { DateTime } from "luxon";
 
 interface SolutionListRowProps {
   solution: SolutionMetadata;
@@ -12,11 +15,11 @@ function SolutionListRow({ solution, onClickSolution }: SolutionListRowProps) {
   const [badgeType, badgeCaption] =
     submission?.state === "FINISHED"
       ? submission.accepted
-        ? ["success", "Accepted"]
-        : ["error", "Rejected"]
+        ? ["badge-success", "Accepted"]
+        : ["badge-error", "Rejected"]
       : submission?.state === "PROCESSING"
-      ? ["warning", "Processing"]
-      : ["primary", "Pending"];
+      ? ["badge-warning", "Processing"]
+      : ["badge-primary", "Pending"];
 
   const onClick = useCallback(() => {
     if (onClickSolution) {
@@ -24,16 +27,22 @@ function SolutionListRow({ solution, onClickSolution }: SolutionListRowProps) {
     }
   }, [onClickSolution, solution.uuid]);
 
+  const created = DateTime.fromISO(solution.created).setZone("Asia/Tokyo");
+
   return (
     <tr>
       <td className="text-center">
-        <span className={`badge badge-${badgeType}`} title={submission?.error}>
+        <span className={clsx("badge", badgeType)} title={submission?.error}>
           {badgeCaption}
         </span>
       </td>
-      <td className="font-mono text-right">{submission?.score}</td>
+      <td className="font-mono text-right">
+        {formatNumber(submission?.score)}
+      </td>
       <td className="font-mono">
-        <span title={solution.uuid}>{solution.created}</span>
+        <span title={solution.uuid}>
+          {created.toFormat("ccc HH:mm:ss ZZZ")} ({created.toRelative()})
+        </span>
       </td>
       <td>
         <button className="btn btn-primary btn-sm" onClick={onClick}>
