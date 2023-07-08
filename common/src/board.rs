@@ -32,7 +32,8 @@ pub struct Board {
     pub prob: Problem,
 
     // m -> position
-    ps: Vec<Option<P>>,
+    // musicians + pillars
+    ps: Vec<Option<(P, f64)>>,
     // m -> audience ids sorted by args
     aids: Vec<Vec<(F64, usize)>>,
     // m -> a -> block count
@@ -45,8 +46,12 @@ impl Board {
     pub fn new(problem_id: u32, mut prob: Problem) -> Self {
         let n = prob.musicians.len();
         let m = prob.attendees.len();
+        let p = prob.pillars.len();
 
-        let ps = vec![None; n];
+        let mut ps = vec![None; n + p];
+        for i in 0..p {
+            ps[i + n] = Some((prob.pillars[i].center.to_vector(), prob.pillars[i].radius));
+        }
         let aids = vec![vec![]; n];
         let blocks = vec![vec![0; m]; n];
 
@@ -69,8 +74,9 @@ impl Board {
         self.score
     }
 
-    pub fn musicians(&self) -> &Vec<Option<P>> {
-        &self.ps
+    pub fn musicians(&self) -> &[Option<(P, f64)>] {
+        // TODO: Do no return pillars
+        &self.ps[0..self.prob.musicians.len()]
     }
 
     // The musician's contribution to the score
@@ -102,8 +108,8 @@ impl Board {
         if !bb.contains(position) {
             bail!("not on stage");
         }
-        for p in self.ps.iter() {
-            if let Some(p) = p {
+        for p in self.ps[0..self.prob.musicians.len()].iter() {
+            if let Some((p, _)) = p {
                 if (*p - position.to_vector()).square_length() < 100. {
                     bail!("too close to another musician");
                 }
@@ -118,7 +124,7 @@ impl Board {
 
     fn place(&mut self, m: usize, p: P) {
         // Update ps
-        self.ps[m] = Some(p);
+        self.ps[m] = Some((p, 5.));
 
         assert!(self.aids[m].is_empty());
 
@@ -140,11 +146,11 @@ impl Board {
     }
 
     pub fn can_place(&self, i: usize, position: Point<f64>) -> bool {
-        for (ix, p) in self.ps.iter().enumerate() {
+        for (ix, p) in self.ps[0..self.prob.musicians.len()].iter().enumerate() {
             if ix == i {
                 continue;
             }
-            if let Some(p) = p {
+            if let Some((p, _)) = p {
                 if (*p - position.to_vector()).square_length() < 100. {
                     return false;
                 }
@@ -154,7 +160,7 @@ impl Board {
     }
 
     pub fn unplace(&mut self, m: usize) {
-        let p = self.ps[m].unwrap();
+        let (p, _) = self.ps[m].unwrap();
 
         // Update blocks
         self.update_blocks(m, p, false);
@@ -175,13 +181,21 @@ impl Board {
                 continue;
             }
 
-            if let Some(q) = q {
+            if let Some((q, r)) = q {
                 for rev in [false, true] {
-                    let (blocking, blocked, _, i) = if rev { (q, p, i, m) } else { (p, q, m, i) };
+                    let (blocking, blocked, _, i, r, _) = if rev {
+                        (q, p, i, m, r, 5.)
+                    } else {
+                        (p, q, m, i, 5., r)
+                    };
+                    if i >= self.prob.musicians.len() {
+                        // blocked is pillar, we don't need to calculate impact
+                        continue;
+                    }
 
                     // Update for blocked musician.
 
-                    let (t1, t2) = tangent_to_circle(blocked, blocking, R);
+                    let (t1, t2) = tangent_to_circle(blocked, blocking, r);
 
                     let r1: F64 = (t1 - blocked).angle_from_x_axis().radians.into();
                     let r2: F64 = (t2 - blocked).angle_from_x_axis().radians.into();
@@ -228,7 +242,7 @@ impl Board {
     }
 
     fn impact(&self, m: usize, a: usize) -> f64 {
-        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap())
+        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap().0)
             .to_vector()
             .square_length();
         let impact = 1_000_000.0 * self.prob.attendees[a].tastes[self.prob.musicians[m]] / d2;
@@ -236,7 +250,7 @@ impl Board {
     }
 
     fn impact_if_kind(&self, m: usize, a: usize, k: usize) -> f64 {
-        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap())
+        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap().0)
             .to_vector()
             .square_length();
         let impact = 1_000_000.0 * self.prob.attendees[a].tastes[k] / d2;
@@ -249,8 +263,8 @@ impl TryInto<Solution> for Board {
 
     fn try_into(self) -> Result<Solution, Self::Error> {
         let mut placements = vec![];
-        for p in self.ps {
-            if let Some(p) = p {
+        for p in self.ps[0..self.prob.musicians.len()].iter() {
+            if let Some((p, _)) = p {
                 placements.push(Placement {
                     position: p.to_point(),
                 });

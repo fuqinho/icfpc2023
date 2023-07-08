@@ -278,7 +278,7 @@ fn pick_and_move(
                 let p = board.musicians()[m].expect("Should not null");
                 let neighbor = rng.gen_range(0..8);
                 let cur_s = board.score();
-                let np = calc_neighbor(neighbor, p.to_point());
+                let np = calc_neighbor(neighbor, p.0.to_point());
                 board.unplace(m);
                 if board
                     .try_place(rng.gen_range(0..cur.placements.len()), np)
@@ -293,10 +293,10 @@ fn pick_and_move(
                     }
                     board.unplace(m);
                 }
-                board.try_place(m, p.to_point()).expect(&format!(
+                board.try_place(m, p.0.to_point()).expect(&format!(
                     "Should be on okay {:?}, {:?}",
                     p,
-                    p.to_point()
+                    p.0.to_point()
                 ));
             }
             _ => {

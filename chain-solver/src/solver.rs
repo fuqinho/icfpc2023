@@ -136,7 +136,7 @@ impl Solver {
                 }
                 if let Some(p) = self.board.musicians()[i] {
                     if let Some(q) = self.board.musicians()[j] {
-                        if (p - q).length() <= D + 1e-9 {
+                        if (p.0 - q.0).length() <= D + 1e-9 {
                             self.graph[i].insert(j);
                             self.graph[j].insert(i);
                         }
@@ -181,8 +181,8 @@ impl Solver {
             let m1 = *nei[0];
             let m2 = *nei[1];
 
-            let p1 = self.board.musicians()[m1].unwrap();
-            let p2 = self.board.musicians()[m2].unwrap();
+            let p1 = self.board.musicians()[m1].unwrap().0;
+            let p2 = self.board.musicians()[m2].unwrap().0;
 
             let mid = (p1 + p2) / 2.;
 
@@ -291,7 +291,7 @@ impl Solver {
             }
 
             if !found {
-                self.try_place(m0, p0.to_point()).unwrap();
+                self.try_place(m0, p0.0.to_point()).unwrap();
             }
         }
 

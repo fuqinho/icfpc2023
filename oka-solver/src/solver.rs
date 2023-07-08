@@ -72,7 +72,7 @@ impl Solver {
 
                 for _ in 0..100 {
                     let prev_score = self.board.score();
-                    let prev_pos = self.board.musicians()[i].unwrap().to_point();
+                    let prev_pos = self.board.musicians()[i].unwrap().0.to_point();
 
                     self.board.unplace(i);
                     self.place_randomly(i);
