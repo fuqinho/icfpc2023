@@ -87,7 +87,7 @@ export default function Visualizer({
       problem.attendees.forEach((a) => drawAttendee(vp, a));
       if (solution) {
         solution.placements.forEach((m, i) =>
-          drawMusician(vp, m, i, instruments.size)
+          drawMusician(vp, m, i, instruments.size),
         );
       }
       vp.drawCursorPos();
@@ -143,7 +143,7 @@ function drawMusician(
   vp: Viewport,
   musician: Musician,
   index: number,
-  totalInstruments: number
+  totalInstruments: number,
 ) {
   const col = tinycolor({
     h: (index / totalInstruments) * 360,

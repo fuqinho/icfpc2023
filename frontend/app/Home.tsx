@@ -16,7 +16,7 @@ import clsx from "clsx";
 export default function Home() {
   const { data: problems, error: errorProblems } = useProblemList();
   const [problemID, setProblemID] = useState<string | number | undefined>(
-    undefined
+    undefined,
   );
   const { data: problem, error: errorProblem } = useProblemSpec(problemID);
   const [rawSolution, setRawSolution] = useState("");
@@ -60,7 +60,7 @@ export default function Home() {
               key={entry.id}
               className={clsx(
                 "tab tab-lifted",
-                entry.id === problemID ? "tab-active" : null
+                entry.id === problemID ? "tab-active" : null,
               )}
               onClick={() => {
                 setProblemID(entry.id);
