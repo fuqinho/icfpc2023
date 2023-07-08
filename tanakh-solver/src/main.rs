@@ -478,7 +478,14 @@ impl saru::Annealer for Solver2 {
     }
 
     fn start_temp(&self, init_score: f64) -> f64 {
-        (init_score.abs() * 0.1).max(1e6)
+        if let Some(start_temp) = std::env::var("START_TEMP")
+            .ok()
+            .and_then(|s| s.parse().ok())
+        {
+            return start_temp;
+        } else {
+            (init_score.abs() * 0.1).max(1e6)
+        }
     }
 
     fn eval(
