@@ -201,6 +201,7 @@ func (h *Handler) handleSubmit(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleUpdateProblems(w http.ResponseWriter, r *http.Request) {
 	withResponse(w, r, func() error {
 		ctx := r.Context()
+		force := r.Form.Get("force") == "true"
 
 		var problemsResponse struct {
 			NumberOfProblems int `json:"number_of_problems"`
@@ -209,14 +210,15 @@ func (h *Handler) handleUpdateProblems(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		problems, err := h.db.ListProblems(ctx)
-		if err != nil {
-			return err
-		}
-
 		knownProblemIDs := make(map[int]struct{})
-		for _, p := range problems {
-			knownProblemIDs[p.ID] = struct{}{}
+		if !force {
+			problems, err := h.db.ListProblems(ctx)
+			if err != nil {
+				return err
+			}
+			for _, p := range problems {
+				knownProblemIDs[p.ID] = struct{}{}
+			}
 		}
 
 		for id := 1; id <= problemsResponse.NumberOfProblems; id++ {
@@ -237,7 +239,7 @@ func (h *Handler) handleUpdateProblems(w http.ResponseWriter, r *http.Request) {
 				return fmt.Errorf("failed to get problem %d: %s", id, problemResponse.Failure)
 			}
 
-			if err := h.db.AddProblem(ctx, id, problemResponse.Success); err != nil {
+			if err := h.db.UpdateProblem(ctx, id, problemResponse.Success); err != nil {
 				return err
 			}
 		}

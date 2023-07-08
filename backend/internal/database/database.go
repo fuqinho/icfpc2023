@@ -4,7 +4,6 @@ import (
 	"compress/gzip"
 	"context"
 	"database/sql"
-	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -71,14 +70,7 @@ func (db *DB) GetProblem(ctx context.Context, id int) (*Problem, error) {
 	return problem, nil
 }
 
-func (db *DB) AddProblem(ctx context.Context, id int, spec string) error {
-	// Check if the problem already exists.
-	if _, err := db.GetProblem(ctx, id); err == nil {
-		return fmt.Errorf("problem %d already exists", id)
-	} else if !errors.Is(err, sql.ErrNoRows) {
-		return err
-	}
-
+func (db *DB) UpdateProblem(ctx context.Context, id int, spec string) error {
 	// Create JSON on GCS.
 	w := db.problemObject(id).NewWriter(ctx)
 	w.ContentType = "application/json"
@@ -94,11 +86,10 @@ func (db *DB) AddProblem(ctx context.Context, id int, spec string) error {
 		return err
 	}
 
-	// Finally create an entry in DB.
-	if _, err := db.raw.ExecContext(ctx, `INSERT INTO problems (id) VALUES (?)`, id); err != nil {
+	// Create or update an entry in DB.
+	if _, err := db.raw.ExecContext(ctx, `REPLACE INTO problems (id) VALUES (?)`, id); err != nil {
 		return err
 	}
-
 	return nil
 }
 
