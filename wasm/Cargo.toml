@@ -11,3 +11,5 @@ crate-type = ["cdylib"]
 [dependencies]
 common = { path = "../common" }
 wasm-bindgen = "0.2"
+serde = { version = "*", features = ["derive"] }
+serde_json = "*"

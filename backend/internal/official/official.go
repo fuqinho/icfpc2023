@@ -52,7 +52,7 @@ func (s *Submission) UnmarshalJSON(b []byte) error {
 	var failureJSON struct {
 		Failure string `json:"Failure"`
 	}
-	if err := json.Unmarshal(j.Score, &failureJSON); err == nil {
+	if err := json.Unmarshal(j.Score, &failureJSON); err == nil && failureJSON.Failure != "" {
 		s.Done = true
 		s.Score = 0
 		s.Error = failureJSON.Failure
@@ -60,11 +60,11 @@ func (s *Submission) UnmarshalJSON(b []byte) error {
 	}
 
 	var successJSON struct {
-		Success int64 `json:"Success"`
+		Success float64 `json:"Success"`
 	}
 	if err := json.Unmarshal(j.Score, &successJSON); err == nil {
 		s.Done = true
-		s.Score = successJSON.Success
+		s.Score = int64(successJSON.Success)
 		s.Error = ""
 		return nil
 	}
