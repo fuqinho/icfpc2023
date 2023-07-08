@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { Attendee, Musician, Problem, Solution } from "./problems";
 import { Viewport } from "./visualizer/viewport";
+import tinycolor from "tinycolor2";
 
 const ATTENDEE_RADIUS = 10;
 const MUSICIAN_RADIUS = 5;
@@ -23,6 +24,16 @@ export default function Visualizer({
     if (!canvas) {
       return;
     }
+
+    const instruments = new Map<number, number[]>();
+    for (let i = 0; i < problem.musicians.length; i++) {
+      const instr = problem.musicians[i];
+      if (!instruments.has(instr)) {
+        instruments.set(instr, []);
+      }
+      instruments.get(instr)?.push(i);
+    }
+
     const ctx = canvas.getContext("2d")!;
     const vp = new Viewport(ctx, problem, solution);
     let animationFrameId: number = 0;
@@ -75,7 +86,9 @@ export default function Visualizer({
       drawRoomAndStage(vp, problem);
       problem.attendees.forEach((a) => drawAttendee(vp, a));
       if (solution) {
-        solution.placements.forEach((m) => drawMusician(vp, m));
+        solution.placements.forEach((m, i) =>
+          drawMusician(vp, m, i, instruments.size)
+        );
       }
       vp.drawCursorPos();
       animationFrameId = window.requestAnimationFrame(render);
@@ -106,7 +119,7 @@ function drawRoomAndStage(vp: Viewport, problem: Problem) {
     pXY: [problem.stage_bottom_left[0], problem.stage_bottom_left[1]],
     pWidth: problem.stage_width,
     pHeight: problem.stage_height,
-    fillStyle: "#fecaca",
+    fillStyle: "#cbd5e1",
   });
   vp.drawRect({
     pXY: [0, 0],
@@ -126,12 +139,21 @@ function drawAttendee(vp: Viewport, attendee: Attendee) {
   });
 }
 
-function drawMusician(vp: Viewport, musician: Musician) {
+function drawMusician(
+  vp: Viewport,
+  musician: Musician,
+  index: number,
+  totalInstruments: number
+) {
+  const col = tinycolor({
+    h: (index / totalInstruments) * 360,
+    s: 100,
+    v: 100,
+  });
+
   vp.drawCircle({
     pXY: [musician.x, musician.y],
     pRadius: MUSICIAN_RADIUS,
-    fillStyle: "blue",
-    lineWidth: 2,
-    strokeStyle: "rgb(255, 0, 0)",
+    fillStyle: col.toRgbString(),
   });
 }

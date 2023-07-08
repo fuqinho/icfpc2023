@@ -16,7 +16,7 @@ import clsx from "clsx";
 export default function Home() {
   const { data: problems, error: errorProblems } = useProblemList();
   const [problemID, setProblemID] = useState<string | number | undefined>(
-    undefined,
+    undefined
   );
   const { data: problem, error: errorProblem } = useProblemSpec(problemID);
   const [rawSolution, setRawSolution] = useState("");
@@ -60,7 +60,7 @@ export default function Home() {
               key={entry.id}
               className={clsx(
                 "tab tab-lifted",
-                entry.id === problemID ? "tab-active" : null,
+                entry.id === problemID ? "tab-active" : null
               )}
               onClick={() => {
                 setProblemID(entry.id);
@@ -89,7 +89,7 @@ export default function Home() {
               placeholder="Solution"
               className="textarea textarea-bordered w-[800px] h-[100px] font-mono"
               onChange={(e) => setRawSolution(e.target.value)}
-              defaultValue={rawSolution}
+              value={rawSolution}
             ></textarea>
             <pre>
               <code>{jsonParseException ? `${jsonParseException}` : null}</code>
