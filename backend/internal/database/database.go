@@ -31,6 +31,7 @@ type Submission struct {
 	Score        int64     `json:"score"`
 	Error        string    `json:"error"`
 	Created      time.Time `json:"created"`
+	Updated      time.Time `json:"updated"`
 }
 
 type DB struct {
@@ -195,9 +196,9 @@ func (db *DB) GetSolutionBySubmissionID(ctx context.Context, submissionID string
 
 func (db *DB) ReplaceSubmission(ctx context.Context, submission *Submission) error {
 	if _, err := db.raw.ExecContext(ctx, `
-	REPLACE INTO submissions (uuid, submission_id, state, accepted, score, error, created)
-	VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, submission.SolutionUUID, submission.ID, submission.State, submission.Accepted, submission.Score, submission.Error, submission.Created); err != nil {
+	REPLACE INTO submissions (uuid, submission_id, state, accepted, score, error, created, updated)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, submission.SolutionUUID, submission.ID, submission.State, submission.Accepted, submission.Score, submission.Error, submission.Created, submission.Updated); err != nil {
 		return err
 	}
 	return nil
@@ -235,7 +236,8 @@ SELECT
 	submissions.accepted,
 	submissions.score,
 	submissions.error,
-	submissions.created
+	submissions.created,
+	submissions.updated
 FROM solutions
 LEFT OUTER JOIN submissions USING (uuid)
 `
@@ -249,8 +251,8 @@ func scanSolution(row rowScanner) (*Solution, error) {
 	var accepted *bool
 	var score *int64
 	var errorMsg *string
-	var submissionCreated *time.Time
-	if err := row.Scan(&uuid, &problemID, &solutionCreated, &submissionID, &state, &accepted, &score, &errorMsg, &submissionCreated); err != nil {
+	var submissionCreated, submissionUpdated *time.Time
+	if err := row.Scan(&uuid, &problemID, &solutionCreated, &submissionID, &state, &accepted, &score, &errorMsg, &submissionCreated, &submissionUpdated); err != nil {
 		return nil, err
 	}
 
@@ -264,6 +266,7 @@ func scanSolution(row rowScanner) (*Solution, error) {
 			Score:        *score,
 			Error:        *errorMsg,
 			Created:      *submissionCreated,
+			Updated:      *submissionUpdated,
 		}
 	}
 

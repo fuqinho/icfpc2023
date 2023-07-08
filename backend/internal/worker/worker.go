@@ -107,6 +107,7 @@ func (w *worker) DownloadSubmissions(ctx context.Context) error {
 			SolutionUUID: solutionUUID,
 			ID:           submission.ID,
 			Created:      created,
+			Updated:      time.Now().UTC(),
 		}
 		if submission.Done {
 			newSubmission.State = "FINISHED"
