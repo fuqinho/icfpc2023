@@ -1,13 +1,19 @@
 "use client";
 
 import Visualizer from "@/components/Visualizer";
-import { useProblemList, useProblemSpec } from "@/components/api";
+import {
+  loadSolutionSpec,
+  useKnownSolutions,
+  useProblemList,
+  useProblemSpec,
+} from "@/components/api";
 import { Solution } from "@/components/problems";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
 import { RenderingOption } from "@/components/visualizer/renderer";
 import VisualizerControl from "./VisualizerControl";
 import type { EvaluationResult } from "wasm";
+import SolutionList from "@/components/SolutionList";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -25,6 +31,24 @@ export default function Home() {
 
   const { data: problems, error: errorProblems } = useProblemList();
   const { data: problem, error: errorProblem } = useProblemSpec(problemID);
+  const { data: knownSolutions, error: errorKnownSolutions } =
+    useKnownSolutions(problemID);
+
+  if (knownSolutions) {
+    knownSolutions.sort(
+      (a, b) =>
+        (b.submission?.score ?? -1e100) - (a.submission?.score ?? -1e100),
+    );
+  }
+
+  const onClickSolution = useCallback(
+    async (uuid: string) => {
+      const solution = await loadSolutionSpec(uuid);
+      setSolution(solution);
+      setRawSolution(JSON.stringify(solution));
+    },
+    [setSolution, setRawSolution],
+  );
 
   useEffect(() => {
     if (problems && !problemID) {
@@ -81,6 +105,9 @@ export default function Home() {
   }
   if (errorProblem) {
     throw errorProblem;
+  }
+  if (errorKnownSolutions) {
+    throw errorKnownSolutions;
   }
   if (!problems) {
     return <div>Loading...</div>;
@@ -141,6 +168,10 @@ export default function Home() {
               <code>{jsonParseException ? `${jsonParseException}` : null}</code>
             </pre>
           </div>
+          <SolutionList
+            solutions={knownSolutions ?? []}
+            onClickSolution={onClickSolution}
+          />
         </div>
       ) : null}
     </div>
