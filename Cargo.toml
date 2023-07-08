@@ -4,6 +4,7 @@ members = [
   "chir-solver",
   "common",
   "fuqinho-solver",
+  "hungarian-solver",
   "sandbox/hello",
   "sandbox/lifegame",
   "sandbox/lifegame-wasm",
