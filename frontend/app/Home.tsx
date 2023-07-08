@@ -4,8 +4,9 @@ import Visualizer from "@/components/Visualizer";
 import { useProblemList, useProblemSpec } from "@/components/api";
 import { Solution } from "@/components/problems";
 import { useEffect, useState } from "react";
-import ProblemInfo from "./ProblemInfo";
 import clsx from "clsx";
+import { RenderingOption } from "@/components/visualizer/renderer";
+import VisualizerControl from "./VisualizerControl";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -20,6 +21,7 @@ export default function Home() {
   );
   const { data: problem, error: errorProblem } = useProblemSpec(problemID);
   const [rawSolution, setRawSolution] = useState("");
+  const [option, setOption] = useState<RenderingOption>({});
 
   useEffect(() => {
     if (problems && !problemID) {
@@ -65,6 +67,9 @@ export default function Home() {
               onClick={() => {
                 setProblemID(entry.id);
                 setRawSolution("");
+                setOption(() => {
+                  return {};
+                });
               }}
             >
               {entry.id}
@@ -79,9 +84,14 @@ export default function Home() {
             <Visualizer
               problem={problem}
               solution={solution}
+              option={option}
               className="w-[800px] h-[800px] m-4 border border-slate-200"
             />
-            <ProblemInfo problem={problem} />
+            <VisualizerControl
+              problem={problem}
+              option={option}
+              setOption={setOption}
+            />
           </div>
           <div className="m-4">
             <h2 className="text-xl my-2">解答</h2>
