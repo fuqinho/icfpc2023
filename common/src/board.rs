@@ -8,16 +8,10 @@ type P = Vector2D<f64, euclid::UnknownUnit>;
 
 const MUSICIAN_R: f64 = 5.;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
 struct F64(pub f64);
 
 impl Eq for F64 {}
-
-impl PartialOrd for F64 {
-    fn partial_cmp(&self, other: &F64) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
 
 impl Ord for F64 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
@@ -121,17 +115,18 @@ impl Board {
         if !bb.contains(position) {
             bail!("not on stage");
         }
-        for (p, _) in self.ps[0..self.prob.musicians.len()].iter().flatten() {
-            if (*p - position.to_vector()).square_length() < 100. {
-                bail!("too close to another musician");
+        for p in self.ps[0..self.prob.musicians.len()].iter() {
+            if let Some((p, _)) = p {
+                if (*p - position.to_vector()).square_length() < 100. {
+                    bail!("too close to another musician");
+                }
             }
         }
         if self.ps[i].is_some() {
             bail!("already placed");
         }
 
-        self.place(i, position.to_vector());
-        Ok(())
+        Ok(self.place(i, position.to_vector()))
     }
 
     fn place(&mut self, m: usize, p: P) {
@@ -278,9 +273,9 @@ impl Board {
         if *b == 1 {
             // Is it okay to "ceiled" value here? probably not.
             let d_impact = self.impact(i, a);
-            if let Some(im) = self.impacts[i].as_mut() {
+            self.impacts[i].as_mut().map(|im| {
                 *im -= d_impact;
-            }
+            });
             self.score -= self.qs[i] * d_impact;
         }
     }
@@ -291,9 +286,9 @@ impl Board {
         if *b == 0 {
             // Is it okay to "ceiled" value here? probably not.
             let d_impact = self.impact(i, a);
-            if let Some(im) = self.impacts[i].as_mut() {
+            self.impacts[i].as_mut().map(|im| {
                 *im += d_impact;
-            }
+            });
             self.score += self.qs[i] * d_impact;
         }
     }
