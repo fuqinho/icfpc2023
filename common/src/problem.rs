@@ -92,6 +92,10 @@ impl Problem {
         let content = std::fs::read_to_string(path)?;
         Ok(Problem::from(serde_json::from_str::<RawProblem>(&content)?))
     }
+
+    pub fn is_v2(&self) -> bool {
+        self.pillars.len() > 0
+    }
 }
 
 impl Solution {
