@@ -1,6 +1,11 @@
 use anyhow::Result;
 use euclid::{default::*, point2, rect, size2, vec2};
 use lyon_geom::LineSegment;
+use parry2d_f64::{
+    math::{Isometry, Point, Vector},
+    query::{DefaultQueryDispatcher, Ray, RayCast},
+    shape::{Compound, SharedShape},
+};
 use rand::Rng;
 
 use tanakh_solver::api::{get_problem, submit, Placement, Problem};
@@ -121,10 +126,10 @@ impl State {
                 if l == k {
                     continue;
                 }
-                block_dist = block_dist.min(line.distance_to_point(self.placement[l]));
+                block_dist = block_dist.min(line.square_distance_to_point(self.placement[l]));
             }
 
-            self.attendee_to_musician[i][k] = (line, block_dist);
+            self.attendee_to_musician[i][k] = (line, block_dist.sqrt());
         }
 
         let old_pos = self.placement[k];
@@ -139,7 +144,7 @@ impl State {
                 let line = self.attendee_to_musician[i][l].0;
 
                 let d = line.distance_to_point(old_pos);
-                if self.attendee_to_musician[i][l].1 <= d + EPS {
+                if self.attendee_to_musician[i][l].1 < d {
                     continue;
                 }
 
@@ -149,10 +154,10 @@ impl State {
                     if l == m {
                         continue;
                     }
-                    block_dist = block_dist.min(line.distance_to_point(self.placement[m]));
+                    block_dist = block_dist.min(line.square_distance_to_point(self.placement[m]));
                 }
 
-                self.attendee_to_musician[i][l].1 = block_dist;
+                self.attendee_to_musician[i][l].1 = block_dist.sqrt();
             }
         }
     }
@@ -163,9 +168,9 @@ impl State {
         for i in 0..s.attendees.len() {
             for k in 0..self.placement.len() {
                 if self.attendee_to_musician[i][k].1 > 5.0 {
-                    let d = self.attendee_to_musician[i][k].0.length();
+                    let d = self.attendee_to_musician[i][k].0.square_length();
                     let taste = s.attendees[i].tastes[s.musicians[k]];
-                    score += (1_000_000.0 * taste / d.powi(2)).ceil();
+                    score += (1_000_000.0 * taste / d).ceil();
                 }
             }
         }
@@ -175,6 +180,46 @@ impl State {
         (score - penalty, penalty == 0.0)
     }
 
+    #[allow(unused)]
+    fn parry_eval(&self, s: &Solver) -> (f64, bool) {
+        let comp = Compound::new(
+            self.placement
+                .iter()
+                .map(|p| (Isometry::translation(p.x, p.y), SharedShape::ball(5.0)))
+                .collect(),
+        );
+
+        let mut ret = 0.0;
+        let qd = DefaultQueryDispatcher;
+
+        for attendee in &s.attendees {
+            let iso = Isometry::translation(0.0, 0.0);
+            for (k, p) in self.placement.iter().enumerate() {
+                let dir: Vector2D<f64> = *p - attendee.pos;
+                let dir_norm = dir.normalize();
+                let dir_len = dir.length();
+                let ray = Ray::new(
+                    Point::new(attendee.pos.x, attendee.pos.y),
+                    Vector::new(dir_norm.x, dir_norm.y),
+                );
+                if !comp.intersects_ray(&iso, &ray, dir_len - (5.0 + EPS)) {
+                    ret += (1_000_000.0 * attendee.tastes[s.musicians[k]] / dir_len.powi(2)).ceil();
+                }
+                // let to = *p + dir_norm * (dir_len - (5.0 + EPS));
+                // let seg = Segment::new(
+                //     Point::new(attendee.pos.x, attendee.pos.y),
+                //     Point::new(to.x, to.y),
+                // );
+                // if contact_composite_shape_shape(&qd, &iso, &comp, &seg, 0.0).is_some() {
+                //     ret += (1_000_000.0 * attendee.tastes[s.musicians[k]] / dir_len.powi(2)).ceil();
+                // }
+            }
+        }
+
+        (ret, true)
+    }
+
+    #[allow(unused)]
     fn naive_eval(&self, s: &Solver) -> (f64, bool) {
         let mut ret = 0.0;
 
@@ -195,14 +240,14 @@ impl State {
 
                 if block_dist > 5.0 {
                     let taste = s.attendees[i].tastes[s.musicians[k]];
-                    // ret += (1_000_000.0 * taste / line.length().powi(2)).ceil();
-                    if taste > 0.0 {
-                        ret += (1_000_000.0 * taste / line.length().powi(2)).ceil();
-                    } else {
-                        ret += (1_000_000.0 * (block_dist / 5.0).min(4.0) * taste
-                            / line.length().powi(2))
-                        .ceil();
-                    }
+                    ret += (1_000_000.0 * taste / line.length().powi(2)).ceil();
+                    // if taste > 0.0 {
+                    //     ret += (1_000_000.0 * taste / line.length().powi(2)).ceil();
+                    // } else {
+                    //     ret += (1_000_000.0 * (block_dist / 5.0).min(4.0) * taste
+                    //         / line.length().powi(2))
+                    //     .ceil();
+                    // }
                 }
             }
         }
@@ -251,7 +296,7 @@ impl saru::Annealer for Solver {
     }
 
     fn start_temp(&self, init_score: f64) -> f64 {
-        (init_score.abs() / 10.0).max(1e9)
+        (init_score.abs() / 10.0).max(1e8)
     }
 
     fn eval(
@@ -263,6 +308,7 @@ impl saru::Annealer for Solver {
     ) -> (f64, Option<f64>) {
         let (score, valid) = state.eval(self);
         // let (score, valid) = state.naive_eval(self);
+        // let (score, valid) = state.parry_eval(self);
         (-score, if valid { Some(-score) } else { None })
     }
 
@@ -275,17 +321,18 @@ impl saru::Annealer for Solver {
         match rng.gen_range(0..=0) {
             0 => loop {
                 let id = rng.gen_range(0..state.placement.len());
-                let dx = rng.gen_range(-50.0..=50.0);
-                let dy = rng.gen_range(-50.0..=50.0);
-                let new_pos = state.placement[id] + vec2(dx, dy);
-                let new_pos = point2(
-                    new_pos
-                        .x
-                        .clamp(self.stage_valid.min_x(), self.stage_valid.max_x()),
-                    new_pos
-                        .y
-                        .clamp(self.stage_valid.min_y(), self.stage_valid.max_y()),
-                );
+                let dx = rng.gen_range(-5.0..=5.0);
+                let dy = rng.gen_range(-5.0..=5.0);
+                let new_pos = (state.placement[id] + vec2(dx, dy))
+                    .clamp(self.stage_valid.origin, self.stage_valid.max());
+                // let new_pos = point2(
+                //     new_pos
+                //         .x
+                //         .clamp(self.stage_valid.min_x(), self.stage_valid.max_x()),
+                //     new_pos
+                //         .y
+                //         .clamp(self.stage_valid.min_y(), self.stage_valid.max_y()),
+                // );
 
                 if state.placement[id] == new_pos {
                     continue;
@@ -310,11 +357,9 @@ impl saru::Annealer for Solver {
             1 => loop {
                 let i = rng.gen_range(0..state.placement.len());
                 let j = rng.gen_range(0..state.placement.len());
-                if i == j {
-                    continue;
+                if i != j {
+                    break Move::Swap { i, j };
                 }
-
-                break Move::Swap { i, j };
             },
             _ => unreachable!(),
         }
