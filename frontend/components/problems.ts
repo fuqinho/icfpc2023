@@ -4,7 +4,10 @@ export interface Attendee {
   tastes: number[];
 }
 
-export interface Pillar {}
+export interface Pillar {
+  center: number[];
+  radius: number;
+}
 
 export interface Problem {
   room_width: number;
