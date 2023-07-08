@@ -3,6 +3,7 @@
 import tinycolor from "tinycolor2";
 import { Attendee, Musician, Problem, Solution } from "../problems";
 import { Viewport } from "./viewport";
+import type { EvaluationResult } from "wasm";
 
 const ATTENDEE_RADIUS = 10;
 const MUSICIAN_RADIUS = 5;
@@ -16,6 +17,7 @@ export class Renderer {
   private readonly canvas: HTMLCanvasElement;
   private readonly problem: Problem;
   private readonly solution: Solution | null;
+  private readonly evalResult: EvaluationResult | null;
   private readonly option: RenderingOption;
 
   private readonly instruments: Map<number, number[]>;
@@ -26,6 +28,7 @@ export class Renderer {
     ctx: CanvasRenderingContext2D,
     problem: Problem,
     solution: Solution | null,
+    evalResult: EvaluationResult | null,
     option: RenderingOption,
   ) {
     this.vp = new Viewport(ctx, problem, solution);
@@ -33,6 +36,7 @@ export class Renderer {
     this.problem = problem;
     this.solution = solution;
     this.option = option;
+    this.evalResult = evalResult;
 
     this.instruments = new Map<number, number[]>();
     for (let i = 0; i < problem.musicians.length; i++) {

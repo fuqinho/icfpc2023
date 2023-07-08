@@ -23,5 +23,6 @@ export interface Musician {
 }
 
 export interface Solution {
+  problem_id: number;
   placements: Musician[];
 }
