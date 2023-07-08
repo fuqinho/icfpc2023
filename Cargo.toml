@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "api",
+  "chain-solver",
   "chir-solver",
   "common",
   "fuqinho-solver",
