@@ -1,5 +1,5 @@
 import tinycolor from "tinycolor2";
-import { Attendee, Musician, Problem, Solution } from "../problems";
+import { Attendee, Musician, Pillar, Problem, Solution } from "../problems";
 import { Viewport } from "./viewport";
 import type { EvaluationResult } from "wasm";
 import type { CanvasRenderingContext2D as ServerCanvasContext2D } from "canvas";
@@ -70,6 +70,8 @@ export class Renderer {
         this.drawAttendeeWithHeat(a, instr, maxTaste, minTaste),
       );
     }
+
+    this.problem.pillars.forEach((p) => this.drawPillar(p));
     this.solution?.placements.forEach((m, i) => this.drawMusician(m, i));
     this.vp.drawCursorPos();
   }
@@ -144,6 +146,14 @@ export class Renderer {
       pXY: [musician.x, musician.y],
       pRadius: MUSICIAN_RADIUS,
       fillStyle: col.toRgbString(),
+    });
+  }
+
+  private drawPillar(pillar: Pillar) {
+    this.vp.drawCircle({
+      pXY: [pillar.center[0], pillar.center[1]],
+      pRadius: pillar.radius,
+      fillStyle: "#7f8791",
     });
   }
 
