@@ -5,7 +5,7 @@ import { Attendee, Musician, Problem, Solution } from "./problems";
 import { Viewport } from "./visualizer/viewport";
 
 const ATTENDEE_RADIUS = 10;
-const MUSICIAN_RADIUS = 10;
+const MUSICIAN_RADIUS = 5;
 
 export default function Visualizer({
   problem,
