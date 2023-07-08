@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::Context;
 use common::{board::Board, Problem};
 use lyon_geom::Point;
-use pathfinding::prelude::{kuhn_munkres, Matrix, Weights};
+use pathfinding::prelude::{kuhn_munkres, Matrix};
 
 pub struct Solver {
     orig_problem: Problem,
@@ -28,12 +28,16 @@ impl Solver {
         let bb = self.board.prob.stage;
 
         for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize)).step_by(D) {
-            outer.push(Point::new(x as f64, bb.min.y));
+            if bb.min.y > D as f64 {
+                outer.push(Point::new(x as f64, bb.min.y));
+            }
             outer.push(Point::new(x as f64, bb.max.y));
         }
 
         for y in ((bb.min.y).ceil() as usize + D..bb.max.y.floor() as usize - D).step_by(D) {
-            outer.push(Point::new(bb.min.x, y as f64));
+            if bb.min.x > D as f64 {
+                outer.push(Point::new(bb.min.x, y as f64));
+            }
             outer.push(Point::new(bb.max.x, y as f64));
         }
 
