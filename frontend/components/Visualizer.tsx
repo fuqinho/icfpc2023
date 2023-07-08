@@ -46,22 +46,26 @@ export default function Visualizer({
     const mousedownEvent = (e: MouseEvent) => {
       dragStartCoord = getMouseCCoord(e);
     };
-    const mousemoveEvent = (e: MouseEvent) => {
-      if (!dragStartCoord) {
-        return;
-      }
-      const current = getMouseCCoord(e);
-      vp.setVpCenterMove([
-        current[0] - dragStartCoord[0],
-        current[1] - dragStartCoord[1],
-      ]);
-    };
     const mouseupEvent = () => {
       dragStartCoord = undefined;
       vp.commitVpCenterMove();
     };
+    const mousemoveEvent = (e: MouseEvent) => {
+      const current = getMouseCCoord(e);
+      vp.setCursorPos(current);
+      if (dragStartCoord) {
+        vp.setVpCenterMove([
+          current[0] - dragStartCoord[0],
+          current[1] - dragStartCoord[1],
+        ]);
+      }
+    };
+    const mouseleaveEvent = () => {
+      vp.setCursorPos(undefined);
+    };
 
     canvas.addEventListener("wheel", wheelEvent);
+    canvas.addEventListener("mouseleave", mouseleaveEvent);
     canvas.addEventListener("mousedown", mousedownEvent);
     canvas.addEventListener("mousemove", mousemoveEvent);
     canvas.addEventListener("mouseup", mouseupEvent);
@@ -73,11 +77,13 @@ export default function Visualizer({
       if (solution) {
         solution.placements.forEach((m) => drawMusician(vp, m));
       }
+      vp.drawCursorPos();
       animationFrameId = window.requestAnimationFrame(render);
     };
     render();
     return () => {
       canvas.removeEventListener("wheel", wheelEvent);
+      canvas.removeEventListener("mouseleave", mouseleaveEvent);
       canvas.removeEventListener("mousedown", mousedownEvent);
       canvas.removeEventListener("mousemove", mousemoveEvent);
       canvas.removeEventListener("mouseup", mousedownEvent);
