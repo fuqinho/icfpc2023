@@ -3,18 +3,30 @@ import { formatNumber } from "@/components/number_format";
 import { Problem } from "@/components/problems";
 import { RenderingOption } from "@/components/visualizer/renderer";
 import { orderBy } from "natural-orderby";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import tinycolor from "tinycolor2";
 
 function Instruments({
-  instruments,
+  problem,
   evalResult,
 }: {
-  instruments: Map<number, number[]>;
+  problem: Problem;
   evalResult: EvaluationResult | null;
 }) {
   const [instrumentsPage, setInstrumentsPage] = useState(1);
   const [order, setOrder] = useState("by-instr");
+  const instruments = useMemo(() => {
+    const instruments = new Map<number, number[]>();
+    for (let i = 0; i < problem.musicians.length; i++) {
+      const instr = problem.musicians[i];
+      if (!instruments.has(instr)) {
+        instruments.set(instr, []);
+      }
+      instruments.get(instr)?.push(i);
+    }
+    return instruments;
+  }, [problem]);
+
   let instrumentsKeys = Array.from(instruments.keys());
   switch (order) {
     case "by-instr":
@@ -56,8 +68,8 @@ function Instruments({
   );
 
   return (
-    <div>
-      <h2 className="text-xl">楽器</h2>
+    <div className="w-full">
+      <h2 className="text-xl">楽器 ({instruments.size})</h2>
       <select
         className="select select-bordered select-sm m-2"
         onChange={(e) => setOrder(e.target.value)}
@@ -103,28 +115,158 @@ function Instruments({
           })}
         </tbody>
       </table>
-      <div className="join">
-        <button
-          className="join-item btn"
-          onClick={() => setInstrumentsPage((p) => Math.max(1, p - 1))}
-        >
-          «
-        </button>
-        <button className="join-item btn">Page {instrumentsPage}</button>
-        <button
-          className="join-item btn"
-          onClick={() =>
-            setInstrumentsPage((p) =>
-              Math.min(
-                Math.floor(instrumentsKeys.length / 10) +
-                  (instrumentsKeys.length % 10 == 0 ? 0 : 1),
-                p + 1,
-              ),
-            )
-          }
-        >
-          »
-        </button>
+      <div className="my-4 mx-auto w-fit">
+        <div className="join">
+          <button
+            className="join-item btn"
+            onClick={() => setInstrumentsPage((p) => Math.max(1, p - 1))}
+          >
+            «
+          </button>
+          <button className="join-item btn">Page {instrumentsPage}</button>
+          <button
+            className="join-item btn"
+            onClick={() =>
+              setInstrumentsPage((p) =>
+                Math.min(
+                  Math.floor(instrumentsKeys.length / 10) +
+                    (instrumentsKeys.length % 10 == 0 ? 0 : 1),
+                  p + 1,
+                ),
+              )
+            }
+          >
+            »
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Musicians({
+  problem,
+  evalResult,
+}: {
+  problem: Problem;
+  evalResult: EvaluationResult | null;
+}) {
+  const [page, setPage] = useState(1);
+  const [order, setOrder] = useState("by-musician");
+
+  const instruments = useMemo(() => {
+    const instruments = new Map<number, number[]>();
+    for (let i = 0; i < problem.musicians.length; i++) {
+      const instr = problem.musicians[i];
+      if (!instruments.has(instr)) {
+        instruments.set(instr, []);
+      }
+      instruments.get(instr)?.push(i);
+    }
+    return instruments;
+  }, [problem]);
+
+  let musicianKeys = Array.from(problem.musicians.keys());
+  switch (order) {
+    case "by-musician":
+      musicianKeys = orderBy(musicianKeys, [(v) => v], ["asc"]);
+      break;
+    case "by-instr":
+      musicianKeys = orderBy(
+        musicianKeys,
+        [(v) => problem.musicians.at(v), (v) => v],
+        ["asc", "asc"],
+      );
+      break;
+    case "by-score-desc":
+      musicianKeys = orderBy(
+        musicianKeys,
+        [(v) => evalResult?.musicians?.at(v)?.score, (v) => v],
+        ["desc", "asc"],
+      );
+      break;
+    case "by-score-asc":
+      musicianKeys = orderBy(
+        musicianKeys,
+        [(v) => evalResult?.musicians?.at(v)?.score, (v) => v],
+        ["asc", "asc"],
+      );
+      break;
+  }
+
+  const currentPage = musicianKeys.slice((page - 1) * 10, page * 10);
+  return (
+    <div>
+      <h2 className="text-xl">奏者 ({problem.musicians.length})</h2>
+      <select
+        className="select select-bordered select-sm m-2"
+        onChange={(e) => setOrder(e.target.value)}
+        value={order}
+      >
+        <option value="by-musician">奏者番号順</option>
+        <option value="by-instr">楽器番号順</option>
+        <option value="by-score-desc">スコアの高い順</option>
+        <option value="by-score-asc">スコアの低い順</option>
+      </select>
+      <table className="table w-auto">
+        <thead>
+          <tr>
+            <th></th>
+            <th>楽器</th>
+            <th></th>
+            <th>スコア</th>
+          </tr>
+        </thead>
+        <tbody>
+          {currentPage.map((m) => {
+            const instr = problem.musicians[m];
+            const col = tinycolor({
+              h: (instr / instruments.size) * 360,
+              s: 100,
+              v: 100,
+            });
+            return (
+              <tr key={m}>
+                <td className="w-8">{m}</td>
+                <td className="w-8">{instr}</td>
+                <td
+                  className="w-32"
+                  style={{ backgroundColor: col.toHex8String() }}
+                >
+                  &nbsp;
+                </td>
+                <td className="font-mono text-right">
+                  {formatNumber(evalResult?.musicians.at(m)?.score)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="my-4 mx-auto w-fit">
+        <div className="join">
+          <button
+            className="join-item btn"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+          >
+            «
+          </button>
+          <button className="join-item btn">Page {page}</button>
+          <button
+            className="join-item btn"
+            onClick={() =>
+              setPage((p) =>
+                Math.min(
+                  Math.floor(problem.musicians.length / 10) +
+                    (problem.musicians.length % 10 == 0 ? 0 : 1),
+                  p + 1,
+                ),
+              )
+            }
+          >
+            »
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -137,42 +279,31 @@ function ProblemInfo({
   problem: Problem;
   evalResult: EvaluationResult | null;
 }) {
-  const instruments = new Map<number, number[]>();
-  for (let i = 0; i < problem.musicians.length; i++) {
-    const instr = problem.musicians[i];
-    if (!instruments.has(instr)) {
-      instruments.set(instr, []);
-    }
-    instruments.get(instr)?.push(i);
-  }
   return (
     <div className="overflow-x-auto space-y-4">
-      <div>
-        <h2 className="text-xl">問題情報</h2>
-        <table className="table">
-          <tbody>
-            <tr>
-              <td>観客</td>
-              <td>{formatNumber(problem.attendees.length)}</td>
-            </tr>
-            <tr>
-              <td>奏者の数</td>
-              <td>{formatNumber(problem.musicians.length)}</td>
-            </tr>
-            <tr>
-              <td>楽器の種類</td>
-              <td>{formatNumber(instruments.size)}</td>
-            </tr>
-            {evalResult ? (
-              <tr>
-                <td>スコア</td>
-                <td>{formatNumber(evalResult.score)}</td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
+      <div className="stats">
+        <div className="stat">
+          <div className="stat-title">観客</div>
+          <div className="stat-value">
+            {formatNumber(problem.attendees.length)}
+          </div>
+        </div>
+        {evalResult ? (
+          <div className="stat">
+            <div className="stat-title">スコア</div>
+            <div className="stat-value">{formatNumber(evalResult.score)}</div>
+          </div>
+        ) : null}
       </div>
-      <Instruments instruments={instruments} evalResult={evalResult} />
+      <div className="flex">
+        <div className="w-1/2">
+          <Instruments problem={problem} evalResult={evalResult} />
+        </div>
+        <div className="divider divider-horizontal"></div>
+        <div className="w-1/2">
+          <Musicians problem={problem} evalResult={evalResult} />
+        </div>
+      </div>
     </div>
   );
 }
