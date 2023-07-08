@@ -14,6 +14,18 @@ const nextConfig = {
     );
     return config;
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "icfpc2023-backend-uadsges7eq-an.a.run.app",
+      },
+      {
+        protocol: "https",
+        hostname: "icfpc2023-data-uvjbiongouirno.storage.googleapis.com",
+      },
+    ],
+  },
 };
 
 module.exports = nextConfig;

@@ -31,6 +31,14 @@ export interface SubmissionMetadata {
   updated: string;
 }
 
+export function problemImage(problemID: number) {
+  return `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/${problemID}/image`;
+}
+
+export function solutionImage(solutionID: string) {
+  return `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/solutions/${solutionID}/image`;
+}
+
 export function useProblemList() {
   const { data, error, isLoading } = useSWR<AxiosResponse<ProblemMetadata[]>>(
     {
