@@ -1,6 +1,6 @@
 import tinycolor from "tinycolor2";
 import { Attendee, Musician, Pillar, Problem, Solution } from "../problems";
-import { Viewport } from "./viewport";
+import { Viewport, ViewportState } from "./viewport";
 import type { CanvasRenderingContext2D as ServerCanvasContext2D } from "canvas";
 import { EvaluationResult } from "../evaluation_result";
 
@@ -25,14 +25,14 @@ export class Renderer {
 
   constructor(
     ctx: CanvasRenderingContext2D | ServerCanvasContext2D,
-    canvasWidth: number,
-    canvasHeight: number,
     problem: Problem,
     solution: Solution | null,
     evalResult: EvaluationResult | null,
     option: RenderingOption,
+    viewportState: ViewportState,
+    setViewportState: (s: ViewportState) => void,
   ) {
-    this.vp = new Viewport(ctx, canvasWidth, canvasHeight, problem, solution);
+    this.vp = new Viewport(ctx, problem, viewportState, setViewportState);
     this.problem = problem;
     this.solution = solution;
     this.option = option;

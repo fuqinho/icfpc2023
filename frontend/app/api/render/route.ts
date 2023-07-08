@@ -1,5 +1,9 @@
 import { Problem, Solution } from "@/components/problems";
 import { Renderer } from "@/components/visualizer/renderer";
+import {
+  CANVAS_SIZE,
+  initialViewportState,
+} from "@/components/visualizer/viewport";
 import axios, { AxiosResponse } from "axios";
 import { createCanvas } from "canvas";
 import { NextRequest } from "next/server";
@@ -12,16 +16,16 @@ interface Request {
 export async function POST(request: NextRequest) {
   const { problem, solution } = (await request.json()) as Request;
 
-  const offscreen = createCanvas(4000, 4000);
+  const offscreen = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
   const ctx = offscreen.getContext("2d")!;
   const renderer = new Renderer(
     ctx,
-    4000,
-    4000,
     problem,
     solution ?? null,
     null,
     {},
+    initialViewportState(problem, solution ?? null),
+    () => {},
   );
   renderer.render();
   const pngBlob = offscreen.toBuffer("image/png");
@@ -49,16 +53,16 @@ export async function GET(request: NextRequest) {
     solution = solResp.data;
   }
 
-  const offscreen = createCanvas(4000, 4000);
+  const offscreen = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
   const ctx = offscreen.getContext("2d")!;
   const renderer = new Renderer(
     ctx,
-    4000,
-    4000,
     problem,
     solution ?? null,
     null,
     {},
+    initialViewportState(problem, solution ?? null),
+    () => {},
   );
   renderer.render();
   const pngBlob = offscreen.toBuffer("image/png");

@@ -5,6 +5,7 @@ import { RenderingOption } from "@/components/visualizer/renderer";
 import { orderBy } from "natural-orderby";
 import { useMemo, useState } from "react";
 import tinycolor from "tinycolor2";
+import { VisualizerElement } from "./Visualizer";
 
 function Instruments({
   problem,
@@ -309,11 +310,13 @@ function ProblemInfo({
 }
 
 export default function VisualizerControl({
+  visualizer,
   problem,
   evalResult,
   option,
   setOption,
 }: {
+  visualizer: VisualizerElement | null;
   problem: Problem;
   evalResult: EvaluationResult | null;
   option: RenderingOption;
