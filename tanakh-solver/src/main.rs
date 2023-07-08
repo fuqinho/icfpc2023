@@ -286,8 +286,8 @@ impl saru::Annealer for Solver {
 
         for _ in 0..n {
             loop {
-                let x = rng.gen_range(stage_valid.min.x..=stage_valid.max.x);
-                let y = rng.gen_range(stage_valid.min.y..=stage_valid.max.y);
+                let x = rng.gen_range(stage_valid.min.x..=stage_valid.max.x).round();
+                let y = rng.gen_range(stage_valid.min.y..=stage_valid.max.y).round();
 
                 let p = point2(x, y);
                 if placement.iter().any(|q| p.distance_to(*q) < 10.0) {
@@ -340,13 +340,13 @@ impl saru::Annealer for Solver {
         rng: &mut impl Rng,
         _progress_ratio: f64,
     ) -> Self::Move {
-        let s = &self.0;
         let stage_valid = self.stage_valid();
 
         // let scale_x = (self.stage_valid.width() / 5.0).max(15.0);
         // let scale_y = (self.stage_valid.height() / 5.0).max(15.0);
-        let scale_x = 15.0;
-        let scale_y = 15.0;
+        let grid = 0.5_f64;
+        let scale_x = (15.0 / grid).round() as i32;
+        let scale_y = (15.0 / grid).round() as i32;
 
         match rng.gen_range(0..=0) {
             0 => loop {
@@ -359,8 +359,8 @@ impl saru::Annealer for Solver {
                 // let len = rng.gen_range(0.1..=scale);
                 // let d = Vector2D::from_angle_and_length(Angle::radians(theta), len);
                 let d = vec2(
-                    rng.gen_range(-scale_x..=scale_x),
-                    rng.gen_range(-scale_y..=scale_y),
+                    rng.gen_range(-scale_x..=scale_x) as f64 * grid,
+                    rng.gen_range(-scale_y..=scale_y) as f64 * grid,
                 );
 
                 let new_pos = state.placement[id] + d;
@@ -451,8 +451,12 @@ impl saru::Annealer for Solver2 {
         } else {
             for i in 0..board.prob.musicians.len() {
                 loop {
-                    let x: f64 = rng.gen_range(board.prob.stage.min.x..=board.prob.stage.max.x);
-                    let y: f64 = rng.gen_range(board.prob.stage.min.y..=board.prob.stage.max.y);
+                    let x: f64 = rng
+                        .gen_range(board.prob.stage.min.x..=board.prob.stage.max.x)
+                        .round();
+                    let y: f64 = rng
+                        .gen_range(board.prob.stage.min.y..=board.prob.stage.max.y)
+                        .round();
                     if board.try_place(i, Point::new(x, y)).is_ok() {
                         break;
                     }
@@ -464,7 +468,7 @@ impl saru::Annealer for Solver2 {
     }
 
     fn start_temp(&self, init_score: f64) -> f64 {
-        (init_score.abs() * 0.1).max(1e8)
+        (init_score.abs() * 0.1).max(1e6)
     }
 
     fn eval(
@@ -482,30 +486,33 @@ impl saru::Annealer for Solver2 {
         &self,
         state: &mut Self::State,
         rng: &mut impl Rng,
-        _progress_ratio: f64,
+        progress_ratio: f64,
     ) -> Self::Move {
-        // let scale_x = (self.stage_valid.width() / 5.0).max(15.0);
-        // let scale_y = (self.stage_valid.height() / 5.0).max(15.0);
-        let scale_x = 15.0;
-        let scale_y = 15.0;
+        let stage = &state.board.prob.stage;
 
-        match rng.gen_range(0..=0) {
+        let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(15.0);
+        let scale_y = (stage.height() / 5.0 * (1.0 - progress_ratio)).max(15.0);
+
+        // let scale_x = 15.0;
+        // let scale_y = 15.0;
+
+        let grid = 0.5_f64;
+        let scale_x = (scale_x / grid).round() as i32;
+        let scale_y = (scale_y / grid).round() as i32;
+
+        match rng.gen_range(0..=1) {
             0 => loop {
                 let id = rng.gen_range(0..state.board.musicians().len());
                 let d = vec2(
-                    rng.gen_range(-scale_x..=scale_x),
-                    rng.gen_range(-scale_y..=scale_y),
+                    rng.gen_range(-scale_x..=scale_x) as f64 * grid,
+                    rng.gen_range(-scale_y..=scale_y) as f64 * grid,
                 );
 
                 let old_pos = state.board.musicians()[id].unwrap().to_point();
                 let new_pos = old_pos + d;
                 let new_pos = point2(
-                    new_pos
-                        .x
-                        .clamp(state.board.prob.stage.min.x, state.board.prob.stage.max.x),
-                    new_pos
-                        .y
-                        .clamp(state.board.prob.stage.min.y, state.board.prob.stage.max.y),
+                    new_pos.x.clamp(stage.min.x, stage.max.x),
+                    new_pos.y.clamp(stage.min.y, stage.max.y),
                 );
 
                 if new_pos == old_pos {
@@ -523,13 +530,13 @@ impl saru::Annealer for Solver2 {
                 };
             },
 
-            // 1 => loop {
-            //     let i = rng.gen_range(0..state.placement.len());
-            //     let j = rng.gen_range(0..state.placement.len());
-            //     if i != j {
-            //         break Move::Swap { i, j };
-            //     }
-            // },
+            1 => loop {
+                let i = rng.gen_range(0..self.0.musicians.len());
+                let j = rng.gen_range(0..self.0.musicians.len());
+                if i != j {
+                    break Move::Swap { i, j };
+                }
+            },
             _ => unreachable!(),
         }
     }
@@ -540,7 +547,14 @@ impl saru::Annealer for Solver2 {
                 state.board.unplace(*id);
                 state.board.try_place(*id, *new_pos).unwrap();
             }
-            Move::Swap { .. } => todo!(),
+            Move::Swap { i, j } => {
+                let pi = state.board.musicians()[*i].unwrap().to_point();
+                let pj = state.board.musicians()[*j].unwrap().to_point();
+                state.board.unplace(*i);
+                state.board.unplace(*j);
+                state.board.try_place(*i, pj).unwrap();
+                state.board.try_place(*j, pi).unwrap();
+            }
         }
     }
 
@@ -550,7 +564,9 @@ impl saru::Annealer for Solver2 {
                 state.board.unplace(*id);
                 state.board.try_place(*id, *old_pos).unwrap();
             }
-            Move::Swap { .. } => todo!(),
+            Move::Swap { .. } => {
+                self.apply(state, mov);
+            }
         }
     }
 }
@@ -661,12 +677,13 @@ fn main(
             restart: 0,
             threads,
             silent: false,
-            header: "".to_string(),
+            header: format!("{problem_id}: "),
         },
         rand::thread_rng().gen(),
     );
 
     eprintln!("Statistics:");
+    eprintln!("Problem ID:    {}", problem_id);
     eprintln!("Score:         {}", -solution.score);
     eprintln!("Musicians:     {}", solver.0.musicians.len());
     eprintln!("Atendees:      {}", solver.0.attendees.len());
@@ -686,7 +703,8 @@ fn main(
 
     let score = -solution.score;
 
-    let solution: Solution = state.board.try_into()?;
+    let mut solution: Solution = state.board.try_into()?;
+    solution.problem_id = problem_id;
     let raw_solution = RawSolution::from(solution.clone());
 
     {
