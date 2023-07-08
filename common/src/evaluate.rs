@@ -46,7 +46,7 @@ fn is_blocked_internal(
 }
 
 fn create_q_vector(musicians: &[usize], solution: &Solution) -> Vec<f64> {
-    let mut ret = vec![0.; solution.placements.len()];
+    let mut ret = vec![1.; solution.placements.len()];
     if solution.problem_id <= 55 {
         return ret;
     }
