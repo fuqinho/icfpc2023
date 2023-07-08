@@ -132,7 +132,7 @@ export class Renderer {
 
   private drawMusician(musician: Musician, index: number) {
     const col = tinycolor({
-      h: (index / this.instruments.size) * 360,
+      h: (this.problem.musicians[index] / this.instruments.size) * 360,
       s: 100,
       v: 100,
     });
