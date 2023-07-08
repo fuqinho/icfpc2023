@@ -1,0 +1,15 @@
+name: cargo clippy
+
+on: push
+
+jobs:
+  cargo_test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v3
+      - name: Set Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Run test
+        run: cargo test
