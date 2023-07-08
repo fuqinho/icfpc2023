@@ -71,9 +71,9 @@ export default function VisualizerControl({
             }
           }}
           value={
-            option.tasteHeatmapInstrument
-              ? option.tasteHeatmapInstrument
-              : "Pick one"
+            option.tasteHeatmapInstrument === undefined
+              ? "Pick one"
+              : option.tasteHeatmapInstrument
           }
         >
           <option>Pick one</option>
