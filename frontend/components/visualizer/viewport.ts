@@ -12,11 +12,12 @@ export class Viewport {
   private pVpWidth: number = 0;
   private pVpCenter: Coord = [0, 0];
   private cVpCenterTempMove: Coord = [0, 0];
+  private cCursor: Coord | undefined = undefined;
 
   constructor(
     ctx: CanvasRenderingContext2D,
     problem: Problem,
-    solution: Solution | null,
+    solution: Solution | null
   ) {
     this.ctx = ctx;
     this.problem = problem;
@@ -39,7 +40,7 @@ export class Viewport {
     f(this.problem.stage_bottom_left[0], this.problem.stage_bottom_left[0]);
     f(
       this.problem.stage_bottom_left[0] + this.problem.stage_width,
-      this.problem.stage_bottom_left[0] + this.problem.stage_height,
+      this.problem.stage_bottom_left[0] + this.problem.stage_height
     );
     this.problem.attendees.forEach((a) => f(a.x, a.y));
     if (this.solution) {
@@ -65,12 +66,40 @@ export class Viewport {
     this.ctx.fillRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
   }
 
+  public drawCursorPos() {
+    if (!this.cCursor) {
+      return;
+    }
+    const pVpHeight =
+      (this.pVpWidth * this.ctx.canvas.height) / this.ctx.canvas.width;
+    const c = [
+      this.pVpCenter[0] -
+        this.pVpWidth / 2 +
+        this.toProblemScale(this.cCursor[0]),
+      this.pVpCenter[1] -
+        pVpHeight / 2 +
+        this.toProblemScale(this.ctx.canvas.height - this.cCursor[1]),
+    ];
+    this.ctx.font = "64px monospace";
+    const text = `(${c[0]}, ${c[1]})`;
+    const m = this.ctx.measureText(text);
+    const h = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+    this.ctx.fillStyle = "white";
+    this.ctx.fillRect(0, 0, m.width + 30, h + 30);
+    this.ctx.fillStyle = "black";
+    this.ctx.fillText(text, 0, h);
+  }
+
   public zoom(factor: number) {
     this.pVpWidth *= factor;
   }
 
   public setVpCenterMove(diff: Coord) {
     this.cVpCenterTempMove = diff;
+  }
+
+  public setCursorPos(cPos: Coord | undefined) {
+    this.cCursor = cPos;
   }
 
   public commitVpCenterMove() {
@@ -134,7 +163,7 @@ export class Viewport {
       this.toCanvasCoordX(pXY[0]),
       this.toCanvasCoordY(pXY[1]) - this.toCanvasScale(pHeight),
       this.toCanvasScale(pWidth),
-      this.toCanvasScale(pHeight),
+      this.toCanvasScale(pHeight)
     );
 
     if (fillStyle) {
@@ -171,7 +200,7 @@ export class Viewport {
         this.toCanvasScale(pRadius),
         0,
         2 * Math.PI,
-        false,
+        false
       );
     } else if (cRadius) {
       this.ctx.arc(
@@ -180,7 +209,7 @@ export class Viewport {
         cRadius,
         0,
         2 * Math.PI,
-        false,
+        false
       );
     }
 
