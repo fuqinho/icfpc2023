@@ -4,15 +4,14 @@ import Visualizer from "@/components/Visualizer";
 import {
   loadSolutionSpec,
   useKnownSolutions,
-  useProblemList,
   useProblemSpec,
 } from "@/components/api";
 import { Solution } from "@/components/problems";
 import { ChangeEvent, useCallback, useEffect, useState } from "react";
 import { RenderingOption } from "@/components/visualizer/renderer";
-import type { EvaluationResult } from "wasm";
 import SolutionList from "@/components/SolutionList";
 import VisualizerControl from "@/app/VisualizerControl";
+import { EvaluationResult } from "@/components/evaluation_result";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -55,9 +54,11 @@ export default function Home({ params }: { params: { problemId: string } }) {
       const wasm = await import("wasm");
       console.time("wasm-eval-time");
       setEvalResult(
-        wasm.EvaluationResult.from_json(
-          JSON.stringify(problem),
-          JSON.stringify(solution),
+        JSON.parse(
+          wasm.Evaluator.from_json(
+            JSON.stringify(problem),
+            JSON.stringify(solution),
+          ),
         ),
       );
       console.timeEnd("wasm-eval-time");

@@ -9,7 +9,7 @@ import {
 } from "react";
 import { Problem, Solution } from "./problems";
 import { Renderer, RenderingOption } from "./visualizer/renderer";
-import type { EvaluationResult } from "wasm";
+import { EvaluationResult } from "./evaluation_result";
 
 export interface VisualizerElement {}
 
