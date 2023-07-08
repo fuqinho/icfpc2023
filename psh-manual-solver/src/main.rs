@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use anyhow::{Result, bail};
-use common::{Problem, Solution, Placement};
+use anyhow::{bail, Result};
 use common::evaluate;
+use common::{Placement, Problem, Solution};
 use euclid::default::Point2D;
 use lyon_geom::LineSegment;
 
@@ -13,7 +13,8 @@ fn solver_10(problem: &Problem) -> Solution {
 
     let offset = Point2D::new(
         problem.stage.min.x + 10.,
-        problem.stage.min.y + height_unit * 10. + 10.);
+        problem.stage.min.y + height_unit * 10. + 10.,
+    );
     let mut current_col = 0;
     let mut current_row = 0;
     let mut count_3 = 0;
@@ -23,7 +24,9 @@ fn solver_10(problem: &Problem) -> Solution {
             let row = count_3 / 2;
             if row <= 9 {
                 placements.push(Point2D::new(
-                    offset.x + ((if count_3 % 2 == 0 { 0 } else { (13 - row) * 10 } + row * 5) as f64) * width_unit,
+                    offset.x
+                        + ((if count_3 % 2 == 0 { 0 } else { (13 - row) * 10 } + row * 5) as f64)
+                            * width_unit,
                     offset.y - row as f64 * height_unit,
                 ));
             } else {
@@ -48,9 +51,12 @@ fn solver_10(problem: &Problem) -> Solution {
         }
     }
 
-    Solution{
+    Solution {
         problem_id: 10,
-        placements: placements.into_iter().map(|p| Placement{position: p}).collect::<Vec<_>>(),
+        placements: placements
+            .into_iter()
+            .map(|p| Placement { position: p })
+            .collect::<Vec<_>>(),
     }
 }
 
@@ -60,7 +66,10 @@ fn validate(solution: &Solution) {
             if i1 == i2 {
                 continue;
             }
-            let seg = LineSegment{from: p1.position, to: p2.position};
+            let seg = LineSegment {
+                from: p1.position,
+                to: p2.position,
+            };
             if seg.square_length() < 100.0 {
                 eprintln!("Too close: p[{:}] = {:?}, p[{:}] = {:?}", i1, p1, i2, p2);
             }
