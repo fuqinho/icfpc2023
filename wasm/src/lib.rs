@@ -1,4 +1,5 @@
 use common::evaluate;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
@@ -52,6 +53,7 @@ impl RawProblem {
 }
 
 #[wasm_bindgen]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct EvaluationResult {
     pub score: f64,
 }
@@ -64,5 +66,9 @@ impl EvaluationResult {
         return Self {
             score: evaluate(&problem, &solution),
         };
+    }
+
+    pub fn to_json(&self) -> String {
+        return serde_json::to_string(&self).unwrap();
     }
 }

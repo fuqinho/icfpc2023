@@ -1,5 +1,7 @@
 import { Problem } from "@/components/problems";
 import { RenderingOption } from "@/components/visualizer/renderer";
+import { orderBy } from "natural-orderby";
+import { useState } from "react";
 import tinycolor from "tinycolor2";
 import type { EvaluationResult } from "wasm";
 
@@ -10,6 +12,99 @@ function formatNumber(n?: number) {
     return "";
   }
   return numberFormat.format(n);
+}
+
+function Instruments({ instruments }: { instruments: Map<number, number[]> }) {
+  const [instrumentsPage, setInstrumentsPage] = useState(1);
+  const [order, setOrder] = useState("by-instr");
+  let instrumentsKeys = Array.from(instruments.keys());
+  switch (order) {
+    case "by-instr":
+      instrumentsKeys = orderBy(instrumentsKeys, [(v) => v], ["asc"]);
+      break;
+    case "by-num-musicians-desc":
+      instrumentsKeys = orderBy(
+        instrumentsKeys,
+        [(v) => instruments.get(v)?.length, (v) => v],
+        ["desc", "asc"],
+      );
+      break;
+    case "by-num-musicians-asc":
+      instrumentsKeys = orderBy(
+        instrumentsKeys,
+        [(v) => instruments.get(v)?.length, (v) => v],
+        ["asc", "asc"],
+      );
+      break;
+  }
+
+  const instrumentsCurrentPage = instrumentsKeys.slice(
+    (instrumentsPage - 1) * 10,
+    instrumentsPage * 10,
+  );
+
+  return (
+    <div>
+      <h2 className="text-xl">楽器</h2>
+      <select
+        className="select select-bordered select-sm m-2"
+        onChange={(e) => setOrder(e.target.value)}
+        value={order}
+      >
+        <option value="by-instr">楽器番号順</option>
+        <option value="by-num-musicians-desc">奏者が多い順</option>
+        <option value="by-num-musicians-asc">奏者が少ない順</option>
+      </select>
+      <table className="table">
+        <tbody>
+          {instrumentsCurrentPage.map((instr) => {
+            const col = tinycolor({
+              h: (instr / instruments.size) * 360,
+              s: 100,
+              v: 100,
+            });
+            return (
+              <tr key={instr}>
+                <td className="w-8">{instr} </td>
+                <td
+                  className="w-32"
+                  style={{ backgroundColor: col.toHex8String() }}
+                >
+                  &nbsp;
+                </td>
+                <td>奏者 {instruments.get(instr)?.length}人</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="join">
+        <button
+          className="join-item btn"
+          onClick={() => setInstrumentsPage((p) => Math.max(1, p - 1))}
+        >
+          «
+        </button>
+        <button className="join-item btn btn-disabled">
+          Page {instrumentsPage}
+        </button>
+        <button
+          className="join-item btn"
+          onClick={() =>
+            setInstrumentsPage((p) =>
+              Math.min(
+                Math.floor(instrumentsKeys.length / 10) +
+                  (instrumentsKeys.length % 10 == 0 ? 0 : 1),
+                p + 1,
+              ),
+            )
+          }
+        >
+          »
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function ProblemInfo({
@@ -27,7 +122,6 @@ function ProblemInfo({
     }
     instruments.get(instr)?.push(i);
   }
-
   return (
     <div className="overflow-x-auto space-y-4">
       <div>
@@ -55,41 +149,7 @@ function ProblemInfo({
           </tbody>
         </table>
       </div>
-
-      <div>
-        <h2 className="text-xl">楽器</h2>
-        {instruments.size > 15 ? (
-          <div>たくさんあるので省略</div>
-        ) : (
-          <table className="table">
-            <tbody>
-              {Array.from(instruments.keys())
-                .sort((a, b) => a - b)
-                .map((instr) => {
-                  const col = tinycolor({
-                    h: (instr / instruments.size) * 360,
-                    s: 100,
-                    v: 100,
-                  });
-                  return (
-                    <tr key={instr}>
-                      <td className="flex">
-                        <div className="w-4">{instr}</div>
-                        <div
-                          className="w-32"
-                          style={{ backgroundColor: col.toHex8String() }}
-                        >
-                          &nbsp;
-                        </div>
-                      </td>
-                      <td>奏者 {instruments.get(instr)?.length}人</td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
-        )}
-      </div>
+      <Instruments instruments={instruments} />
     </div>
   );
 }

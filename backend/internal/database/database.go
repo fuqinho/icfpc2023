@@ -17,9 +17,10 @@ type Problem struct {
 }
 
 type Solution struct {
-	UUID      string    `json:"uuid"`
-	ProblemID int       `json:"problem_id"`
-	Created   time.Time `json:"created"`
+	UUID       string      `json:"uuid"`
+	ProblemID  int         `json:"problem_id"`
+	Created    time.Time   `json:"created"`
+	Submission *Submission `json:"submission"`
 }
 
 type Submission struct {
@@ -30,6 +31,7 @@ type Submission struct {
 	Score        int64     `json:"score"`
 	Error        string    `json:"error"`
 	Created      time.Time `json:"created"`
+	Updated      time.Time `json:"updated"`
 }
 
 type DB struct {
@@ -104,24 +106,19 @@ func (db *DB) UpdateProblem(ctx context.Context, id int, spec string) error {
 }
 
 func (db *DB) GetSolution(ctx context.Context, uuid string) (*Solution, error) {
-	row := db.raw.QueryRowContext(ctx, `SELECT problem_id, created FROM solutions WHERE uuid = ?`, uuid)
+	row := db.raw.QueryRowContext(ctx, querySolutions+`WHERE uuid = ?`, uuid)
 
-	var problemID int
-	var created time.Time
-	if err := row.Scan(&problemID, &created); err != nil {
+	solution, err := scanSolution(row)
+	if err != nil {
 		return nil, err
-	}
-
-	solution := &Solution{
-		UUID:      uuid,
-		ProblemID: problemID,
-		Created:   created,
 	}
 	return solution, nil
 }
 
 func (db *DB) ListSolutionsForProblem(ctx context.Context, problemID int) ([]*Solution, error) {
-	rows, err := db.raw.QueryContext(ctx, `SELECT uuid, created FROM solutions WHERE problem_id = ? ORDER BY created DESC`, problemID)
+	rows, err := db.raw.QueryContext(ctx, querySolutions+`
+	WHERE problem_id = ?
+	ORDER BY solutions.created DESC`, problemID)
 	if err != nil {
 		return nil, err
 	}
@@ -129,25 +126,17 @@ func (db *DB) ListSolutionsForProblem(ctx context.Context, problemID int) ([]*So
 
 	var solutions []*Solution
 	for rows.Next() {
-		var uuid string
-		var created time.Time
-		if err := rows.Scan(&uuid, &created); err != nil {
+		solution, err := scanSolution(rows)
+		if err != nil {
 			return nil, err
 		}
-		solutions = append(solutions, &Solution{
-			UUID:      uuid,
-			ProblemID: problemID,
-			Created:   created,
-		})
+		solutions = append(solutions, solution)
 	}
 	return solutions, nil
 }
 
 func (db *DB) ListAllSolutions(ctx context.Context) ([]*Solution, error) {
-	rows, err := db.raw.QueryContext(ctx, `
-	SELECT uuid, problem_id, created
-	FROM solutions
-	ORDER BY created DESC`)
+	rows, err := db.raw.QueryContext(ctx, querySolutions+`ORDER BY solutions.created DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -155,17 +144,11 @@ func (db *DB) ListAllSolutions(ctx context.Context) ([]*Solution, error) {
 
 	var solutions []*Solution
 	for rows.Next() {
-		var uuid string
-		var problemID int
-		var created time.Time
-		if err := rows.Scan(&uuid, &problemID, &created); err != nil {
+		solution, err := scanSolution(rows)
+		if err != nil {
 			return nil, err
 		}
-		solutions = append(solutions, &Solution{
-			UUID:      uuid,
-			ProblemID: problemID,
-			Created:   created,
-		})
+		solutions = append(solutions, solution)
 	}
 	return solutions, nil
 }
@@ -202,45 +185,20 @@ func (db *DB) SubmitSolution(ctx context.Context, problemID int, solutionSpec st
 }
 
 func (db *DB) GetSolutionBySubmissionID(ctx context.Context, submissionID string) (*Solution, error) {
-	row := db.raw.QueryRowContext(ctx, `
-	SELECT
-	  solutions.uuid,
-		solutions.problem_id,
-		solutions.created,
-		submissions.state,
-		submissions.accepted,
-		submissions.score,
-		submissions.error
-	FROM solutions
-	LEFT OUTER JOIN submissions USING (uuid)
-	WHERE submissions.submission_id = ?
-	`, submissionID)
+	row := db.raw.QueryRowContext(ctx, querySolutions+`WHERE submissions.submission_id = ?`, submissionID)
 
-	var uuid string
-	var problemID int
-	var created time.Time
-	var state string
-	var accepted bool
-	var score int64
-	var errorMsg string
-	if err := row.Scan(&uuid, &problemID, &created, &state, &accepted, &score, &errorMsg); err != nil {
+	solution, err := scanSolution(row)
+	if err != nil {
 		return nil, err
 	}
-
-	solution := &Solution{
-		UUID:      uuid,
-		ProblemID: problemID,
-		Created:   created,
-	}
-	// TODO: Return evaluation results.
 	return solution, nil
 }
 
 func (db *DB) ReplaceSubmission(ctx context.Context, submission *Submission) error {
 	if _, err := db.raw.ExecContext(ctx, `
-	REPLACE INTO submissions (uuid, submission_id, state, accepted, score, error, created)
-	VALUES (?, ?, ?, ?, ?, ?, ?)
-	`, submission.SolutionUUID, submission.ID, submission.State, submission.Accepted, submission.Score, submission.Error, submission.Created); err != nil {
+	REPLACE INTO submissions (uuid, submission_id, state, accepted, score, error, created, updated)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, submission.SolutionUUID, submission.ID, submission.State, submission.Accepted, submission.Score, submission.Error, submission.Created, submission.Updated); err != nil {
 		return err
 	}
 	return nil
@@ -262,4 +220,62 @@ func (db *DB) problemObject(id int) *storage.ObjectHandle {
 
 func (db *DB) solutionObject(uuid string) *storage.ObjectHandle {
 	return db.bucket.Object(fmt.Sprintf("solutions/%s.json", uuid))
+}
+
+type rowScanner interface {
+	Scan(values ...any) error
+}
+
+const querySolutions = `
+SELECT
+	solutions.uuid,
+	solutions.problem_id,
+	solutions.created,
+	submissions.submission_id,
+	submissions.state,
+	submissions.accepted,
+	submissions.score,
+	submissions.error,
+	submissions.created,
+	submissions.updated
+FROM solutions
+LEFT OUTER JOIN submissions USING (uuid)
+`
+
+func scanSolution(row rowScanner) (*Solution, error) {
+	var uuid string
+	var problemID int
+	var solutionCreated time.Time
+	var submissionID *string
+	var state *string
+	var accepted *bool
+	var score *int64
+	var errorMsg *string
+	var submissionCreated, submissionUpdated *time.Time
+	if err := row.Scan(&uuid, &problemID, &solutionCreated, &submissionID, &state, &accepted, &score, &errorMsg, &submissionCreated, &submissionUpdated); err != nil {
+		return nil, err
+	}
+
+	var submission *Submission
+	if submissionID != nil {
+		submission = &Submission{
+			SolutionUUID: uuid,
+			ID:           *submissionID,
+			State:        *state,
+			Accepted:     *accepted,
+			Score:        *score,
+			Error:        *errorMsg,
+			Created:      *submissionCreated,
+			Updated:      *submissionUpdated,
+		}
+	}
+
+	solution := &Solution{
+		UUID:       uuid,
+		ProblemID:  problemID,
+		Created:    solutionCreated,
+		Submission: submission,
+	}
+
+	return solution, nil
 }
