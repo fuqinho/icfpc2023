@@ -323,6 +323,19 @@ impl Solver {
 
         let bb = self.board.prob.stage;
 
+        // let from = Point::new(bb.min.x, bb.max.y);
+        // let to = Point::new(bb.max.x, bb.min.y);
+
+        // let l = (from - to).length();
+
+        // let dd = D + 1e-9;
+        // let num = (l / dd).floor() as usize;
+
+        // for i in 0..num {
+        //     let p = from + (to - from).normalize() * dd * i as f64;
+        //     outer.push(p);
+        // }
+
         for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize)).step_by(D as usize) {
             if bb.min.y > D as f64 {
                 outer.push(Point::new(x as f64, bb.min.y));
