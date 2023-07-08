@@ -39,7 +39,9 @@ pub struct Board {
     // m -> a -> block count
     blocks: Vec<Vec<usize>>,
     // m -> closeness factor
-    qs: Vec<Option<f64>>,
+    qs: Vec<f64>,
+    // m -> I
+    impacts: Vec<Option<f64>>,
 
     score: f64,
 }
@@ -56,7 +58,8 @@ impl Board {
         }
         let aids = vec![vec![]; n];
         let blocks = vec![vec![0; m]; n];
-        let qs = vec![None; n];
+        let qs = vec![1.; n];
+        let impacts = vec![None; n];
 
         prob.stage = Box2D::new(
             prob.stage.min + P::new(10., 10.),
@@ -70,6 +73,7 @@ impl Board {
             aids,
             blocks,
             qs,
+            impacts,
             score: 0.,
         }
     }
@@ -132,22 +136,24 @@ impl Board {
         assert!(self.aids[m].is_empty());
 
         // Update qs
-        let mut qm = 0.;
-        for i in 0..self.prob.musicians.len() {
-            if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
-                continue;
+        if self.prob.is_v2() {
+            let mut qm = 1.;
+            for i in 0..self.prob.musicians.len() {
+                if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
+                    continue;
+                }
+                if let Some((q, _)) = self.ps[i] {
+                    let d = 1. / (p - q).length();
+                    qm += d;
+                    self.qs[i] += d;
+                    self.score += d * self.impacts[i].unwrap();
+                }
             }
-            if let Some((q, _)) = self.ps[i] {
-                let d = 1. / (p - q).length();
-                qm += d;
-                self.qs[i].as_mut().map(|qq| {
-                    *qq += d;
-                });
-            }
+            self.qs[m] = qm;
         }
-        self.qs[m] = Some(qm);
 
         // Update aids and score
+        let mut new_impacts = 0.;
         for (i, a) in self.prob.attendees.iter().enumerate() {
             let r: F64 = (a.position - p)
                 .to_vector()
@@ -156,9 +162,11 @@ impl Board {
                 .into();
             self.aids[m].push((r, i));
 
-            self.score += self.impact(m, i)
+            new_impacts += self.impact(m, i);
         }
         self.aids[m].sort_unstable();
+        self.impacts[m] = Some(new_impacts);
+        self.score += self.qs[m] * new_impacts;
 
         // Update blocks
         self.update_blocks(m, p, true);
@@ -186,22 +194,22 @@ impl Board {
 
         // Update aids and score
         self.aids[m].clear();
-        for (i, _) in self.prob.attendees.iter().enumerate() {
-            self.score -= self.impact(m, i)
-        }
+        self.score -= self.qs[m] * self.impacts[m].unwrap();
+        self.impacts[m] = None;
 
         // Update qs
-        self.qs[m] = None;
-        let p = self.ps[m].unwrap().0;
-        for i in 0..self.prob.musicians.len() {
-            if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
-                continue;
-            }
-            if let Some((q, _)) = self.ps[i] {
-                let d = (p - q).length();
-                self.qs[i].as_mut().map(|qq| {
-                    *qq -= 1. / d;
-                });
+        if self.prob.is_v2() {
+            self.qs[m] = 1.;
+            let p = self.ps[m].unwrap().0;
+            for i in 0..self.prob.musicians.len() {
+                if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
+                    continue;
+                }
+                if let Some((q, _)) = self.ps[i] {
+                    let d = 1. / (p - q).length();
+                    self.score -= d * self.impacts[i].unwrap();
+                    self.qs[i] -= d;
+                }
             }
         }
 
@@ -263,7 +271,12 @@ impl Board {
         let b = &mut self.blocks[i][a];
         *b += 1;
         if *b == 1 {
-            self.score -= self.impact(i, a);
+            // Is it okay to "ceiled" value here? probably not.
+            let d_impact = self.impact(i, a);
+            self.impacts[i].as_mut().map(|im| {
+                *im -= d_impact;
+            });
+            self.score -= self.qs[i] * d_impact;
         }
     }
 
@@ -271,7 +284,12 @@ impl Board {
         let b = &mut self.blocks[i][a];
         *b -= 1;
         if *b == 0 {
-            self.score += self.impact(i, a);
+            // Is it okay to "ceiled" value here? probably not.
+            let d_impact = self.impact(i, a);
+            self.impacts[i].as_mut().map(|im| {
+                *im += d_impact;
+            });
+            self.score += self.qs[i] * d_impact;
         }
     }
 
