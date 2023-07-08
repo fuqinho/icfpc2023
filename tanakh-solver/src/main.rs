@@ -490,13 +490,13 @@ impl saru::Annealer for Solver2 {
     ) -> Self::Move {
         let stage = &state.board.prob.stage;
 
-        let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(15.0);
-        let scale_y = (stage.height() / 5.0 * (1.0 - progress_ratio)).max(15.0);
+        let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(10.0);
+        let scale_y = (stage.height() / 5.0 * (1.0 - progress_ratio)).max(10.0);
 
         // let scale_x = 15.0;
         // let scale_y = 15.0;
 
-        let grid = 0.5_f64;
+        let grid = 0.25_f64;
         let scale_x = (scale_x / grid).round() as i32;
         let scale_y = (scale_y / grid).round() as i32;
 
