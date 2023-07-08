@@ -77,9 +77,7 @@ function Instruments({ instruments }: { instruments: Map<number, number[]> }) {
         >
           «
         </button>
-        <button className="join-item btn btn-disabled">
-          Page {instrumentsPage}
-        </button>
+        <button className="join-item btn">Page {instrumentsPage}</button>
         <button
           className="join-item btn"
           onClick={() =>
