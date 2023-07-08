@@ -12,7 +12,7 @@ fn main(problem_id: u32) -> Result<()> {
 
     let best_score = userboard.problems[(problem_id - 1) as usize].unwrap_or(0.);
 
-    println!("our best score: {}", best_score);
+    eprintln!("our best score: {}", best_score);
 
     let problem = cl.get_problem(problem_id)?;
 
@@ -20,7 +20,7 @@ fn main(problem_id: u32) -> Result<()> {
 
     let (score, board) = solver.solve();
 
-    println!("final score: {}", score);
+    eprintln!("final score: {}", score);
 
     let solution: Solution = board.try_into().unwrap();
 
@@ -31,7 +31,7 @@ fn main(problem_id: u32) -> Result<()> {
     if eval_score > best_score {
         cl.post_submission(problem_id, solution)?;
 
-        println!("Submitted solution for problem {}!", problem_id);
+        eprintln!("Submitted solution for problem {}!", problem_id);
     }
 
     Ok(())
