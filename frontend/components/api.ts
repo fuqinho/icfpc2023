@@ -55,6 +55,30 @@ export function useProblemSpec(problemID: number | undefined) {
   return { data: data?.data, error, isLoading };
 }
 
+export function useBestSolutions() {
+  const { data, error, isLoading } = useSWR<AxiosResponse<SolutionMetadata[]>>(
+    {
+      method: "get",
+      url: `/api/solutions`,
+    },
+    client,
+  );
+
+  const allSolutions = data?.data ?? [];
+  allSolutions.sort(
+    (a, b) => (b.submission?.score ?? -1e100) - (a.submission?.score ?? -1e100),
+  );
+
+  const bestSolutions = new Map<number, SolutionMetadata>();
+  for (const s of allSolutions) {
+    if (!bestSolutions.has(s.problem_id)) {
+      bestSolutions.set(s.problem_id, s);
+    }
+  }
+
+  return { data: bestSolutions, error, isLoading };
+}
+
 export function useKnownSolutions(problemID: number | undefined) {
   const { data, error, isLoading } = useSWR<AxiosResponse<SolutionMetadata[]>>(
     problemID
@@ -65,6 +89,12 @@ export function useKnownSolutions(problemID: number | undefined) {
       : null,
     client,
   );
+  if (data?.data) {
+    data.data.sort(
+      (a, b) =>
+        (b.submission?.score ?? -1e100) - (a.submission?.score ?? -1e100),
+    );
+  }
   return { data: data?.data, error, isLoading };
 }
 
