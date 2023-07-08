@@ -17,7 +17,7 @@ export class Viewport {
   constructor(
     ctx: CanvasRenderingContext2D,
     problem: Problem,
-    solution: Solution | null
+    solution: Solution | null,
   ) {
     this.ctx = ctx;
     this.problem = problem;
@@ -40,7 +40,7 @@ export class Viewport {
     f(this.problem.stage_bottom_left[0], this.problem.stage_bottom_left[0]);
     f(
       this.problem.stage_bottom_left[0] + this.problem.stage_width,
-      this.problem.stage_bottom_left[0] + this.problem.stage_height
+      this.problem.stage_bottom_left[0] + this.problem.stage_height,
     );
     this.problem.attendees.forEach((a) => f(a.x, a.y));
     if (this.solution) {
@@ -163,7 +163,7 @@ export class Viewport {
       this.toCanvasCoordX(pXY[0]),
       this.toCanvasCoordY(pXY[1]) - this.toCanvasScale(pHeight),
       this.toCanvasScale(pWidth),
-      this.toCanvasScale(pHeight)
+      this.toCanvasScale(pHeight),
     );
 
     if (fillStyle) {
@@ -200,7 +200,7 @@ export class Viewport {
         this.toCanvasScale(pRadius),
         0,
         2 * Math.PI,
-        false
+        false,
       );
     } else if (cRadius) {
       this.ctx.arc(
@@ -209,7 +209,7 @@ export class Viewport {
         cRadius,
         0,
         2 * Math.PI,
-        false
+        false,
       );
     }
 
