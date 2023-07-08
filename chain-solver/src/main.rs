@@ -24,6 +24,13 @@ fn main(
 
     let (_score, board) = solver.solve(tl_secs);
 
+    for i in 0..board.prob.musicians.len() {
+        let cont = board.contribution(i);
+        if cont < 0. {
+            eprintln!("musician {i} is negatively contributing!!!: {}", cont);
+        }
+    }
+
     let solution: Solution = board.try_into().unwrap();
 
     let eval_score = evaluate(&problem, &solution);
