@@ -2,6 +2,7 @@ use euclid::default::{Box2D, Point2D, Vector2D};
 use lyon_geom::LineSegment;
 
 use crate::problem::Attendee;
+use crate::problem::Pillar;
 use crate::problem::Placement;
 use crate::problem::Problem;
 use crate::problem::Solution;
@@ -26,12 +27,18 @@ fn is_blocked_internal(
     seg: &LineSegment<f64>,
     current_index: usize,
     placements: &[Placement],
+    pillars: &[Pillar],
 ) -> bool {
     for (i, blocker) in placements.iter().enumerate() {
         if i == current_index {
             continue;
         }
         if seg.distance_to_point(blocker.position) <= 5. {
+            return true;
+        }
+    }
+    for pillar in pillars {
+        if seg.distance_to_point(pillar.center) <= pillar.radius {
             return true;
         }
     }
@@ -61,7 +68,12 @@ fn create_q_vector(musicians: &[usize], solution: &Solution) -> Vec<f64> {
     ret
 }
 
-fn evaluate_attendee(attendee: &Attendee, musicians: &[usize], solution: &Solution) -> f64 {
+fn evaluate_attendee(
+    attendee: &Attendee,
+    musicians: &[usize],
+    pillars: &[Pillar],
+    solution: &Solution,
+) -> f64 {
     let q = create_q_vector(musicians, solution);
 
     let mut score = 0f64;
@@ -70,7 +82,7 @@ fn evaluate_attendee(attendee: &Attendee, musicians: &[usize], solution: &Soluti
             from: attendee.position,
             to: placement.position,
         };
-        if is_blocked_internal(&seg, index, &solution.placements) {
+        if is_blocked_internal(&seg, index, &solution.placements, pillars) {
             continue;
         }
         let d = seg.length();
@@ -83,7 +95,7 @@ pub fn evaluate(problem: &Problem, solution: &Solution) -> f64 {
     problem
         .attendees
         .iter()
-        .map(|attendee| evaluate_attendee(attendee, &problem.musicians, solution))
+        .map(|attendee| evaluate_attendee(attendee, &problem.musicians, &problem.pillars, solution))
         .sum()
 }
 
