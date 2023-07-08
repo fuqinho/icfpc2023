@@ -16,14 +16,15 @@ import type { EvaluationResult } from "wasm";
 // が入っているので、そこにあるやつはコピペで使えます。
 
 export default function Home() {
-  const { data: problems, error: errorProblems } = useProblemList();
   const [problemID, setProblemID] = useState<number | undefined>(undefined);
-  const { data: problem, error: errorProblem } = useProblemSpec(problemID);
   const [rawSolution, setRawSolution] = useState("");
   const [solution, setSolution] = useState<Solution | null>(null);
   const [jsonParseException, setJSONParseException] = useState<any>(null);
   const [option, setOption] = useState<RenderingOption>({});
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
+
+  const { data: problems, error: errorProblems } = useProblemList();
+  const { data: problem, error: errorProblem } = useProblemSpec(problemID);
 
   useEffect(() => {
     if (problems && !problemID) {
@@ -97,9 +98,10 @@ export default function Home() {
               onClick={() => {
                 setProblemID(entry.id);
                 setRawSolution("");
-                setOption(() => {
-                  return {};
-                });
+                setSolution(null);
+                setEvalResult(null);
+                setJSONParseException(null);
+                setOption({});
               }}
             >
               {entry.id}
