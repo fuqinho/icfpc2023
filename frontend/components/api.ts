@@ -9,7 +9,7 @@ const client = axios.create({
   baseURL: "https://icfpc2023-backend-uadsges7eq-an.a.run.app/",
 });
 
-export interface ProblemListEntry {
+export interface ProblemMetadata {
   id: number;
 }
 
@@ -32,7 +32,7 @@ export interface SubmissionMetadata {
 }
 
 export function useProblemList() {
-  const { data, error, isLoading } = useSWR<AxiosResponse<ProblemListEntry[]>>(
+  const { data, error, isLoading } = useSWR<AxiosResponse<ProblemMetadata[]>>(
     {
       method: "get",
       url: "/api/problems",
