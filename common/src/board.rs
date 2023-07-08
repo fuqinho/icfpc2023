@@ -333,10 +333,10 @@ impl TryInto<Solution> for Board {
 
 #[cfg(test)]
 mod tests {
-    use lyon_geom::Point;
+    use lyon_geom::{Box2D, Point};
     use rand::{rngs::StdRng, Rng, SeedableRng};
 
-    use crate::{board::Board, evaluate, Problem, Solution};
+    use crate::{board::Board, evaluate, Attendee, Problem, Solution};
 
     #[test]
     fn test_board() {
@@ -369,5 +369,30 @@ mod tests {
         }
 
         assert_eq!(board.score(), 0.0);
+    }
+
+    #[test]
+    fn test_tangent() {
+        let problem = Problem {
+            room: Box2D::new(Point::new(0.0, 0.0), Point::new(1000.0, 1000.0)),
+            stage: Box2D::new(Point::new(0.0, 0.0), Point::new(100.0, 100.0)),
+            musicians: vec![0, 0, 1],
+            attendees: vec![Attendee {
+                position: Point::new(110., 15.),
+                tastes: vec![0.0, 1.0],
+            }],
+            pillars: vec![],
+        };
+
+        let mut board = Board::new(0, problem.clone());
+
+        board.try_place(0, Point::new(20.0, 10.0)).unwrap();
+        board.try_place(1, Point::new(20.0, 20.0)).unwrap();
+        board.try_place(2, Point::new(10.0, 15.0)).unwrap();
+
+        let score = board.score();
+        let expected_score = 1e6 / 100.0 / 100.0;
+
+        assert_eq!(score, expected_score);
     }
 }
