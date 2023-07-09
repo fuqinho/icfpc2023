@@ -76,7 +76,7 @@ impl Board {
 
     pub fn score(&self) -> f64 {
         let mut res = 0.;
-        for m in 0..self.   usicians().len() {
+        for m in 0..self.usicians().len() {
             res += (self.volumes[m] * self.qs[m] * self.impacts[m]).ceil();
         }
         res
