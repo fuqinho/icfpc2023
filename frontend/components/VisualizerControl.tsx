@@ -1,6 +1,6 @@
 import { EvaluationResult } from "@/components/evaluation_result";
 import { formatNumber } from "@/components/number_format";
-import { Problem } from "@/components/problems";
+import { Problem, Solution } from "@/components/problems";
 import { HoveredItem, RenderingOption } from "@/components/visualizer/renderer";
 import { orderBy } from "natural-orderby";
 import { useMemo, useState } from "react";
@@ -10,19 +10,25 @@ import { VisualizerElement } from "./Visualizer";
 function HoveredItemData({
   hoveredItem,
   problem,
+  solution,
   evalResult,
 }: {
   hoveredItem: HoveredItem;
   problem: Problem;
+  solution: Solution | null;
   evalResult: EvaluationResult | null;
 }) {
   const instrumentSize = useMemo(() => {
     return new Set(problem.musicians).size;
   }, [problem]);
   if (hoveredItem.kind === "attendee") {
+    const attendee = problem.attendees[hoveredItem.index];
     return (
       <div className="w-full">
-        <h2 className="text-xl">Hovered Item (観客 {hoveredItem.index})</h2>
+        <h2 className="text-xl">
+          Hovered Item (観客 {hoveredItem.index}, 座標 ({attendee.x},{" "}
+          {attendee.y}))
+        </h2>
 
         <div className="stats">
           {evalResult ? (
@@ -39,6 +45,7 @@ function HoveredItemData({
   }
 
   const instr = problem.musicians[hoveredItem.index];
+  const pos = solution?.placements[hoveredItem.index];
   const col = tinycolor({
     h: (instr / instrumentSize) * 360,
     s: 100,
@@ -46,7 +53,9 @@ function HoveredItemData({
   });
   return (
     <div className="w-full">
-      <h2 className="text-xl">Hovered Item (奏者 {hoveredItem.index})</h2>
+      <h2 className="text-xl">
+        Hovered Item (奏者 {hoveredItem.index}, 座標 ({pos?.x}, {pos?.y}))
+      </h2>
 
       <div className="stats">
         {evalResult ? (
@@ -343,6 +352,7 @@ function Musicians({
 function ProblemInfo({
   problem,
   evalResult,
+  solution,
   rawSolution,
   setRawSolution,
   parseError,
@@ -350,6 +360,7 @@ function ProblemInfo({
 }: {
   problem: Problem;
   evalResult: EvaluationResult | null;
+  solution: Solution | null;
   rawSolution: string;
   setRawSolution: (s: string) => void;
   parseError: any;
@@ -404,6 +415,7 @@ function ProblemInfo({
         <HoveredItemData
           hoveredItem={hoveredItem}
           problem={problem}
+          solution={solution}
           evalResult={evalResult}
         />
       ) : null}
@@ -424,6 +436,7 @@ export default function VisualizerControl({
   visualizer,
   problem,
   evalResult,
+  solution,
   option,
   setOption,
   rawSolution,
@@ -433,6 +446,7 @@ export default function VisualizerControl({
   visualizer: VisualizerElement | null;
   problem: Problem;
   evalResult: EvaluationResult | null;
+  solution: Solution | null;
   option: RenderingOption;
   setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
   rawSolution: string;
@@ -448,6 +462,7 @@ export default function VisualizerControl({
       <ProblemInfo
         problem={problem}
         evalResult={evalResult}
+        solution={solution}
         rawSolution={rawSolution}
         setRawSolution={setRawSolution}
         parseError={parseError}
