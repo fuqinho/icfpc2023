@@ -96,7 +96,7 @@ fn main(
         if initial_solution.is_some() {
             ",w/init"
         } else if from_current_best || from_recent {
-            "/cont"
+            ",cont"
         } else {
             ""
         }
