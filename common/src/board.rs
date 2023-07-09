@@ -77,7 +77,7 @@ impl Board {
     pub fn score(&self) -> f64 {
         let mut res = 0.;
         for m in 0..self.musicians().len() {
-            res += self.qs[m] * self.impacts[m];
+            res += self.volumes[m] * self.qs[m] * self.impacts[m];
         }
         res
     }
@@ -92,7 +92,6 @@ impl Board {
 
     pub fn set_volume(&mut self, m: usize, volume: f64) {
         self.volumes[m] = volume;
-        // TODO(chir): score recalcuration.
     }
 
     // The musician's contribution to the score
