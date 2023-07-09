@@ -105,7 +105,7 @@ fn evaluate_musician_internal(
     pillars: &[Pillar],
     solution: &Solution,
     volume: f64,
-    q: &[f64],
+    q: f64,
 ) -> f64 {
     let mut score = 0.;
     let pm = solution.placements[m].position;
@@ -116,9 +116,7 @@ fn evaluate_musician_internal(
         if is_blocked_internal(&seg, m, &solution.placements, pillars) {
             continue;
         }
-        score +=
-            (solution.volumes[m] * q[m] * (1000000f64 * attendee.tastes[musicians[m]] / d).ceil())
-                .ceil();
+        score += (volume * q * (1000000f64 * attendee.tastes[musicians[m]] / d).ceil()).ceil();
     }
     score
 }
@@ -138,7 +136,7 @@ pub fn evaluate_musician(
         pillars,
         solution,
         solution.volumes[m],
-        &q,
+        q[m],
     )
 }
 
@@ -165,7 +163,7 @@ pub fn fixup_volumes(problem: &Problem, solution: &Solution) -> Solution {
             &problem.pillars,
             solution,
             1.,
-            &q,
+            q[m],
         ) > 0.
         {
             10.
