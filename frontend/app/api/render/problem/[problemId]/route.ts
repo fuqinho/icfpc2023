@@ -29,7 +29,7 @@ export async function GET(
     problem,
     null,
     null,
-    { scoreHeatmapAttendees: true },
+    { attendeeHeatmapByScore: true },
     initialViewportState(problem, null),
     () => {},
   );

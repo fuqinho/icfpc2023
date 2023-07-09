@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Problem, Solution } from "./problems";
 import {
+  ClickHoveredItemEvent,
   Renderer,
   RenderingOption,
   UpdateHoveredItemEvent,
@@ -19,6 +20,7 @@ import { CANVAS_SIZE, initialViewportState } from "./visualizer/viewport";
 
 export interface VisualizerElement {
   onUpdateHoveredItemEvent(fn: (e: UpdateHoveredItemEvent) => void): void;
+  onClickHoveredItemEvent(fn: (e: ClickHoveredItemEvent) => void): void;
 }
 
 const Visualizer = forwardRef(function Visualizer(
@@ -45,11 +47,20 @@ const Visualizer = forwardRef(function Visualizer(
   useImperativeHandle(
     ref,
     () => {
+      let updateFn: (e: UpdateHoveredItemEvent) => void = () => {};
+      let clickFn: (e: ClickHoveredItemEvent) => void = () => {};
+      canvasRef.current?.addEventListener("updateHoveredItem", (e) =>
+        updateFn(e as UpdateHoveredItemEvent),
+      );
+      canvasRef.current?.addEventListener("clickHoveredItem", (e) =>
+        clickFn(e as ClickHoveredItemEvent),
+      );
       return {
         onUpdateHoveredItemEvent(fn: (e: UpdateHoveredItemEvent) => void) {
-          canvasRef.current?.addEventListener("updateHoveredItem", (e) =>
-            fn(e as UpdateHoveredItemEvent),
-          );
+          updateFn = fn;
+        },
+        onClickHoveredItemEvent(fn: (e: ClickHoveredItemEvent) => void) {
+          clickFn = fn;
         },
       };
     },
