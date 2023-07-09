@@ -299,18 +299,21 @@ pub fn estimate(problem_id: u32, problem: &Problem) -> (f64, Solution) {
 mod tests {
     use crate::{evaluate, Problem, Solution};
 
-    #[test]
-    fn test_evaluate_with_problem2() {
-        let problem_id = 2;
+    // slow
+    // #[test]
+    fn test_evaluate_with_real_problems() {
+        for (problem_id, expected_score) in [(2, 1458765625), (64, 93147223)] {
+            let problem =
+                Problem::read_from_file(format!("../problems/{}.json", problem_id)).unwrap();
+            let solution = Solution::read_from_file(format!(
+                "testcases/p{}_{}.json",
+                problem_id, expected_score
+            ))
+            .unwrap();
 
-        let problem = Problem::read_from_file(format!("../problems/{}.json", problem_id)).unwrap();
+            let score = evaluate(&problem, &solution);
 
-        let expected_score = 1458765625;
-        let solution =
-            Solution::read_from_file(format!("testcases/p2_{}.json", expected_score)).unwrap();
-
-        let score = evaluate(&problem, &solution);
-
-        assert_eq!(score as i32, expected_score);
+            assert_eq!(score as i32, expected_score);
+        }
     }
 }

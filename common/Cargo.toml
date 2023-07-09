@@ -17,3 +17,6 @@ serde_json = "*"
 
 [dev-dependencies]
 rand = "*"
+
+[profile.dev]
+opt-level = 1
