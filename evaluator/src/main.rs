@@ -14,9 +14,13 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
-    let problem_file = PathBuf::from(format!("../problems/{}.json", args.problem_id));
+    let mut problem_file = PathBuf::from(format!("../problems/{}.json", args.problem_id));
     if !problem_file.is_file() {
-        bail!("File not found: {}", problem_file.display());
+        // Look at the current dir, too, to support "cargo run --bin evaluator" at top dir.
+        problem_file = PathBuf::from(format!("./problems/{}.json", args.problem_id));
+        if !problem_file.is_file() {
+            bail!("File not found: {}", problem_file.display());
+        }
     }
     let problem = Problem::read_from_file(problem_file)?;
     if !args.solution.is_file() {
