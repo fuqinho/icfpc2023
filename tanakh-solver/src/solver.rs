@@ -400,6 +400,7 @@ pub fn post_process(problem_id: u32, p: &Problem, s: &mut Solution) {
 
     for i in 0..s.placements.len() {
         board.try_place(i, s.placements[i].position).unwrap();
+        board.set_volume(i, s.volumes[i]);
     }
 
     let init_score = board.score();
