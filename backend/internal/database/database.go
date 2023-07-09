@@ -4,6 +4,7 @@ import (
 	"compress/gzip"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"time"
@@ -20,6 +21,7 @@ type Solution struct {
 	UUID       string      `json:"uuid"`
 	ProblemID  int         `json:"problem_id"`
 	Created    time.Time   `json:"created"`
+	Solver     string      `json:"solver"`
 	Submission *Submission `json:"submission"`
 	Evaluation *Evaluation `json:"evaluation"`
 }
@@ -179,6 +181,15 @@ func (db *DB) SubmitSolution(ctx context.Context, problemID int, solutionSpec st
 
 	uuid := uuid.New().String()
 
+	// Read the solver name.
+	var partial struct {
+		Solver string `json:"solver"`
+	}
+	if err := json.Unmarshal([]byte(solutionSpec), &partial); err != nil {
+		return "", err
+	}
+	solver := partial.Solver
+
 	// Create JSON on GCS.
 	w := db.solutionObject(uuid).NewWriter(ctx)
 	w.ContentType = "application/json"
@@ -195,7 +206,7 @@ func (db *DB) SubmitSolution(ctx context.Context, problemID int, solutionSpec st
 	}
 
 	// Finally create an entry in DB.
-	if _, err := db.raw.ExecContext(ctx, `INSERT INTO solutions (uuid, problem_id) VALUES (?, ?)`, uuid, problemID); err != nil {
+	if _, err := db.raw.ExecContext(ctx, `INSERT INTO solutions (uuid, problem_id, solver) VALUES (?, ?, ?)`, uuid, problemID, solver); err != nil {
 		return "", err
 	}
 
@@ -284,6 +295,7 @@ SELECT
 	solutions.uuid,
 	solutions.problem_id,
 	solutions.created,
+	solutions.solver,
 	submissions.submission_id,
 	submissions.state,
 	submissions.accepted,
@@ -304,6 +316,7 @@ func scanSolution(row rowScanner) (*Solution, error) {
 	var uuid string
 	var problemID int
 	var solutionCreated time.Time
+	var solver string
 	var submissionID *string
 	var submissionState *string
 	var submissionAccepted *bool
@@ -318,6 +331,7 @@ func scanSolution(row rowScanner) (*Solution, error) {
 		&uuid,
 		&problemID,
 		&solutionCreated,
+		&solver,
 		&submissionID,
 		&submissionState,
 		&submissionAccepted,
@@ -362,6 +376,7 @@ func scanSolution(row rowScanner) (*Solution, error) {
 		UUID:       uuid,
 		ProblemID:  problemID,
 		Created:    solutionCreated,
+		Solver:     solver,
 		Submission: submission,
 		Evaluation: evaluation,
 	}
