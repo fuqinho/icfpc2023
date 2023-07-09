@@ -11,6 +11,7 @@ pub struct Solver2<'a> {
     pub start_temp: Option<f64>,
     pub better_initial: bool,
     pub initial_solution: Option<&'a common::Solution>,
+    pub taste: Option<usize>,
 }
 
 pub struct State2 {
@@ -46,7 +47,12 @@ pub enum Move {
 }
 
 impl Move {
-    fn gen_change_pos(rng: &mut impl Rng, board: &Board, progress_ratio: f64) -> Self {
+    fn gen_change_pos(
+        rng: &mut impl Rng,
+        board: &Board,
+        taste: Option<usize>,
+        progress_ratio: f64,
+    ) -> Self {
         let stage = &board.prob.stage;
 
         let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(5.0);
@@ -58,6 +64,12 @@ impl Move {
 
         loop {
             let id = rng.gen_range(0..board.musicians().len());
+
+            if let Some(taste) = taste {
+                if taste != board.prob.musicians[id] {
+                    continue;
+                }
+            }
 
             // let theta = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
             // let len = rng.gen_range(0.1..=scale);
@@ -203,53 +215,63 @@ impl saru::Annealer for Solver2<'_> {
         rng: &mut impl Rng,
         progress_ratio: f64,
     ) -> Self::Move {
-        match rng.gen_range(0..=5) {
-            0..=2 => Move::gen_change_pos(rng, &state.board, progress_ratio),
-
-            3 => loop {
-                let m1 = Move::gen_change_pos(rng, &state.board, progress_ratio);
-                let m2 = Move::gen_change_pos(rng, &state.board, progress_ratio);
-
-                match (&m1, &m2) {
-                    (
-                        Move::ChangePos {
-                            id: id1,
-                            new_pos: new_pos1,
-                            ..
-                        },
-                        Move::ChangePos {
-                            id: id2,
-                            new_pos: new_pos2,
-                            ..
-                        },
-                    ) => {
-                        if id1 == id2 {
-                            continue;
-                        }
-                        if new_pos1.distance_to(*new_pos2) < 10.0 {
-                            continue;
-                        }
-                    }
-                    _ => unreachable!(),
+        loop {
+            match rng.gen_range(0..=5) {
+                0..=2 => {
+                    return Move::gen_change_pos(rng, &state.board, self.taste, progress_ratio)
                 }
 
-                break Move::Multiple {
-                    moves: vec![m1, m2],
-                };
-            },
+                3 => loop {
+                    let m1 = Move::gen_change_pos(rng, &state.board, self.taste, progress_ratio);
+                    let m2 = Move::gen_change_pos(rng, &state.board, self.taste, progress_ratio);
 
-            4 => Move::gen_swap(rng, &state.board),
+                    match (&m1, &m2) {
+                        (
+                            Move::ChangePos {
+                                id: id1,
+                                new_pos: new_pos1,
+                                ..
+                            },
+                            Move::ChangePos {
+                                id: id2,
+                                new_pos: new_pos2,
+                                ..
+                            },
+                        ) => {
+                            if id1 == id2 {
+                                continue;
+                            }
+                            if new_pos1.distance_to(*new_pos2) < 10.0 {
+                                continue;
+                            }
+                        }
+                        _ => unreachable!(),
+                    }
 
-            // 5 => {
-            //     let s1 = Move::gen_swap(rng, &state.board);
-            //     let s2 = Move::gen_swap(rng, &state.board);
-            //     Move::Multiple {
-            //         moves: vec![s1, s2],
-            //     }
-            // }
-            5 => Move::gen_change_volume(rng, &state.board),
+                    return Move::Multiple {
+                        moves: vec![m1, m2],
+                    };
+                },
 
-            _ => unreachable!(),
+                4 => {
+                    if self.taste.is_some() {
+                        continue;
+                    } else {
+                        return Move::gen_swap(rng, &state.board);
+                    }
+                }
+
+                // 5 => {
+                //     let s1 = Move::gen_swap(rng, &state.board);
+                //     let s2 = Move::gen_swap(rng, &state.board);
+                //     Move::Multiple {
+                //         moves: vec![s1, s2],
+                //     }
+                // }
+                5 => return Move::gen_change_volume(rng, &state.board),
+
+                _ => unreachable!(),
+            }
         }
     }
 
@@ -407,6 +429,7 @@ pub fn post_process(problem_id: u32, p: &Problem, s: &mut Solution) {
     }
 
     let init_score = board.score();
+    let init_score_acc = common::evaluate(p, s);
 
     for iter in 1.. {
         let iter_score = board.score();
@@ -463,16 +486,23 @@ pub fn post_process(problem_id: u32, p: &Problem, s: &mut Solution) {
         }
     }
 
-    let post_socre = common::evaluate(p, s);
+    let post_score = board.score();
+    let post_score_acc = common::evaluate(p, s);
     let final_solution = common::evaluate::fixup_volumes(p, s);
-    let final_score = common::evaluate::evaluate(p, &final_solution);
+    let final_score = board.score();
+    let final_score_acc = common::evaluate::evaluate(p, &final_solution);
 
-    assert!(final_score >= post_socre, "Fix volume reduce score!!!");
+    eprintln!("Post process, fixup: {post_score} -> {final_score}");
+
+    assert!(
+        final_score_acc >= post_score_acc,
+        "Fix volume reduce score!!!"
+    );
 
     *s = final_solution;
 
     eprintln!(
-        "Post processed score: {init_score} -> {final_score} ({:+.3}%)",
-        (final_score - init_score) / init_score * 100.0,
+        "Post processed score: {init_score_acc} -> {final_score_acc} ({:+.3}%)",
+        (final_score_acc - init_score_acc) / init_score * 100.0,
     );
 }

@@ -51,6 +51,9 @@ fn main(
         conflicts_with = "better-initial"
     )]
     initial_solution: Option<PathBuf>,
+    /// annealing specify taste
+    #[opt(long)]
+    taste: Option<usize>,
     /// do not submit
     #[opt(long)]
     no_submit: bool,
@@ -88,6 +91,7 @@ fn main(
         start_temp,
         better_initial,
         initial_solution: initial_solution.as_ref(),
+        taste,
     };
 
     let solution = saru::annealing(
