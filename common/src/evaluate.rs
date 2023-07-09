@@ -80,7 +80,7 @@ fn evaluate_unit(
         return 0.;
     }
     let d = seg.length();
-    volume * q * (1000000f64 * attendee.tastes[instrument] / (d * d)).ceil()
+    (volume * q * (1000000f64 * attendee.tastes[instrument] / (d * d)).ceil()).ceil()
 }
 
 fn evaluate_attendee(

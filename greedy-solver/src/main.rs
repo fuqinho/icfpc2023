@@ -7,6 +7,8 @@
 
 mod solver;
 
+use std::{fs::File, path::Path};
+
 use anyhow::Result;
 use common::{api::Client, evaluate, Solution};
 
@@ -15,7 +17,23 @@ use crate::solver::Solver;
 // use crate::solver::Solver;
 
 #[argopt::cmd]
-fn main(problem_id: u32, #[opt(short, long, default_value = "")] out: String) -> Result<()> {
+fn main(
+    problem_id: u32,
+    #[opt(short, long, default_value = "")] out: String,
+    #[opt(short, long, default_value = "")] profile: String,
+) -> Result<()> {
+    let gurad = if !profile.is_empty() {
+        Some(
+            pprof::ProfilerGuardBuilder::default()
+                .frequency(1000)
+                .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+                .build()
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+
     let cl = Client::new();
     let userboard = cl.get_userboard()?;
 
@@ -27,26 +45,13 @@ fn main(problem_id: u32, #[opt(short, long, default_value = "")] out: String) ->
 
     let mut solver = Solver::new(problem_id, problem.clone());
 
-    let (score, board) = solver.solve();
+    let (_score, board) = solver.solve();
 
-    let solution: Solution = board.try_into().unwrap();
+    let solution: Solution = board.solution_with_optimized_volume().unwrap();
 
     let eval_score = evaluate(&problem, &solution);
 
     eprintln!("final score: {}", eval_score);
-
-    if score != eval_score {
-        let diff = (1. - score / eval_score).abs() * 100.;
-        eprintln!(
-            "WARNING: board and evaluate score differ by {}% {}",
-            diff,
-            if score < eval_score {
-                "board score is smaller"
-            } else {
-                "board score is larger"
-            }
-        );
-    }
 
     if eval_score > best_score {
         cl.post_submission(problem_id, solution.clone())?;
@@ -57,6 +62,15 @@ fn main(problem_id: u32, #[opt(short, long, default_value = "")] out: String) ->
     if out != "" {
         eprintln!("Writing solution to {}", out);
         Solution::write_to_file(out, solution)?;
+    }
+
+    if let Some(guard) = gurad {
+        if let Ok(report) = guard.report().build() {
+            eprintln!("Writing profile to {}", profile);
+
+            let file = File::create(profile).unwrap();
+            report.flamegraph(file).unwrap();
+        };
     }
 
     Ok(())

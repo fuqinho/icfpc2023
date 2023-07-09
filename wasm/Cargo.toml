@@ -20,3 +20,4 @@ serde_json = "*"
 tanakh-solver = { path = "../tanakh-solver" }
 thiserror = "*"
 wasm-bindgen = "0.2"
+getrandom = { version = "*", features = ["js"] }

@@ -436,6 +436,18 @@ impl Board {
             volumes: self.volumes.clone(),
         })
     }
+
+    pub fn solution_with_optimized_volume(&self) -> Result<Solution> {
+        let mut sol = self.solution()?;
+        for m in 0..sol.volumes.len() {
+            if self.contribution(m) < 0.0 {
+                sol.volumes[m] = 0.0;
+            } else {
+                sol.volumes[m] = 10.0;
+            }
+        }
+        Ok(sol)
+    }
 }
 
 impl TryInto<Solution> for Board {

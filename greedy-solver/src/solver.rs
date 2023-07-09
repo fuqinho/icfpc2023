@@ -1,9 +1,12 @@
+use anyhow::Context;
 use common::{
     board::Board,
-    geom::{circles_tangenting_line_and_circle, circles_tangenting_lines, tangent_circle},
+    geom::{
+        circles_tangenting_line_and_circle, circles_tangenting_lines, new_line, tangent_circle,
+    },
     Problem,
 };
-use lyon_geom::{Point, Vector};
+use lyon_geom::{LineSegment, Point, Vector};
 
 pub struct Solver {
     num_musicians: usize,   // num musicians (m)
@@ -13,7 +16,8 @@ pub struct Solver {
     // i -> maximal points sorted by score. (smaller first)
     maximal_points: Vec<Vec<(f64, P)>>,
 
-    important_segs: Vec<(P, P)>,
+    // reverse sorted by impact
+    important_segs: Vec<(f64, P, P)>,
 
     board: Board,
 }
@@ -22,11 +26,14 @@ type P = Vector<f64>;
 
 const D: usize = 10;
 
-const IMPORTANT_LINE_THRESHOLD: f64 = 1e5;
+const KEEP_IMPORTANT_SEGS: usize = 100;
+const USE_IMPORTANT_SEGS: usize = 50;
 
-const EPS: f64 = 1e-6;
+const EPS: f64 = 1e-9;
 
 const R: f64 = 5.0;
+
+const INITIAL_SEARCH_STEP: f64 = 2.0;
 
 impl Solver {
     pub fn new(problem_id: u32, problem: Problem) -> Self {
@@ -72,6 +79,10 @@ impl Solver {
         p.x >= self.left() && p.x <= self.right() && p.y >= self.bottom() && p.y <= self.top()
     }
 
+    fn is_narrow(&self) -> bool {
+        self.top() == self.bottom() || self.left() == self.right()
+    }
+
     fn init_maximal_points(&mut self) {
         let mut maximal_points = vec![vec![]; self.num_instruments];
 
@@ -80,7 +91,7 @@ impl Solver {
 
             let m = self.board.available_musician_with_instrument(ins).unwrap();
 
-            let delta = 0.125;
+            let delta = INITIAL_SEARCH_STEP;
 
             for (dx, dy, x, y) in [
                 (delta, 0., self.left(), self.bottom()),
@@ -140,10 +151,10 @@ impl Solver {
         let p10 = P::new(right, bottom);
         let p11 = P::new(right, top);
 
-        self.important_segs.push((p00, p01));
-        self.important_segs.push((p00, p10));
-        self.important_segs.push((p01, p11));
-        self.important_segs.push((p10, p11));
+        self.important_segs.push((f64::INFINITY, p00, p01));
+        self.important_segs.push((f64::INFINITY, p00, p10));
+        self.important_segs.push((f64::INFINITY, p01, p11));
+        self.important_segs.push((f64::INFINITY, p10, p11));
     }
 
     pub fn solve(&mut self) -> (f64, Board) {
@@ -161,6 +172,8 @@ impl Solver {
 
             for ins in 0..self.num_instruments {
                 if let Some(m) = self.board.available_musician_with_instrument(ins) {
+                    assert_eq!(self.board.prob.musicians[m], ins);
+
                     let (score, p) = self.best_position(m, ins);
 
                     if best.0 < score {
@@ -170,6 +183,7 @@ impl Solver {
             }
 
             let (_, m, ins, p) = best;
+
             self.place(m, ins, p);
 
             score_inc.push((best.1, self.board.score() - score));
@@ -198,15 +212,14 @@ impl Solver {
         let mut best = (f64::NEG_INFINITY, P::new(0., 0.));
 
         for cp in cps {
-            self.board.try_place(m, cp.to_point()).unwrap();
-
-            let score = self.board.score();
+            let score = self
+                .board
+                .score_increase_if_put_musician_on(m, cp.to_point())
+                .unwrap();
 
             if best.0 < score {
                 best = (score, cp);
             }
-
-            self.board.unplace(m);
         }
 
         best
@@ -234,12 +247,12 @@ impl Solver {
         }
 
         // Tangent to two important segs
-        let r = R + EPS;
+        let r = if self.is_narrow() { R } else { R + EPS };
 
-        for i in 0..self.important_segs.len() {
+        for i in 0..self.important_segs.len().min(USE_IMPORTANT_SEGS) {
             for j in 0..i {
-                let (p0, p1) = self.important_segs[i];
-                let (q0, q1) = self.important_segs[i];
+                let (_, p0, p1) = self.important_segs[i];
+                let (_, q0, q1) = self.important_segs[j];
 
                 for c in circles_tangenting_lines(p0, p1, q0, q1, r) {
                     if self.can_place(m, c) {
@@ -250,8 +263,8 @@ impl Solver {
         }
 
         // Tangent to an important seg and a circle
-        for i in 0..self.important_segs.len() {
-            let (p0, p1) = self.important_segs[i];
+        for i in 0..self.important_segs.len().min(USE_IMPORTANT_SEGS) {
+            let (_, p0, p1) = self.important_segs[i];
 
             for mc in self.board.musicians() {
                 if let Some((mc, _)) = mc {
@@ -293,16 +306,37 @@ impl Solver {
     }
 
     fn place(&mut self, m: usize, ins: usize, p: P) {
-        self.board.try_place(m, p.to_point()).unwrap();
+        self.board
+            .try_place(m, p.to_point())
+            .with_context(|| format!("failed to place musician {} at {:?}", m, p))
+            .unwrap();
 
         // Update important segs
+        let mut important_segs = vec![];
+
+        for (imp, p1, p2) in self.important_segs.iter() {
+            if (LineSegment {
+                from: p1.to_point(),
+                to: p2.to_point(),
+            })
+            .distance_to_point(p.to_point())
+                >= R
+            {
+                important_segs.push((*imp, *p1, *p2));
+            }
+        }
+
         for a in 0..self.num_attendees {
             let c = self.board.contribution_for(m, a);
 
-            if c >= IMPORTANT_LINE_THRESHOLD {
-                self.important_segs
-                    .push((self.board.prob.attendees[a].position.to_vector(), p));
-            }
+            important_segs.push((c, self.board.prob.attendees[a].position.to_vector(), p));
         }
+
+        important_segs.sort_by(|(c1, _, _), (c2, _, _)| c1.partial_cmp(c2).unwrap());
+        important_segs.reverse();
+
+        important_segs.truncate(KEEP_IMPORTANT_SEGS);
+
+        self.important_segs = important_segs;
     }
 }
