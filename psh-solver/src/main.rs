@@ -100,6 +100,7 @@ fn main() -> Result<()> {
             .iter()
             .map(|p| Placement { position: *p })
             .collect::<Vec<_>>(),
+        volumes: vec![1.; problem.musicians.len()],
     };
     let score = evaluate(&problem, &solution);
     println!("{:?}", score);

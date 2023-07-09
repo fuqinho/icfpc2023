@@ -215,6 +215,7 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
         problem_id: problem_id as u32,
         solver: SOLVER_NAME.to_owned(),
         placements,
+        volumes: vec![1.; problem.musicians.len()],
     }
 }
 

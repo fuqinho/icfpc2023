@@ -31,6 +31,7 @@ pub struct Solution {
     pub problem_id: u32,
     pub solver: String,
     pub placements: Vec<Placement>,
+    pub volumes: Vec<f64>,
 }
 
 #[derive(Clone, Debug)]
@@ -70,6 +71,7 @@ pub struct RawSolution {
     #[serde(default)]
     pub solver: String,
     pub placements: Vec<RawPlacement>,
+    pub volumes: Option<Vec<f64>>,
 }
 
 impl RawSolution {
@@ -174,12 +176,14 @@ impl From<Solution> for RawSolution {
                 .into_iter()
                 .map(RawPlacement::from)
                 .collect::<Vec<_>>(),
+            volumes: Some(s.volumes),
         }
     }
 }
 
 impl From<RawSolution> for Solution {
     fn from(raw: RawSolution) -> Self {
+        let l = raw.placements.len();
         Self {
             problem_id: raw.problem_id,
             solver: raw.solver,
@@ -188,6 +192,7 @@ impl From<RawSolution> for Solution {
                 .into_iter()
                 .map(Placement::from)
                 .collect::<Vec<_>>(),
+            volumes: raw.volumes.unwrap_or(vec![1.; l]),
         }
     }
 }
@@ -251,6 +256,7 @@ mod tests {
                 RawPlacement { x: 100.0, y: 200.0 },
                 RawPlacement { x: 300.5, y: 400.5 },
             ],
+            volumes: None,
         };
 
         let s = serde_json::to_string(&solution).expect("failed to serialize");
