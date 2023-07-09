@@ -117,6 +117,13 @@ impl Board {
         res
     }
 
+    pub fn contribution_for(&self, m: usize, a: usize) -> f64 {
+        if self.blocks[m][a] > 0 {
+            return 0.;
+        }
+        self.impact(m, a)
+    }
+
     pub fn score_increase_if_put_musician_on(&mut self, m: usize, p: Point<f64>) -> Result<f64> {
         let prev_score = self.score();
 
@@ -142,6 +149,10 @@ impl Board {
 
     pub fn available_musician_with_instrument(&mut self, ins: usize) -> Option<usize> {
         return self.available_musician[ins];
+    }
+
+    pub fn is_musician_seeing(&self, m: usize, a: usize) -> bool {
+        return self.blocks[m][a] == 0;
     }
 
     pub fn try_place(&mut self, i: usize, position: Point<f64>) -> anyhow::Result<()> {
