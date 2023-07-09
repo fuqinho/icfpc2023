@@ -119,6 +119,17 @@ export function useKnownSolutions(problemID: number | undefined) {
   return { data: data?.data, error, isLoading };
 }
 
+export function useMismatchedSolutions() {
+  const { data, error, isLoading } = useSWR<AxiosResponse<SolutionMetadata[]>>(
+    {
+      method: "get",
+      url: `/api/solutions-mismatched`,
+    },
+    client,
+  );
+  return { data: data?.data, error, isLoading };
+}
+
 export async function loadSolutionSpec(uuid: string): Promise<Solution> {
   const response = (await client.get(
     `api/solutions/${uuid}/spec`,

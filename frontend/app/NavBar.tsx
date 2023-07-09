@@ -11,7 +11,14 @@ export default function NavBar() {
         </Link>
       </div>
       <div className="flex-1">
-        <ul className="menu menu-horizontal px-1"></ul>
+        <ul className="menu menu-horizontal px-1">
+          <li>
+            <Link href="/">Problems</Link>
+          </li>
+          <li>
+            <Link href="/mismatched-solutions">Mismatched solutions</Link>
+          </li>
+        </ul>
       </div>
     </div>
   );
