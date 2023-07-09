@@ -259,8 +259,8 @@ impl Board {
                         [Some((r1, r2)), None]
                     } else {
                         [
-                            Some((r1, std::f64::consts::PI.into())),
-                            Some(((-std::f64::consts::PI).into(), r2)),
+                            Some((r1, (std::f64::consts::PI + eps).into())),
+                            Some(((-std::f64::consts::PI - eps).into(), r2)),
                         ]
                     };
 
