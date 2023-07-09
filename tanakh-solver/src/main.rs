@@ -98,7 +98,7 @@ fn main(
         } else if from_current_best || from_recent {
             ",cont"
         } else {
-            ""
+            ",scratch"
         }
     );
 
