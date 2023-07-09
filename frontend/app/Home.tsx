@@ -76,6 +76,8 @@ function ProblemList() {
   const { data: problems, error: errorProblems } = useProblemList();
   const { data: bestSolutions, error: errorBestSolutions } = useBestSolutions();
   const [order, setOrder] = useState("by-id");
+  const [showV1, setShowV1] = useState(true);
+  const [showV2, setShowV2] = useState(true);
 
   if (errorProblems) {
     throw errorProblems;
@@ -88,6 +90,13 @@ function ProblemList() {
   }
 
   let problemKeys = Array.from(problems.keys());
+  if (!showV1) {
+    problemKeys = problemKeys.filter((i) => problems[i].id > 55);
+  }
+  if (!showV2) {
+    problemKeys = problemKeys.filter((i) => problems[i].id <= 55);
+  }
+
   switch (order) {
     case "by-id":
       problemKeys = orderBy(problemKeys, [(i) => problems[i].id], ["asc"]);
@@ -134,6 +143,24 @@ function ProblemList() {
         >
           この順番で雑ローラースクリプトをコピー
         </button>
+        <label className="label cursor-pointer space-x-2">
+          <span className="label-text">v1を表示 (1-55)</span>
+          <input
+            type="checkbox"
+            className="toggle toggle-primary"
+            checked={showV1}
+            onChange={(e) => setShowV1(e.target.checked)}
+          />
+        </label>
+        <label className="label cursor-pointer space-x-2">
+          <span className="label-text">v2を表示 (56+)</span>
+          <input
+            type="checkbox"
+            className="toggle toggle-primary"
+            checked={showV2}
+            onChange={(e) => setShowV2(e.target.checked)}
+          />
+        </label>
       </div>
       <table className="table">
         <thead>
