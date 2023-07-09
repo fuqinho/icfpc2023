@@ -5,12 +5,12 @@ use rand::Rng;
 
 const SOLVER_NAME: &str = "(´･_･`)";
 
-pub struct Solver2 {
+pub struct Solver2<'a> {
     pub problem_id: u32,
-    pub problem: common::Problem,
+    pub problem: &'a common::Problem,
     pub start_temp: Option<f64>,
     pub better_initial: bool,
-    pub initial_solution: Option<common::Solution>,
+    pub initial_solution: Option<&'a common::Solution>,
 }
 
 pub struct State2 {
@@ -117,7 +117,7 @@ impl Move {
     }
 }
 
-impl saru::Annealer for Solver2 {
+impl saru::Annealer for Solver2<'_> {
     type State = State2;
 
     type Move = Move;
