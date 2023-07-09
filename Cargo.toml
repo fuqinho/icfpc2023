@@ -19,6 +19,3 @@ members = [
   "tanakh-solver",
   "wasm",
 ]
-
-[profile.release]
-debug = true
