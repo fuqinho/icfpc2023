@@ -386,10 +386,12 @@ fn main() -> Result<()> {
     );
     if args.swap_colors {
         sol = hill_climb_swap(args.problem_id, &problem, initial_solution.clone())?;
+        sol.solver = "color-swap-tuner".to_string();
     }
 
     if args.pick_and_move {
         sol = pick_and_move(&problem, args.problem_id, initial_solution, args.step)?;
+        sol.solver = "pick-and-move-tuner".to_string();
     }
 
     let score = evaluate(&problem, &sol);
