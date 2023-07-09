@@ -9,6 +9,8 @@ use log::{debug, info};
 use lyon_geom::point;
 use rand::{seq::SliceRandom, Rng};
 
+const SOLVER_NAME: &str = "chir-solver";
+
 #[derive(Parser, Debug)]
 struct Args {
     #[arg(short, long)]
@@ -94,6 +96,7 @@ fn convert_solution(prob: &Problem, sol: &Solution, pid: u32) -> common::Solutio
 
     common::Solution {
         problem_id: pid,
+        solver: SOLVER_NAME.to_owned(),
         placements: ps
             .iter()
             .map(|p| Placement {
@@ -112,7 +115,7 @@ fn hill_climb_swap(
 ) -> Result<common::Solution> {
     let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
 
-    let mut board = Board::new(pid, prob.clone());
+    let mut board = Board::new(pid, prob.clone(), SOLVER_NAME);
     for (i, placement) in cur.placements.iter().enumerate() {
         board.try_place(i, placement.position)?;
     }
@@ -186,7 +189,7 @@ fn pick_and_move(
     step: f64,
 ) -> Result<common::Solution> {
     let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
-    let mut board = Board::new(pid, prob.clone());
+    let mut board = Board::new(pid, prob.clone(), SOLVER_NAME);
     for i in 0..cur.placements.len() {
         board
             .try_place(i, cur.placements[i].position)

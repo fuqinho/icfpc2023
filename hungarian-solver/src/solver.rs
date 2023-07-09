@@ -9,6 +9,8 @@ use common::{board::Board, geom::tangent_circle, Problem};
 use lyon_geom::{Point, Vector};
 use pathfinding::prelude::{kuhn_munkres, Matrix};
 
+const SOLVER_NAME: &str = "hungarian-solver";
+
 pub struct Solver {
     orig_problem: Problem,
     board: Board,
@@ -40,7 +42,7 @@ const D: usize = 10;
 
 impl Solver {
     pub fn new(problem_id: u32, problem: Problem) -> Self {
-        let board = Board::new(problem_id, problem.clone());
+        let board = Board::new(problem_id, problem.clone(), SOLVER_NAME);
 
         Self {
             orig_problem: problem,
@@ -85,7 +87,7 @@ impl Solver {
             for _ in 0..outer.len() {
                 prob2.musicians.push(0);
             }
-            let mut board2 = Board::new(0, prob2);
+            let mut board2 = Board::new(0, prob2, SOLVER_NAME);
 
             for (i, o) in outer.iter().enumerate() {
                 board2.try_place(num_instruments + i, o.clone()).unwrap();
