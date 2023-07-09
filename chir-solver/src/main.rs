@@ -6,7 +6,7 @@ use common::{api::Client, board::Board, evaluate, Placement, Problem, RawSolutio
 use euclid::default::Point2D;
 use indexmap::IndexMap;
 use log::{debug, info};
-use lyon_geom::{point, LineSegment};
+use lyon_geom::point;
 use rand::{seq::SliceRandom, Rng};
 
 #[derive(Parser, Debug)]
@@ -67,16 +67,6 @@ fn generate_random_solution(prob: &Problem) -> Solution {
     Solution { musicians: sol }
 }
 
-fn validate_solution(prob: &Problem, sol: &Solution) -> bool {
-    for s in sol.musicians.keys() {
-        let p = convert_to_real_point(s.0, s.1, prob);
-        if !prob.stage.contains(p) {
-            return false;
-        }
-    }
-    true
-}
-
 fn convert_solution(prob: &Problem, sol: &Solution, pid: u32) -> common::Solution {
     let mut musicians_by_inst = HashMap::new();
     for inst in prob.musicians.iter() {
@@ -113,104 +103,51 @@ fn convert_solution(prob: &Problem, sol: &Solution, pid: u32) -> common::Solutio
 
 // Hill climb by swap taste
 
-fn swap_taste(sol: &mut Solution, i: usize, j: usize) {
-    let w = sol
-        .musicians
-        .get_index(i)
-        .expect("Should not null")
-        .1
-        .clone();
-    let v = sol
-        .musicians
-        .get_index(j)
-        .expect("Should not null")
-        .1
-        .clone();
-    {
-        *sol.musicians.get_index_mut(i).expect("Should not null").1 = v;
-    }
-    {
-        *sol.musicians.get_index_mut(j).expect("Should not null").1 = w;
-    }
-}
+fn hill_climb_swap(
+    pid: u32,
+    prob: &Problem,
+    initial_board: Option<common::Solution>,
+) -> Result<common::Solution> {
+    let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
 
-fn score_by_musician(i: usize, cur: &Solution, blocked: &Vec<Vec<bool>>, prob: &Problem) -> f64 {
-    let mut s: f64 = 0.;
-    let v = cur.musicians.get_index(i).expect("Should exist");
-    let taste = *v.1;
-    let p = convert_to_real_point(v.0 .0, v.0 .1, prob);
-    for j in 0..prob.attendees.len() {
-        if blocked[i][j] {
-            continue;
-        }
-        let pa = prob.attendees[j].position;
-        let d2 = (pa.x - p.x) * (pa.x - p.x) + (pa.y - p.y) * (pa.y - p.y);
-        s += (1000000f64 * prob.attendees[j].tastes[taste] / d2).ceil();
+    let mut board = Board::new(pid, prob.clone());
+    for (i, placement) in cur.placements.iter().enumerate() {
+        board.try_place(i, placement.position)?;
     }
-    s
-}
-
-fn hill_climb_swap(prob: &Problem) -> Solution {
-    let mut cur = generate_random_solution(prob);
-
-    assert!(validate_solution(prob, &cur));
-
-    let mut blocked = vec![vec![false; prob.attendees.len()]; cur.musicians.len()];
-    for i in 0..cur.musicians.len() {
-        for j in 0..prob.attendees.len() {
-            let pt = cur.musicians.get_index(i).expect("Should not null").0;
-            let seg = LineSegment {
-                from: prob.attendees[j].position,
-                to: convert_to_real_point(pt.0, pt.1, prob),
-            };
-            for k in 0..cur.musicians.len() {
-                if i == k {
-                    continue;
-                }
-                let kt = cur.musicians.get_index(k).expect("Should not null").0;
-                if seg.square_distance_to_point(convert_to_real_point(kt.0, kt.1, prob)) <= 25. {
-                    blocked[i][j] = true;
-                }
-            }
-        }
-    }
-    info!("block map is calculated");
-
-    let mut score_by_m = vec![0.; cur.musicians.len()];
-    for i in 0..cur.musicians.len() {
-        score_by_m[i] = score_by_musician(i, &cur, &blocked, prob);
-    }
-    info!("score by musician is calculated");
 
     loop {
-        let cur_score: f64 = score_by_m.iter().sum();
-        let mut s = cur_score;
-        // Swap taste
-        for i in 0..cur.musicians.len() {
-            for j in (i + 1)..cur.musicians.len() {
-                swap_taste(&mut cur, i, j);
-                score_by_m[i] = score_by_musician(i, &cur, &blocked, prob);
-                score_by_m[j] = score_by_musician(j, &cur, &blocked, prob);
+        let mut cur_score = board.score();
+        let init_score = board.score();
+        let mut updated = false;
 
-                let new_score: f64 = score_by_m.iter().sum();
-                if new_score <= s {
-                    swap_taste(&mut cur, i, j);
-                    score_by_m[i] = score_by_musician(i, &cur, &blocked, prob);
-                    score_by_m[j] = score_by_musician(j, &cur, &blocked, prob);
+        // Trying swap
+        for i in 0..board.musicians().len() {
+            let (pi, _) = board.musicians()[i].unwrap();
+            for j in (i + 1)..board.musicians().len() {
+                let (pj, _) = board.musicians()[j].unwrap();
+                board.unplace(i);
+                board.unplace(j);
+                board.try_place(i, pj.to_point())?;
+                board.try_place(j, pi.to_point())?;
+                if board.score() < cur_score {
+                    board.unplace(i);
+                    board.unplace(j);
+                    board.try_place(i, pi.to_point())?;
+                    board.try_place(j, pj.to_point())?;
                 } else {
-                    debug!("Updated {} -> {}", s, new_score);
-                    s = new_score;
+                    updated = true;
+                    cur_score = board.score();
                 }
             }
         }
 
-        if cur_score == s {
+        if !updated {
             break;
         }
-        info!("Improved {:?} -> {:?}", cur_score, s);
+        info!("Improved {:?} -> {:?}", init_score, board.score());
     }
 
-    cur
+    board.try_into()
 }
 
 fn calc_neighbor(i: usize, p: Point2D<f64>) -> Point2D<f64> {
@@ -371,17 +308,20 @@ fn main() -> Result<()> {
         common::Solution::from(raw_sol)
     });
 
-    let mut sol = generate_random_solution(&problem);
+    let mut sol = convert_solution(
+        &problem,
+        &generate_random_solution(&problem),
+        args.problem_id,
+    );
     if args.swap_colors {
-        sol = hill_climb_swap(&problem);
+        sol = hill_climb_swap(args.problem_id, &problem, initial_solution.clone())?;
     }
 
-    let mut raw_sol = convert_solution(&problem, &sol, args.problem_id);
     if args.pick_and_move {
-        raw_sol = pick_and_move(&problem, args.problem_id, initial_solution, args.step)?;
+        sol = pick_and_move(&problem, args.problem_id, initial_solution, args.step)?;
     }
 
-    let score = evaluate(&problem, &raw_sol);
+    let score = evaluate(&problem, &sol);
     info!("score = {:?}", score);
 
     {
@@ -389,15 +329,12 @@ fn main() -> Result<()> {
             std::fs::create_dir_all("results")?;
         }
         let output = PathBuf::from(format!("results/{}-{}.json", args.problem_id, score));
-        common::Solution::write_to_file(output, raw_sol)?;
+        common::Solution::write_to_file(output, sol.clone())?;
     }
 
     if args.submit {
         let c = Client::new();
-        c.post_submission(
-            args.problem_id,
-            convert_solution(&problem, &sol, args.problem_id),
-        )?;
+        c.post_submission(args.problem_id, sol)?;
     }
 
     Ok(())
