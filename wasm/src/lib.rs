@@ -1,3 +1,7 @@
+mod annealing;
+
+pub use annealing::*;
+
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
