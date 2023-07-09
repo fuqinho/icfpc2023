@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{bail, Context};
-use common::{board::Board, Problem};
+use common::{board::Board, geom::tangent_circle, Problem};
 use lyon_geom::{Point, Vector};
 use pathfinding::prelude::{kuhn_munkres, Matrix};
 
@@ -18,6 +18,7 @@ pub struct Solver {
 pub enum Algorithm {
     Normal,
     ZigZag,
+    Gap,
 }
 
 impl FromStr for Algorithm {
@@ -27,6 +28,7 @@ impl FromStr for Algorithm {
         match s {
             "normal" => Ok(Self::Normal),
             "zigzag" => Ok(Self::ZigZag),
+            "gap" => Ok(Self::Gap),
             _ => bail!("unknown algorithm name {}", s),
         }
     }
@@ -249,6 +251,67 @@ impl Solver {
                     o
                 }
             });
+        } else if algo == Algorithm::Gap {
+            for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize)).step_by(D) {
+                if bb.min.y > D as f64 {
+                    outer.push(Point::new(x as f64, bb.min.y));
+                }
+                outer.push(Point::new(x as f64, bb.max.y));
+            }
+
+            for y in ((bb.min.y).ceil() as usize + D..bb.max.y.floor() as usize - D).step_by(D) {
+                if bb.min.x > D as f64 {
+                    outer.push(Point::new(bb.min.x, y as f64));
+                }
+                outer.push(Point::new(bb.max.x, y as f64));
+            }
+
+            let mut min_x: f64 = 1e9;
+            let mut min_y: f64 = 1e9;
+            let mut max_x: f64 = -1e9;
+            let mut max_y: f64 = -1e9;
+
+            for p in outer.iter() {
+                min_x = min_x.min(p.x);
+                min_y = min_y.min(p.y);
+                max_x = max_x.max(p.x);
+                max_y = max_y.max(p.y);
+            }
+
+            let outmost = outer.clone();
+
+            for o1 in outmost.iter() {
+                for o2 in outmost.iter() {
+                    if o1 == o2 {
+                        continue;
+                    }
+
+                    if o1.x != o2.x && o1.y != o2.y {
+                        continue;
+                    }
+
+                    if (*o1 - o2.to_vector()).to_vector().square_length() <= (D * D) as f64 {
+                        let c =
+                            tangent_circle(o1.to_vector(), o2.to_vector(), D as f64 / 2. + 1e-9)
+                                .unwrap();
+
+                        if self.board.prob.stage.contains(c.to_point()) {
+                            // check collision
+                            let mut ok = true;
+                            for p in outer.iter() {
+                                if (*p - c).to_vector().square_length() < (D * D) as f64 {
+                                    ok = false;
+                                    break;
+                                }
+                            }
+
+                            if ok {
+                                outer.push(c.to_point());
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         outer
