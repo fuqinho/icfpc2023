@@ -207,9 +207,6 @@ fn do_annealing<A: Annealer>(
                     } else {
                         "⛔"
                     };
-                    if best_updated || best_valid_updated {
-                        prev_updated = timer.elapsed();
-                    }
                     progress!(
                         "best = {:>16}, best valid = {:>16}, cur = {:>16}, temp = {:>16}, progress: {:6.2}% {mark}",
                         format!("{:.1}", best_score).separate_with_commas(),
@@ -218,6 +215,7 @@ fn do_annealing<A: Annealer>(
                         format!("{:.1}", temp).separate_with_commas(),
                         progress_ratio * 100.0
                     );
+                    prev_updated = timer.elapsed();
                 }
                 prev_heart_beat = timer.elapsed();
             }
