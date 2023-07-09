@@ -16,10 +16,20 @@ export class UpdateHoveredItemEvent extends Event {
   }
 }
 
+export class ClickHoveredItemEvent extends Event {
+  hoveredItem: HoveredItem;
+
+  constructor(hoveredItem: HoveredItem) {
+    super("clickHoveredItem");
+    this.hoveredItem = hoveredItem;
+  }
+}
+
 export interface RenderingOption {
-  tasteHeatmapAttendeesInstrument?: number;
-  scoreHeatmapMusicians?: boolean;
-  scoreHeatmapAttendees?: boolean;
+  attendeeHeatmapByTasteWithThisInstrument?: number;
+  attendeeHeatmapByScore?: boolean;
+  musicianHeatmapByScore?: boolean;
+  lockedItem?: HoveredItem;
 }
 
 export interface HoveredItem {
@@ -72,22 +82,37 @@ export class Renderer {
     this.vp.clear();
     this.drawRoomAndStage();
 
-    if (this.option.scoreHeatmapAttendees) {
-      let maxScore = 0;
-      this.problem.attendees.forEach((_, i) => {
-        const score = this.evalResult?.attendees.at(i)?.score!;
-        maxScore = Math.max(maxScore, Math.abs(score));
-      });
-      this.problem.attendees.forEach((a, i) =>
-        this.drawAttendeeWithHeat(
-          a,
-          this.evalResult?.attendees.at(i)?.score!,
-          maxScore,
-        ),
-      );
-    } else if (this.option.tasteHeatmapAttendeesInstrument) {
+    if (this.option.attendeeHeatmapByScore) {
+      if (this.option.lockedItem?.kind === "musician") {
+        let maxScore = 0;
+        this.problem.attendees.forEach((_, i) => {
+          const score = this.evalResult?.detailed_attendees.at(i)!;
+          maxScore = Math.max(maxScore, Math.abs(score));
+        });
+        this.problem.attendees.forEach((a, i) =>
+          this.drawAttendeeWithHeat(
+            a,
+            this.evalResult?.detailed_attendees.at(i)!,
+            maxScore,
+          ),
+        );
+      } else {
+        let maxScore = 0;
+        this.problem.attendees.forEach((_, i) => {
+          const score = this.evalResult?.attendees.at(i)?.score!;
+          maxScore = Math.max(maxScore, Math.abs(score));
+        });
+        this.problem.attendees.forEach((a, i) =>
+          this.drawAttendeeWithHeat(
+            a,
+            this.evalResult?.attendees.at(i)?.score!,
+            maxScore,
+          ),
+        );
+      }
+    } else if (this.option.attendeeHeatmapByTasteWithThisInstrument) {
       let maxTaste = 0;
-      const instr = this.option.tasteHeatmapAttendeesInstrument;
+      const instr = this.option.attendeeHeatmapByTasteWithThisInstrument;
       this.problem.attendees.forEach((a) => {
         const taste = a.tastes[instr];
         maxTaste = Math.max(maxTaste, Math.abs(taste));
@@ -102,19 +127,34 @@ export class Renderer {
 
     this.problem.pillars.forEach((p) => this.drawPillar(p));
     if (this.solution) {
-      if (this.option.scoreHeatmapMusicians) {
-        let maxScore = 0;
-        this.solution.placements.forEach((_, i) => {
-          const score = this.evalResult?.musicians.at(i)?.score!;
-          maxScore = Math.max(maxScore, Math.abs(score));
-        });
-        this.solution.placements.forEach((m, i) =>
-          this.drawMusicianWithHeat(
-            m,
-            this.evalResult?.musicians.at(i)?.score!,
-            maxScore,
-          ),
-        );
+      if (this.option.musicianHeatmapByScore) {
+        if (this.option.lockedItem?.kind === "attendee") {
+          let maxScore = 0;
+          this.solution.placements.forEach((_, i) => {
+            const score = this.evalResult?.detailed_musicians.at(i)!;
+            maxScore = Math.max(maxScore, Math.abs(score));
+          });
+          this.solution.placements.forEach((m, i) =>
+            this.drawMusicianWithHeat(
+              m,
+              this.evalResult?.detailed_musicians.at(i)!,
+              maxScore,
+            ),
+          );
+        } else {
+          let maxScore = 0;
+          this.solution.placements.forEach((_, i) => {
+            const score = this.evalResult?.musicians.at(i)?.score!;
+            maxScore = Math.max(maxScore, Math.abs(score));
+          });
+          this.solution.placements.forEach((m, i) =>
+            this.drawMusicianWithHeat(
+              m,
+              this.evalResult?.musicians.at(i)?.score!,
+              maxScore,
+            ),
+          );
+        }
       } else {
         this.solution.placements.forEach((m, i) =>
           this.drawMusicianNormal(m, i),
@@ -122,6 +162,7 @@ export class Renderer {
       }
     }
     this.drawHoveredItem();
+    this.drawLockedItem();
     this.vp.drawCursorPos();
   }
 
@@ -169,6 +210,30 @@ export class Renderer {
     }
   }
 
+  private drawLockedItem() {
+    if (!this.option.lockedItem) {
+      return;
+    }
+
+    if (this.option.lockedItem.kind === "attendee") {
+      const attendee = this.problem.attendees[this.option.lockedItem.index];
+      this.vp.drawCircle({
+        pXY: [attendee.x, attendee.y],
+        cRadius: ATTENDEE_RADIUS,
+        lineWidth: 10,
+        strokeStyle: "blue",
+      });
+    } else if (this.option.lockedItem.kind === "musician") {
+      const musician = this.solution?.placements[this.option.lockedItem.index]!;
+      this.vp.drawCircle({
+        pXY: [musician.x, musician.y],
+        pRadius: MUSICIAN_RADIUS,
+        lineWidth: 10,
+        strokeStyle: "blue",
+      });
+    }
+  }
+
   private drawAttendeeNormal(attendee: Attendee) {
     this.vp.drawCircle({
       pXY: [attendee.x, attendee.y],
@@ -183,7 +248,9 @@ export class Renderer {
     maxValue: number,
   ) {
     let color: tinycolor.Instance;
-    if (value > 0) {
+    if (value == 0) {
+      color = tinycolor("#ffffff");
+    } else if (value > 0) {
       color = tinycolor.fromRatio({
         // Red
         h: 0,
@@ -316,7 +383,7 @@ export class Renderer {
     const mousedownEvent = (e: MouseEvent) => this.mousedownEvent(canvas, e);
     const mouseleaveEvent = () => this.mouseleaveEvent(canvas);
     const mousemoveEvent = (e: MouseEvent) => this.mousemoveEvent(canvas, e);
-    const mouseupEvent = this.mouseupEvent.bind(this);
+    const mouseupEvent = (e: MouseEvent) => this.mouseupEvent(canvas, e);
     const wheelEvent = (e: WheelEvent) => this.wheelEvent(canvas, e);
     canvas.addEventListener("mousedown", mousedownEvent);
     canvas.addEventListener("mouseleave", mouseleaveEvent);
@@ -327,7 +394,7 @@ export class Renderer {
       canvas.removeEventListener("mousedown", mousedownEvent);
       canvas.removeEventListener("mouseleave", mouseleaveEvent);
       canvas.removeEventListener("mousemove", mousemoveEvent);
-      canvas.removeEventListener("mouseup", mousedownEvent);
+      canvas.removeEventListener("mouseup", mouseupEvent);
       canvas.removeEventListener("wheel", wheelEvent);
     };
   }
@@ -357,7 +424,19 @@ export class Renderer {
     this.dragStartCoord = this.getMouseCCoord(canvas, e);
   }
 
-  private mouseupEvent() {
+  private mouseupEvent(canvas: HTMLCanvasElement, e: MouseEvent) {
+    const current = this.getMouseCCoord(canvas, e);
+    if (
+      !this.dragStartCoord ||
+      (this.dragStartCoord[0] == current[0] &&
+        this.dragStartCoord[1] == current[1])
+    ) {
+      if (this.currentHoveredItem) {
+        canvas.dispatchEvent(
+          new ClickHoveredItemEvent(this.currentHoveredItem),
+        );
+      }
+    }
     this.dragStartCoord = undefined;
     this.vp.commitVpCenterMove();
   }

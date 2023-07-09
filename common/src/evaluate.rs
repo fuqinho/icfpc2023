@@ -121,6 +121,10 @@ pub struct EvaluationResult {
     pub musicians: Vec<MusicianStat>,
     pub instruments: Vec<InstrumentStat>,
     pub attendees: Vec<AttendeeStat>,
+
+    pub detailed_musicians: Vec<f64>,
+    pub detailed_attendees: Vec<f64>,
+    pub detailed_instruments: Vec<f64>,
 }
 
 impl EvaluationResult {
@@ -128,16 +132,28 @@ impl EvaluationResult {
         return serde_json::to_string(&self).unwrap();
     }
 
-    pub fn evaluate(problem: &Problem, solution: &Solution) -> Self {
-        let mut total_score = 0f64;
-        let mut musician_stats = vec![MusicianStat { score: 0f64 }; problem.musicians.len()];
+    pub fn evaluate(
+        problem: &Problem,
+        solution: &Solution,
+        detailed_item: &str,
+        detailed_index: usize,
+    ) -> Self {
         let instrument_count = {
             let mut instrs = problem.musicians.to_vec();
             instrs.dedup();
             instrs.len()
         };
+
+        let mut total_score = 0f64;
+        let mut musician_stats = vec![MusicianStat { score: 0f64 }; problem.musicians.len()];
         let mut instrument_stats = vec![InstrumentStat { score: 0f64 }; instrument_count];
         let mut attendee_stats = vec![AttendeeStat { score: 0f64 }; problem.attendees.len()];
+        let mut detailed_musicians = vec![0f64; problem.musicians.len()];
+        let mut detailed_instruments = vec![0f64; instrument_count];
+        let mut detailed_attendees = vec![0f64; problem.attendees.len()];
+
+        let is_detailed_attendee = detailed_item == "attendee";
+        let is_detailed_musician = detailed_item == "musician";
 
         let q = create_q_vector(&problem.musicians, solution);
         for (attendee_id, attendee) in problem.attendees.iter().enumerate() {
@@ -161,6 +177,14 @@ impl EvaluationResult {
                 musician_stats[musician].score += attendee_musician_score;
                 instrument_stats[*inst].score += attendee_musician_score;
                 attendee_stats[attendee_id].score += attendee_musician_score;
+
+                if is_detailed_attendee && attendee_id == detailed_index {
+                    detailed_musicians[musician] += attendee_musician_score;
+                    detailed_instruments[*inst] += attendee_musician_score;
+                }
+                if is_detailed_musician && musician == detailed_index {
+                    detailed_attendees[attendee_id] += attendee_musician_score;
+                }
             }
         }
 
@@ -169,6 +193,10 @@ impl EvaluationResult {
             musicians: musician_stats,
             instruments: instrument_stats,
             attendees: attendee_stats,
+
+            detailed_musicians,
+            detailed_attendees,
+            detailed_instruments,
         };
     }
 }

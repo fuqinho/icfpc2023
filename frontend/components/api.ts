@@ -17,6 +17,7 @@ export interface SolutionMetadata {
   uuid: string;
   problem_id: number;
   created: string;
+  solver: string;
   submission: SubmissionMetadata | null;
   evaluation: EvaluationMetadata | null;
 }

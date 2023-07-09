@@ -15,4 +15,8 @@ export interface EvaluationResult {
   musicians: MusicianStat[];
   instruments: InstrumentStat[];
   attendees: AttendeeStat[];
+
+  detailed_musicians: number[];
+  detailed_attendees: number[];
+  detailed_instruments: number[];
 }
