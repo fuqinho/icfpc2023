@@ -262,7 +262,7 @@ mod tests {
         let s = serde_json::to_string(&solution).expect("failed to serialize");
         assert_eq!(
             s,
-            r#"{"problem_id":42,"solver":"hoge","placements":[{"x":100.0,"y":200.0},{"x":300.5,"y":400.5}]}"#
+            r#"{"problem_id":42,"solver":"hoge","placements":[{"x":100.0,"y":200.0},{"x":300.5,"y":400.5}],"volumes":null}"#
         );
     }
 }
