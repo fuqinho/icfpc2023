@@ -210,15 +210,15 @@ impl Board {
             let Some((q, r)) = q else { continue; };
 
             for rev in [false, true] {
-                let (blocking, blocked, _, i, _, r, _, aids) = if rev {
-                    (*q, p, i, m, *r, MUSICIAN_R, &aids[i], &aids[m])
+                let (blocking, blocked, i, _, r, aids) = if rev {
+                    (*q, p, m, *r, MUSICIAN_R, &aids[m])
                 } else {
-                    (p, *q, m, i, MUSICIAN_R, *r, &aids[m], &aids[i])
+                    if i >= prob.musicians.len() {
+                        // blocked is pillar, we don't need to calculate impact
+                        continue;
+                    }
+                    (p, *q, i, MUSICIAN_R, *r, &aids[i])
                 };
-                if i >= prob.musicians.len() {
-                    // blocked is pillar, we don't need to calculate impact
-                    continue;
-                }
 
                 // Update for blocked musician.
 
@@ -304,10 +304,12 @@ impl Board {
         impact.ceil()
     }
 
+    #[inline]
     fn impact(&self, m: usize, a: usize) -> f64 {
         Self::impact_internal(&self.prob, &self.ps, self.prob.musicians[m], m, a)
     }
 
+    #[inline]
     fn impact_if_kind(&self, m: usize, a: usize, k: usize) -> f64 {
         Self::impact_internal(&self.prob, &self.ps, k, m, a)
     }
