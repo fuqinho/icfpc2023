@@ -6,6 +6,7 @@ CREATE TABLE `solutions` (
     `uuid` CHAR(36) PRIMARY KEY,
     `problem_id` INT NOT NULL,
     `created` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `solver` TEXT NOT NULL,
     FOREIGN KEY (`problem_id`) REFERENCES `problems` (`id`) ON DELETE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
 
