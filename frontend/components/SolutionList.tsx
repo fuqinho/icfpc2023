@@ -41,7 +41,13 @@ function SolutionListRow({ solution, onClickSolution }: SolutionListRowProps) {
         {formatNumber(submission?.score)}
       </td>
       <td className="font-mono text-right">
-        <span className={submission && evaluation && submission.score !== evaluation.score ? "text-error" : ""}>
+        <span
+          className={
+            submission && evaluation && submission.score !== evaluation.score
+              ? "text-error"
+              : ""
+          }
+        >
           {evaluation ? formatNumber(evaluation.score) : "?"}
         </span>
       </td>
