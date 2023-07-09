@@ -234,10 +234,15 @@ impl Board {
 
                     let (t1, t2) = tangent_to_circle(blocked, blocking, r);
 
-                    let r1: F64 = (t1 - blocked).angle_from_x_axis().radians.into();
-                    let r2: F64 = (t2 - blocked).angle_from_x_axis().radians.into();
+                    let mut r1: F64 = (t1 - blocked).angle_from_x_axis().radians.into();
+                    let mut r2: F64 = (t2 - blocked).angle_from_x_axis().radians.into();
+
+                    let eps = 1e-12;
+                    r1.0 += eps;
+                    r2.0 -= eps;
 
                     let mut rs = vec![];
+
                     if r1 < r2 {
                         rs.push((r1, r2));
                     } else {
@@ -245,14 +250,7 @@ impl Board {
                         rs.push(((-std::f64::consts::PI).into(), r2));
                     }
 
-                    for (mut r1, mut r2) in rs {
-                        if r1.0 != -std::f64::consts::PI {
-                            r1.0 += 1e-12;
-                        }
-                        if r2.0 != std::f64::consts::PI {
-                            r2.0 -= 1e-12;
-                        }
-
+                    for (r1, r2) in rs {
                         let j1 = self.aids[i].binary_search(&(r1, 0)).unwrap_or_else(|j| j);
                         let j2 = self.aids[i].binary_search(&(r2, 0)).unwrap_or_else(|j| j);
 
