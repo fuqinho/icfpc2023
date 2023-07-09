@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { SolutionMetadata } from "./api";
+import { SolutionMetadata, solutionURL } from "./api";
 import clsx from "clsx";
 import { formatNumber } from "./number_format";
 import { DateTime } from "luxon";
@@ -44,10 +44,17 @@ function SolutionListRow({ solution, onClickSolution }: SolutionListRowProps) {
           {created.toFormat("ccc HH:mm:ss ZZZ")} ({created.toRelative()})
         </span>
       </td>
-      <td>
+      <td className="space-x-2">
         <button className="btn btn-primary btn-sm" onClick={onClick}>
           Load
         </button>
+        <a
+          className="btn btn-secondary btn-sm"
+          target="_blank"
+          href={solutionURL(solution.uuid)}
+        >
+          直リンク
+        </a>
       </td>
     </tr>
   );

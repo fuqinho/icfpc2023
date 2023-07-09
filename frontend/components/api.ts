@@ -39,6 +39,10 @@ export function solutionImage(solutionID: string) {
   return `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/solutions/${solutionID}/image`;
 }
 
+export function solutionURL(solutionID: string) {
+  return `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/solutions/${solutionID}/spec`;
+}
+
 export function useProblemList() {
   const { data, error, isLoading } = useSWR<AxiosResponse<ProblemMetadata[]>>(
     {
