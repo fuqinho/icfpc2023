@@ -1,5 +1,8 @@
+mod time;
+
+use crate::time::Instant;
 use rand::prelude::*;
-use std::{thread, time::Instant};
+use std::thread;
 use thousands::Separable;
 
 pub struct AnnealingOptions {

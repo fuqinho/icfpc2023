@@ -271,18 +271,16 @@ impl Board {
 
                 let (t1, t2) = tangent_to_circle(blocked, blocking, r);
 
-                let mut r1: f64 = (t1 - blocked).angle_from_x_axis().radians;
-                let mut r2: f64 = (t2 - blocked).angle_from_x_axis().radians;
-
                 let eps = 1e-12;
-                r1 += eps;
-                r2 -= eps;
+                let r1: f64 = (t1 - blocked).angle_from_x_axis().radians + eps;
+                let r2: f64 = (t2 - blocked).angle_from_x_axis().radians - eps;
 
                 if r1 < r2 {
                     let j1 = aids.partition_point(|r| r.0 < r1);
-                    let j2 = aids[j1..].partition_point(|r| r.0 < r2) + j1;
-
-                    for (_, a) in &aids[j1..j2] {
+                    for (r, a) in &aids[j1..] {
+                        if *r > r2 {
+                            break;
+                        }
                         if inc {
                             Self::inc_blocks(blocks, impacts, prob, ps, i, *a);
                         } else {
@@ -290,10 +288,20 @@ impl Board {
                         }
                     }
                 } else {
-                    let j2 = aids.partition_point(|r| r.0 < r2);
-                    let j1 = aids[j2..].partition_point(|r| r.0 < r1) + j2;
-
-                    for (_, a) in aids[0..j2].iter().chain(aids[j1..].iter()) {
+                    for (r, a) in aids.iter() {
+                        if *r > r2 {
+                            break;
+                        }
+                        if inc {
+                            Self::inc_blocks(blocks, impacts, prob, ps, i, *a);
+                        } else {
+                            Self::dec_blocks(blocks, impacts, prob, ps, i, *a);
+                        }
+                    }
+                    for (r, a) in aids.iter().rev() {
+                        if *r < r1 {
+                            break;
+                        }
                         if inc {
                             Self::inc_blocks(blocks, impacts, prob, ps, i, *a);
                         } else {

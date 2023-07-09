@@ -1,6 +1,9 @@
 use common::{board::Board, Problem, Solution};
 use euclid::{default::*, point2, vec2};
 use rand::Rng;
+use wasm_bindgen::prelude::*;
+
+use crate::{ProblemHandle, SolutionHandle};
 
 const SOLVER_NAME: &str = "manual-annealer";
 
@@ -8,7 +11,7 @@ struct Solver2<'a> {
     problem_id: u32,
     problem: &'a Problem,
     temp: f64,
-    initial_solution: &'a common::Solution,
+    initial_solution: &'a Solution,
 }
 
 struct State2 {
@@ -100,7 +103,7 @@ impl saru::Annealer for Solver2<'_> {
 
     type Move = Move;
 
-    fn init_state(&self, rng: &mut impl Rng) -> Self::State {
+    fn init_state(&self, _rng: &mut impl Rng) -> Self::State {
         let mut board = Board::new(self.problem_id, self.problem.clone(), SOLVER_NAME);
 
         for (i, p) in self.initial_solution.placements.iter().enumerate() {
@@ -110,7 +113,7 @@ impl saru::Annealer for Solver2<'_> {
         State2 { board }
     }
 
-    fn start_temp(&self, init_score: f64) -> f64 {
+    fn start_temp(&self, _init_score: f64) -> f64 {
         self.temp
     }
 
@@ -220,18 +223,19 @@ impl saru::Annealer for Solver2<'_> {
     }
 }
 
+#[wasm_bindgen]
 pub fn perform_annealing(
-    problem: &Problem,
-    initial_solution: &Solution,
+    problem: &ProblemHandle,
+    initial_solution: &SolutionHandle,
     temp: f64,
     time_limit: f64,
     seed: u64,
-) -> Solution {
+) -> SolutionHandle {
     let solver = Solver2 {
-        problem_id: initial_solution.problem_id,
-        problem,
+        problem_id: initial_solution.real.problem_id,
+        problem: &problem.real,
         temp,
-        initial_solution,
+        initial_solution: &initial_solution.real,
     };
 
     let result = saru::annealing(
@@ -247,5 +251,5 @@ pub fn perform_annealing(
         seed,
     );
 
-    result.solution.expect("Valid solution not found")
+    result.solution.expect("Valid solution not found").into()
 }

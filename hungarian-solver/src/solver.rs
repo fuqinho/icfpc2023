@@ -52,6 +52,11 @@ impl Solver {
 
     pub fn solve(&mut self, algo: Algorithm) -> (f64, Board) {
         let mut outer = self.compute_outer(algo);
+        self.solve_with_positions(algo, &outer)
+    }
+
+    pub fn solve_with_positions(&mut self, algo: Algorithm, positions: &Vec<P>) -> (f64, Board) {
+        let mut outer = positions.clone();
 
         let mut max_x: f64 = 0.;
         let mut max_y: f64 = 0.;
