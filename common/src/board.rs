@@ -166,7 +166,7 @@ impl Board {
         }
         self.aids[m].sort_unstable();
         self.impacts[m] = Some(new_impacts);
-        self.score += self.qs[m] * new_impacts;
+        self.score += (self.qs[m] * new_impacts).ceil();
 
         // Update blocks
         self.update_blocks(m, p, true);
@@ -194,7 +194,7 @@ impl Board {
 
         // Update aids and score
         self.aids[m].clear();
-        self.score -= self.qs[m] * self.impacts[m].unwrap();
+        self.score -= (self.qs[m] * self.impacts[m].unwrap()).ceil();
         self.impacts[m] = None;
 
         // Update qs
@@ -276,7 +276,7 @@ impl Board {
             self.impacts[i].as_mut().map(|im| {
                 *im -= d_impact;
             });
-            self.score -= self.qs[i] * d_impact;
+            self.score -= (self.qs[i] * d_impact).ceil();
         }
     }
 
@@ -289,7 +289,7 @@ impl Board {
             self.impacts[i].as_mut().map(|im| {
                 *im += d_impact;
             });
-            self.score += self.qs[i] * d_impact;
+            self.score += (self.qs[i] * d_impact).ceil();
         }
     }
 
