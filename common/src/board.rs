@@ -279,11 +279,7 @@ impl Board {
     }
 
     fn impact(&self, m: usize, a: usize) -> f64 {
-        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap().0)
-            .to_vector()
-            .square_length();
-        let impact = 1_000_000.0 * self.prob.attendees[a].tastes[self.prob.musicians[m]] / d2;
-        impact.ceil()
+        self.impact_if_kind(m, a, self.prob.musicians[m])
     }
 
     fn impact_if_kind(&self, m: usize, a: usize, k: usize) -> f64 {
