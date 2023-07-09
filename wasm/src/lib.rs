@@ -15,6 +15,12 @@ impl Evaluator {
         // Vec<T>が返せないのでStringにして返しています。悲しい。
         let problem = common::Problem::from(common::RawProblem::from_json(problem).unwrap());
         let solution = common::Solution::from(common::RawSolution::from_json(solution).unwrap());
-        return common::EvaluationResult::evaluate(&problem, &solution, detailed_item, detailed_index).to_json();
+        return common::EvaluationResult::evaluate(
+            &problem,
+            &solution,
+            detailed_item,
+            detailed_index,
+        )
+        .to_json();
     }
 }
