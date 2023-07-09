@@ -9,6 +9,8 @@ use euclid::default::Point2D;
 use lyon_geom::LineSegment;
 use rand::Rng;
 
+const SOLVER_NAME: &str = "psh-solver";
+
 fn generate_random_position(rng: &mut impl Rng, problem: &Problem) -> Vec<Point2D<f64>> {
     let mut pos: Vec<Point2D<f64>> = vec![];
     while pos.len() < problem.musicians.len() {
@@ -93,6 +95,7 @@ fn main() -> Result<()> {
     let placements = assign_musicians(&mut rng, &problem, &pos);
     let solution = Solution {
         problem_id,
+        solver: SOLVER_NAME.to_owned(),
         placements: placements
             .iter()
             .map(|p| Placement { position: *p })

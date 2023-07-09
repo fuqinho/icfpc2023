@@ -9,6 +9,8 @@ use log::{debug, info};
 use lyon_geom::point;
 use rand::{seq::SliceRandom, Rng};
 
+const SOLVER_NAME: &str = "chir-solver";
+
 #[derive(Parser, Debug)]
 struct Args {
     #[arg(short, long)]
@@ -23,6 +25,8 @@ struct Args {
     initial_solution: Option<PathBuf>,
     #[arg(long, default_value_t = 1.0)]
     step: f64,
+    #[arg(long)]
+    from_current_best: bool,
 }
 
 #[derive(Debug)]
@@ -92,6 +96,7 @@ fn convert_solution(prob: &Problem, sol: &Solution, pid: u32) -> common::Solutio
 
     common::Solution {
         problem_id: pid,
+        solver: SOLVER_NAME.to_owned(),
         placements: ps
             .iter()
             .map(|p| Placement {
@@ -110,10 +115,12 @@ fn hill_climb_swap(
 ) -> Result<common::Solution> {
     let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
 
-    let mut board = Board::new(pid, prob.clone());
+    let mut board = Board::new(pid, prob.clone(), SOLVER_NAME);
     for (i, placement) in cur.placements.iter().enumerate() {
         board.try_place(i, placement.position)?;
     }
+
+    info!("Initialized");
 
     loop {
         let mut cur_score = board.score();
@@ -129,7 +136,7 @@ fn hill_climb_swap(
                 board.unplace(j);
                 board.try_place(i, pj.to_point())?;
                 board.try_place(j, pi.to_point())?;
-                if board.score() < cur_score {
+                if board.score() <= cur_score {
                     board.unplace(i);
                     board.unplace(j);
                     board.try_place(i, pi.to_point())?;
@@ -137,6 +144,7 @@ fn hill_climb_swap(
                 } else {
                     updated = true;
                     cur_score = board.score();
+                    break;
                 }
             }
         }
@@ -181,7 +189,7 @@ fn pick_and_move(
     step: f64,
 ) -> Result<common::Solution> {
     let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
-    let mut board = Board::new(pid, prob.clone());
+    let mut board = Board::new(pid, prob.clone(), SOLVER_NAME);
     for i in 0..cur.placements.len() {
         board
             .try_place(i, cur.placements[i].position)
@@ -292,6 +300,14 @@ fn pick_and_move(
     max_board.try_into()
 }
 
+fn get_best_solution(problem_id: u32) -> Result<common::Solution> {
+    let url = format!(
+        "https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/{problem_id}/best-solution"
+    );
+    let raw: RawSolution = reqwest::blocking::get(&url)?.json()?;
+    Ok(raw.into())
+}
+
 fn main() -> Result<()> {
     env_logger::init();
     let args = Args::parse();
@@ -302,11 +318,21 @@ fn main() -> Result<()> {
     let problem: Problem = Problem::read_from_file(f)?;
 
     // Load initial solution if given.
-    let initial_solution: Option<common::Solution> = args.initial_solution.map(|path| {
-        let content = std::fs::read_to_string(path).expect("File not found");
-        let raw_sol = RawSolution::from_json(&content).expect("Failed to parse");
-        common::Solution::from(raw_sol)
-    });
+    let initial_solution = if let Some(path) = args.initial_solution {
+        let s = std::fs::read_to_string(path)?;
+        Some(common::Solution::from(RawSolution::from_json(&s)?))
+    } else if args.from_current_best {
+        let solution = get_best_solution(args.problem_id).expect("Failed to get best solution");
+        Some(solution)
+    } else {
+        None
+    };
+
+    let initial_score = if let Some(ref sol) = initial_solution {
+        evaluate(&problem, &sol)
+    } else {
+        0.0
+    };
 
     let mut sol = convert_solution(
         &problem,
@@ -332,9 +358,11 @@ fn main() -> Result<()> {
         common::Solution::write_to_file(output, sol.clone())?;
     }
 
-    if args.submit {
+    if args.submit && score > initial_score {
         let c = Client::new();
         c.post_submission(args.problem_id, sol)?;
+    } else {
+        info!("Skip submitting because of no improvement");
     }
 
     Ok(())
