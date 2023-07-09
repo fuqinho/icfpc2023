@@ -8,7 +8,7 @@ import {
   useProblemSpec,
 } from "@/components/api";
 import { Solution } from "@/components/problems";
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RenderingOption } from "@/components/visualizer/renderer";
 import SolutionList from "@/components/SolutionList";
 import { EvaluationResult } from "@/components/evaluation_result";
@@ -44,6 +44,7 @@ export default function Home({ params }: { params: { problemId: string } }) {
   const [jsonParseException, setJSONParseException] = useState<any>(null);
   const [option, setOption] = useState<RenderingOption>({});
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
+  const [firstLoad, setFirstLoad] = useState(true);
   const visualizer = useRef<VisualizerElement>(null);
 
   const { data: problems, error: errorProblems } = useProblemList();
@@ -70,33 +71,40 @@ export default function Home({ params }: { params: { problemId: string } }) {
     })();
   }, [problem, solution]);
 
-  useEffect(() => {
-    try {
-      const solution = parseSolution(rawSolution, problemID);
-      setSolution(solution);
-      setJSONParseException(null);
-    } catch (e) {
-      setSolution(null);
-      setJSONParseException(e);
-      return;
-    }
-  }, [rawSolution, problemID]);
-
-  const onRawSolutionChange = useCallback(
-    (event: ChangeEvent<HTMLTextAreaElement>) => {
-      setRawSolution(event.target.value);
+  const parseAndSetSolution = useCallback(
+    (s: string) => {
+      setRawSolution(s);
+      try {
+        const solution = parseSolution(s, problemID);
+        setSolution(solution);
+        setJSONParseException(null);
+      } catch (e) {
+        setSolution(null);
+        setJSONParseException(e);
+      }
     },
-    [setRawSolution],
+    [problemID, setSolution, setRawSolution, setJSONParseException],
   );
 
   const onClickSolution = useCallback(
     async (uuid: string) => {
+      parseAndSetSolution("");
+      window.scrollTo(0, 0);
       const solution = await loadSolutionSpec(uuid);
-      setRawSolution(JSON.stringify(solution));
-      setSolution(solution);
+      parseAndSetSolution(JSON.stringify(solution));
     },
-    [setSolution, setRawSolution],
+    [parseAndSetSolution],
   );
+
+  useEffect(() => {
+    (async () => {
+      if (firstLoad && knownSolutions) {
+        setFirstLoad(false);
+        const solution = await loadSolutionSpec(knownSolutions[0].uuid);
+        parseAndSetSolution(JSON.stringify(solution));
+      }
+    })();
+  }, [firstLoad, knownSolutions, parseAndSetSolution]);
 
   if (errorProblems) {
     throw errorProblems;
@@ -150,19 +158,10 @@ export default function Home({ params }: { params: { problemId: string } }) {
               evalResult={evalResult}
               option={option}
               setOption={setOption}
+              rawSolution={rawSolution}
+              setRawSolution={parseAndSetSolution}
+              parseError={jsonParseException}
             />
-          </div>
-          <div className="m-4">
-            <h2 className="text-xl my-2">解答</h2>
-            <textarea
-              placeholder="Solution"
-              className="textarea textarea-bordered w-[800px] h-[100px] font-mono"
-              onChange={onRawSolutionChange}
-              value={rawSolution}
-            ></textarea>
-            <pre>
-              <code>{jsonParseException ? `${jsonParseException}` : null}</code>
-            </pre>
           </div>
           <SolutionList
             solutions={knownSolutions ?? []}
