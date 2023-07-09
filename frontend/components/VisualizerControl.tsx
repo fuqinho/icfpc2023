@@ -1,11 +1,78 @@
 import { EvaluationResult } from "@/components/evaluation_result";
 import { formatNumber } from "@/components/number_format";
 import { Problem } from "@/components/problems";
-import { RenderingOption } from "@/components/visualizer/renderer";
+import { HoveredItem, RenderingOption } from "@/components/visualizer/renderer";
 import { orderBy } from "natural-orderby";
 import { useMemo, useState } from "react";
 import tinycolor from "tinycolor2";
 import { VisualizerElement } from "./Visualizer";
+
+function HoveredItemData({
+  hoveredItem,
+  problem,
+  evalResult,
+}: {
+  hoveredItem: HoveredItem;
+  problem: Problem;
+  evalResult: EvaluationResult | null;
+}) {
+  const instrumentSize = useMemo(() => {
+    return new Set(problem.musicians).size;
+  }, [problem]);
+  if (hoveredItem.kind === "attendee") {
+    return (
+      <div className="w-full">
+        <h2 className="text-xl">Hovered Item (観客 {hoveredItem.index})</h2>
+
+        <div className="stats">
+          {evalResult ? (
+            <div className="stat">
+              <div className="stat-title">スコア</div>
+              <div className="stat-value">
+                {formatNumber(evalResult.attendees[hoveredItem.index].score)}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  const instr = problem.musicians[hoveredItem.index];
+  const col = tinycolor({
+    h: (instr / instrumentSize) * 360,
+    s: 100,
+    v: 100,
+  });
+  return (
+    <div className="w-full">
+      <h2 className="text-xl">Hovered Item (奏者 {hoveredItem.index})</h2>
+
+      <div className="stats">
+        {evalResult ? (
+          <div className="stat">
+            <div className="stat-title">スコア</div>
+            <div className="stat-value">
+              {formatNumber(evalResult.musicians[hoveredItem.index].score)}
+            </div>
+          </div>
+        ) : null}
+        <div className="stat">
+          <div className="stat-title">楽器</div>
+          <div className="stat-value">
+            {instr}
+            <div
+              className="w-32"
+              style={{ backgroundColor: col.toHex8String() }}
+            >
+              &nbsp;
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Instruments({
   problem,
@@ -279,13 +346,20 @@ function ProblemInfo({
   rawSolution,
   setRawSolution,
   parseError,
+  visualizer,
 }: {
   problem: Problem;
   evalResult: EvaluationResult | null;
   rawSolution: string;
   setRawSolution: (s: string) => void;
   parseError: any;
+  visualizer: VisualizerElement | null;
 }) {
+  const [hoveredItem, setHoveredItem] = useState<HoveredItem | undefined>(
+    undefined,
+  );
+  visualizer?.onUpdateHoveredItemEvent((e) => setHoveredItem(e.hoveredItem));
+
   return (
     <div className="overflow-x-auto space-y-4">
       <div className="stats">
@@ -326,6 +400,13 @@ function ProblemInfo({
       <pre>
         <code>{parseError ? `${parseError}` : null}</code>
       </pre>
+      {hoveredItem ? (
+        <HoveredItemData
+          hoveredItem={hoveredItem}
+          problem={problem}
+          evalResult={evalResult}
+        />
+      ) : null}
       <div className="flex">
         <div className="w-1/2">
           <Instruments problem={problem} evalResult={evalResult} />
@@ -370,6 +451,7 @@ export default function VisualizerControl({
         rawSolution={rawSolution}
         setRawSolution={setRawSolution}
         parseError={parseError}
+        visualizer={visualizer}
       />
 
       <div className="divider"></div>

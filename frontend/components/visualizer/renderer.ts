@@ -1,15 +1,29 @@
 import tinycolor from "tinycolor2";
 import { Attendee, Musician, Pillar, Problem, Solution } from "../problems";
-import { Viewport, ViewportState } from "./viewport";
+import { Coord, Viewport, ViewportState } from "./viewport";
 import type { CanvasRenderingContext2D as ServerCanvasContext2D } from "canvas";
 import { EvaluationResult } from "../evaluation_result";
 
 const ATTENDEE_RADIUS = 10;
 const MUSICIAN_RADIUS = 5;
 
+export class UpdateHoveredItemEvent extends Event {
+  hoveredItem: HoveredItem | undefined;
+
+  constructor(hoveredItem: HoveredItem | undefined) {
+    super("updateHoveredItem");
+    this.hoveredItem = hoveredItem;
+  }
+}
+
 export interface RenderingOption {
   tasteHeatmapInstrument?: number;
   scoreHeatmapMusicians?: boolean;
+}
+
+export interface HoveredItem {
+  kind: "attendee" | "musician";
+  index: number;
 }
 
 export class Renderer {
@@ -22,6 +36,7 @@ export class Renderer {
   private readonly instruments: Map<number, number[]>;
 
   private dragStartCoord: [number, number] | undefined = undefined;
+  private currentHoveredItem: HoveredItem | undefined = undefined;
 
   constructor(
     ctx: CanvasRenderingContext2D | ServerCanvasContext2D,
@@ -132,18 +147,18 @@ export class Renderer {
   ) {
     let color: tinycolor.Instance;
     if (value > 0) {
-      color = tinycolor({
+      color = tinycolor.fromRatio({
         // Red
         h: 0,
-        s: (value / maxValue) * 100,
-        v: 100,
+        s: value / maxValue,
+        v: 1,
       });
     } else {
       color = tinycolor({
         // Blue
-        h: 240,
-        s: (Math.abs(value) / maxValue) * 100,
-        v: 100,
+        h: 240.0 / 360.0,
+        s: Math.abs(value) / maxValue,
+        v: 1,
       });
     }
 
@@ -180,15 +195,15 @@ export class Renderer {
       color = tinycolor({
         // Red
         h: 0,
-        s: (value / maxValue) * 100,
-        v: 100,
+        s: value / maxValue,
+        v: 1,
       });
     } else {
-      color = tinycolor({
+      color = tinycolor.fromRatio({
         // Blue
-        h: 240,
-        s: (Math.abs(value) / maxValue) * 100,
-        v: 100,
+        h: 240.0 / 360.0,
+        s: Math.abs(value) / maxValue,
+        v: 1,
       });
     }
 
@@ -207,13 +222,62 @@ export class Renderer {
     });
   }
 
+  private findClosestItem(): [number, HoveredItem | null] {
+    const pPos = this.vp.getPCursorPos();
+    if (!pPos) {
+      return [-1, null];
+    }
+    let closestDist2 = -1;
+    let closestItem = null;
+    this.problem.attendees.forEach((a, i) => {
+      const dist2 = distance2(pPos, [a.x, a.y]);
+      if (closestDist2 == -1 || dist2 < closestDist2) {
+        closestItem = { kind: "attendee", index: i };
+        closestDist2 = dist2;
+      }
+    });
+    this.solution?.placements.forEach((m, i) => {
+      const dist2 = distance2(pPos, [m.x, m.y]);
+      if (closestDist2 == -1 || dist2 < closestDist2) {
+        closestItem = { kind: "musician", index: i };
+        closestDist2 = dist2;
+      }
+    });
+    return [closestDist2, closestItem];
+  }
+
+  private updateCurrentHover() {
+    let [closestDist2, closestItem] = this.findClosestItem();
+    const minRadius = Math.pow(this.vp.toProblemScale(100), 2);
+    if (!closestItem || closestDist2 > minRadius) {
+      if (this.currentHoveredItem) {
+        this.currentHoveredItem = undefined;
+        return true;
+      }
+      return false;
+    }
+
+    if (!this.currentHoveredItem) {
+      this.currentHoveredItem = closestItem;
+      return true;
+    }
+    if (
+      this.currentHoveredItem.kind === closestItem.kind &&
+      this.currentHoveredItem.index === closestItem.index
+    ) {
+      return false;
+    }
+    this.currentHoveredItem = closestItem;
+    return true;
+  }
+
   // ===========================================================================
   // Event handling
   // ===========================================================================
 
   public addEventListeners(canvas: HTMLCanvasElement): () => void {
     const mousedownEvent = (e: MouseEvent) => this.mousedownEvent(canvas, e);
-    const mouseleaveEvent = this.mouseleaveEvent.bind(this);
+    const mouseleaveEvent = () => this.mouseleaveEvent(canvas);
     const mousemoveEvent = (e: MouseEvent) => this.mousemoveEvent(canvas, e);
     const mouseupEvent = this.mouseupEvent.bind(this);
     const wheelEvent = (e: WheelEvent) => this.wheelEvent(canvas, e);
@@ -270,9 +334,19 @@ export class Renderer {
         current[1] - this.dragStartCoord[1],
       ]);
     }
+    if (this.updateCurrentHover()) {
+      canvas.dispatchEvent(new UpdateHoveredItemEvent(this.currentHoveredItem));
+    }
   }
 
-  private mouseleaveEvent() {
+  private mouseleaveEvent(canvas: HTMLCanvasElement) {
     this.vp.setCursorPos(undefined);
+    if (this.updateCurrentHover()) {
+      canvas.dispatchEvent(new UpdateHoveredItemEvent(this.currentHoveredItem));
+    }
   }
+}
+
+function distance2(pos1: Coord, pos2: Coord) {
+  return Math.pow(pos1[0] - pos2[0], 2) + Math.pow(pos1[1] - pos2[1], 2);
 }

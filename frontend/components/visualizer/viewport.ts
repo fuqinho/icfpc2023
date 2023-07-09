@@ -44,13 +44,12 @@ export class Viewport {
     if (!this.cCursor) {
       return;
     }
-    const pVpHeight = (this.state.pVpSize * CANVAS_SIZE) / CANVAS_SIZE;
     const c = [
       this.state.pVpCenter[0] -
         this.state.pVpSize / 2 +
         this.toProblemScale(this.cCursor[0]),
       this.state.pVpCenter[1] -
-        pVpHeight / 2 +
+        this.state.pVpSize / 2 +
         this.toProblemScale(CANVAS_SIZE - this.cCursor[1]),
     ];
     this.ctx.font = "64px monospace";
@@ -64,13 +63,12 @@ export class Viewport {
   }
 
   public zoomWithMousePos(factor: number, cPos: Coord) {
-    const pVpHeight = (this.state.pVpSize * CANVAS_SIZE) / CANVAS_SIZE;
     const pPos = [
       this.state.pVpCenter[0] -
         this.state.pVpSize / 2 +
         this.toProblemScale(cPos[0]),
       this.state.pVpCenter[1] -
-        pVpHeight / 2 +
+        this.state.pVpSize / 2 +
         this.toProblemScale(CANVAS_SIZE - cPos[1]),
     ];
     const newPvpSize = this.state.pVpSize * factor;
@@ -92,6 +90,20 @@ export class Viewport {
 
   public setCursorPos(cPos: Coord | undefined) {
     this.cCursor = cPos;
+  }
+
+  public getPCursorPos(): Coord | undefined {
+    if (!this.cCursor) {
+      return undefined;
+    }
+    return [
+      this.state.pVpCenter[0] -
+        this.state.pVpSize / 2 +
+        this.toProblemScale(this.cCursor[0]),
+      this.state.pVpCenter[1] -
+        this.state.pVpSize / 2 +
+        this.toProblemScale(CANVAS_SIZE - this.cCursor[1]),
+    ];
   }
 
   public commitVpCenterMove() {
@@ -139,7 +151,7 @@ export class Viewport {
     return (problemScaleV * CANVAS_SIZE) / this.state.pVpSize;
   }
 
-  private toProblemScale(canvasScaleV: number): number {
+  public toProblemScale(canvasScaleV: number): number {
     return (canvasScaleV * this.state.pVpSize) / CANVAS_SIZE;
   }
 
