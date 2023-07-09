@@ -209,10 +209,10 @@ impl Board {
 
             if let Some((q, r)) = q {
                 for rev in [false, true] {
-                    let (blocking, blocked, _, i, _, r) = if rev {
-                        (*q, p, i, m, *r, MUSICIAN_R)
+                    let (blocking, blocked, _, i, _, r, _, aids) = if rev {
+                        (*q, p, i, m, *r, MUSICIAN_R, &aids[i], &aids[m])
                     } else {
-                        (p, *q, m, i, MUSICIAN_R, *r)
+                        (p, *q, m, i, MUSICIAN_R, *r, &aids[m], &aids[i])
                     };
                     if i >= prob.musicians.len() {
                         // blocked is pillar, we don't need to calculate impact
@@ -231,32 +231,32 @@ impl Board {
                     r2 -= eps;
 
                     if r1 < r2 {
-                        let j1 = aids[i].partition_point(|r| r.0 < r1);
-                        let j2 = aids[i][j1..].partition_point(|r| r.0 < r2) + j1;
+                        let j1 = aids.partition_point(|r| r.0 < r1);
+                        let j2 = aids[j1..].partition_point(|r| r.0 < r2) + j1;
 
                         for j in j1..j2 {
                             if inc {
-                                Self::inc_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                                Self::inc_blocks(blocks, impacts, prob, ps, i, aids[j].1);
                             } else {
-                                Self::dec_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                                Self::dec_blocks(blocks, impacts, prob, ps, i, aids[j].1);
                             }
                         }
                     } else {
-                        let j2 = aids[i].partition_point(|r| r.0 < r2);
-                        let j1 = aids[i][j2..].partition_point(|r| r.0 < r1) + j2;
+                        let j2 = aids.partition_point(|r| r.0 < r2);
+                        let j1 = aids[j2..].partition_point(|r| r.0 < r1) + j2;
 
                         for j in 0..j2 {
                             if inc {
-                                Self::inc_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                                Self::inc_blocks(blocks, impacts, prob, ps, i, aids[j].1);
                             } else {
-                                Self::dec_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                                Self::dec_blocks(blocks, impacts, prob, ps, i, aids[j].1);
                             }
                         }
-                        for j in j1..aids[i].len() {
+                        for j in j1..aids.len() {
                             if inc {
-                                Self::inc_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                                Self::inc_blocks(blocks, impacts, prob, ps, i, aids[j].1);
                             } else {
-                                Self::dec_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                                Self::dec_blocks(blocks, impacts, prob, ps, i, aids[j].1);
                             }
                         }
                     };
@@ -265,6 +265,7 @@ impl Board {
         }
     }
 
+    #[inline]
     fn inc_blocks(
         blocks: &mut Vec<Vec<usize>>,
         impacts: &mut Vec<f64>,
@@ -280,6 +281,7 @@ impl Board {
         }
     }
 
+    #[inline]
     fn dec_blocks(
         blocks: &mut Vec<Vec<usize>>,
         impacts: &mut Vec<f64>,
