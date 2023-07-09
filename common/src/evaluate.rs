@@ -119,8 +119,7 @@ fn evaluate_musician_internal(
 ) -> f64 {
     let mut score = 0.;
     for (ai, attendee) in attendees.iter().enumerate() {
-        score += evaluate_unit(
-            ai, attendee, m, instrument, placements, pillars, volume, q);
+        score += evaluate_unit(ai, attendee, m, instrument, placements, pillars, volume, q);
     }
     score
 }
@@ -166,14 +165,10 @@ pub fn fixup_volumes(problem: &Problem, solution: &Solution) -> Solution {
             &problem.attendees,
             &solution.placements,
             &problem.pillars,
-            1.,  // forces to 1.
+            1., // forces to 1.
             q[m],
         );
-        let volume = if score > 0. {
-            10.
-        } else {
-            0.
-        };
+        let volume = if score > 0. { 10. } else { 0. };
         volumes.push(volume);
     }
     Solution {
@@ -250,7 +245,7 @@ impl EvaluationResult {
                     &solution.placements,
                     &problem.pillars,
                     solution.volumes[musician],
-                    q[musician]
+                    q[musician],
                 );
                 total_score += attendee_musician_score;
                 musician_stats[musician].score += attendee_musician_score;
