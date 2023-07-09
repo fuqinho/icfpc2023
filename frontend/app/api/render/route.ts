@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     problem,
     solution ?? null,
     null,
-    {},
+    { scoreHeatmapAttendees: true },
     initialViewportState(problem, solution ?? null),
     () => {},
   );
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
     problem,
     solution ?? null,
     null,
-    {},
+    { scoreHeatmapAttendees: true },
     initialViewportState(problem, solution ?? null),
     () => {},
   );

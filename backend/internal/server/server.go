@@ -41,6 +41,7 @@ func NewHandler(db *database.DB) *Handler {
 	r.HandleFunc("/api/solutions/{uuid}/spec", h.handleSolutionSpec).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions/{uuid}/image", h.handleSolutionImage).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions-mismatched", h.handleSolutionsMismatched).Methods(http.MethodGet)
+	r.HandleFunc("/api/solutions-mismatched/refresh", h.handleSolutionsMismatchedRefresh).Methods(http.MethodPost)
 	r.HandleFunc("/api/submit", h.handleSubmit).Methods(http.MethodPost)
 	r.HandleFunc("/batch/update-problems", h.handleUpdateProblems).Methods(http.MethodPost)
 
@@ -285,6 +286,17 @@ func (h *Handler) handleSolutionsMismatched(w http.ResponseWriter, r *http.Reque
 			solutions = []*database.Solution{}
 		}
 		return solutions, nil
+	})
+}
+
+func (h *Handler) handleSolutionsMismatchedRefresh(w http.ResponseWriter, r *http.Request) {
+	withResponse(w, r, func() error {
+		ctx := r.Context()
+		if err := h.db.ClearMismatchedEvaluations(ctx); err != nil {
+			return err
+		}
+		io.WriteString(w, "OK\n")
+		return nil
 	})
 }
 
