@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"icfpc2023/backend/internal/database"
 	"icfpc2023/backend/internal/httputil"
+	"icfpc2023/backend/internal/official"
 	"io"
 	"net/http"
 	"strconv"
@@ -16,14 +17,16 @@ import (
 
 type Handler struct {
 	db     *database.DB
+	client *official.Client
 	router *mux.Router
 }
 
 var _ http.Handler = &Handler{}
 
-func NewHandler(db *database.DB) *Handler {
+func NewHandler(db *database.DB, client *official.Client) *Handler {
 	h := &Handler{
 		db:     db,
+		client: client,
 		router: nil, // assigned later
 	}
 
@@ -304,28 +307,17 @@ func (h *Handler) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	withResponse(w, r, func() error {
 		ctx := r.Context()
 
-		var req map[string]any
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			return err
-		}
-
-		problemIDFloat, ok := req["problem_id"].(float64)
-		if !ok {
-			return errors.New("problem ID missing")
-		}
-		problemID := int(problemIDFloat)
-
-		solutionSpec, err := json.Marshal(req)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			return err
 		}
+		spec := string(b)
 
-		uuid, err := h.db.SubmitSolution(ctx, problemID, string(solutionSpec))
-		if err != nil {
+		if err := h.client.Submit(ctx, spec); err != nil {
 			return err
 		}
 
-		io.WriteString(w, uuid)
+		io.WriteString(w, "OK\n")
 		return nil
 	})
 }
