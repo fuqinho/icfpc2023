@@ -111,10 +111,16 @@ pub struct InstrumentStat {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
+pub struct AttendeeStat {
+    pub score: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct EvaluationResult {
     pub score: f64,
     pub musicians: Vec<MusicianStat>,
     pub instruments: Vec<InstrumentStat>,
+    pub attendees: Vec<AttendeeStat>,
 }
 
 impl EvaluationResult {
@@ -131,9 +137,10 @@ impl EvaluationResult {
             instrs.len()
         };
         let mut instrument_stats = vec![InstrumentStat { score: 0f64 }; instrument_count];
+        let mut attendee_stats = vec![AttendeeStat { score: 0f64 }; problem.attendees.len()];
 
         let q = create_q_vector(&problem.musicians, solution);
-        for attendee in problem.attendees.iter() {
+        for (attendee_id, attendee) in problem.attendees.iter().enumerate() {
             for (musician, (inst, placement)) in problem
                 .musicians
                 .iter()
@@ -153,6 +160,7 @@ impl EvaluationResult {
                 total_score += attendee_musician_score;
                 musician_stats[musician].score += attendee_musician_score;
                 instrument_stats[*inst].score += attendee_musician_score;
+                attendee_stats[attendee_id].score += attendee_musician_score;
             }
         }
 
@@ -160,6 +168,7 @@ impl EvaluationResult {
             score: total_score,
             musicians: musician_stats,
             instruments: instrument_stats,
+            attendees: attendee_stats,
         };
     }
 }
