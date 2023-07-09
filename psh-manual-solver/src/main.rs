@@ -60,6 +60,7 @@ fn solver_10(problem: &Problem) -> Solution {
             .into_iter()
             .map(|p| Placement { position: p })
             .collect::<Vec<_>>(),
+        volumes: vec![1.; problem.musicians.len()],
     }
 }
 

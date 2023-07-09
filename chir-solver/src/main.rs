@@ -2,7 +2,10 @@ use std::{collections::HashMap, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use common::{api::Client, board::Board, evaluate, Placement, Problem, RawSolution};
+use common::{
+    api::Client, board::Board, create_q_vector, evaluate, evaluate_musician, Placement, Problem,
+    RawSolution,
+};
 use euclid::default::Point2D;
 use indexmap::IndexMap;
 use log::{debug, info};
@@ -103,6 +106,7 @@ fn convert_solution(prob: &Problem, sol: &Solution, pid: u32) -> common::Solutio
                 position: p.clone(),
             })
             .collect(),
+        volumes: vec![1.; ps.len()],
     }
 }
 
@@ -306,6 +310,47 @@ fn get_best_solution(problem_id: u32) -> Result<common::Solution> {
     );
     let raw: RawSolution = reqwest::blocking::get(&url)?.json()?;
     Ok(raw.into())
+}
+
+fn particle(
+    prob: &Problem,
+    pid: u32,
+    initial_board: Option<common::Solution>,
+) -> Result<common::Solution> {
+    let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
+
+    const MAX_LOOP: usize = 100;
+    const UNIT_LEN: f64 = 0.1;
+    let mut cnt = 0;
+    loop {
+        let qs = create_q_vector(&prob.musicians, &cur);
+        let mut scores = vec![];
+        for (m, _) in cur.placements.iter().enumerate() {
+            let score_m =
+                evaluate_musician(m, &prob.attendees, &prob.musicians, &prob.pillars, &cur) as u32;
+            scores.push((score_m, m));
+        }
+        scores.sort();
+        scores.reverse();
+
+        for (cur_s, m) in scores {
+            let p = cur.placements[m].position;
+            for attendee in prob.attendees.iter() {
+                let v = attendee.position - p;
+                let d = v.square_length();
+                let s =
+                    (qs[m] * (1_000_000f64 * attendee.tastes[prob.musicians[m]] / d).ceil()).ceil();
+                // let v = ((scores / (cur_s as f64)) * UNIT_LEN) * v.normalize();
+            }
+        }
+
+        cnt += 1;
+        if cnt >= MAX_LOOP {
+            break;
+        }
+    }
+
+    Ok(cur)
 }
 
 fn main() -> Result<()> {

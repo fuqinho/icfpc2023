@@ -48,7 +48,7 @@ fn is_blocked_internal(
     false
 }
 
-fn create_q_vector(musicians: &[usize], solution: &Solution) -> Vec<f64> {
+pub fn create_q_vector(musicians: &[usize], solution: &Solution) -> Vec<f64> {
     let mut ret = vec![1.; solution.placements.len()];
     if solution.problem_id <= 55 {
         return ret;
@@ -347,6 +347,7 @@ pub fn estimate(problem_id: u32, problem: &Problem, solver: &str) -> (f64, Solut
         problem_id,
         solver: solver.to_owned(),
         placements,
+        volumes: vec![1.; problem.musicians.len()],
     };
     let score = evaluate(problem, &solution);
     (score, solution)

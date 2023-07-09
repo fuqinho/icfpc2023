@@ -423,6 +423,7 @@ impl Board {
             problem_id: self.problem_id,
             solver: self.solver.clone(),
             placements,
+            volumes: vec![1.; self.prob.musicians.len()],
         })
     }
 }
