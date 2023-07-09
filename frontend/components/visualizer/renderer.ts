@@ -57,7 +57,21 @@ export class Renderer {
     this.drawRoomAndStage();
 
     if (this.option.tasteHeatmapInstrument === undefined) {
-      this.problem.attendees.forEach((a) => this.drawAttendeeNormal(a));
+      let maxScore = Number.MIN_SAFE_INTEGER;
+      let minScore = Number.MAX_SAFE_INTEGER;
+      this.problem.attendees.forEach((_, i) => {
+        const score = this.evalResult?.attendees.at(i)?.score!;
+        maxScore = Math.max(maxScore, score);
+        minScore = Math.min(minScore, score);
+      });
+      this.problem.attendees.forEach((a, i) =>
+        this.drawAttendeeWithHeat(
+          a,
+          this.evalResult?.attendees.at(i)?.score!,
+          maxScore,
+          minScore,
+        ),
+      );
     } else {
       let maxTaste = Number.MIN_SAFE_INTEGER;
       let minTaste = Number.MAX_SAFE_INTEGER;
@@ -69,7 +83,7 @@ export class Renderer {
       });
 
       this.problem.attendees.forEach((a) =>
-        this.drawAttendeeWithHeat(a, instr, maxTaste, minTaste),
+        this.drawAttendeeWithHeat(a, a.tastes[instr], maxTaste, minTaste),
       );
     }
 
@@ -114,35 +128,25 @@ export class Renderer {
     });
   }
 
-  private drawAttendeeNormal(attendee: Attendee) {
-    this.vp.drawCircle({
-      pXY: [attendee.x, attendee.y],
-      cRadius: ATTENDEE_RADIUS,
-      strokeStyle: "red",
-      fillStyle: "red",
-    });
-  }
-
   private drawAttendeeWithHeat(
     attendee: Attendee,
-    instr: number,
-    maxTaste: number,
-    minTaste: number,
+    value: number,
+    maxValue: number,
+    minValue: number,
   ) {
-    const taste = attendee.tastes[instr];
     let color: tinycolor.Instance;
-    if (taste > 0) {
+    if (value > 0) {
       color = tinycolor({
         // Red
         h: 0,
-        s: (taste / maxTaste) * 100,
+        s: (value / maxValue) * 100,
         v: 100,
       });
     } else {
       color = tinycolor({
         // Blue
         h: 240,
-        s: (taste / minTaste) * 100,
+        s: (value / minValue) * 100,
         v: 100,
       });
     }
