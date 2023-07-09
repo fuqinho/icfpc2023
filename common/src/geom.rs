@@ -5,20 +5,59 @@ type P = Vector2D<f64, euclid::UnknownUnit>;
 // tangents from p to circle.
 // returns right hand side tanget point first.
 pub fn tangent_to_circle(p: P, c: P, r: f64) -> (P, P) {
-    let d = (p - c).length();
-    let a = (d * d - r * r).sqrt();
+    let d2 = (p - c).square_length();
+    let a2 = d2 - r * r;
 
-    cross_points_cc(p, a, c, r)
+    cross_points_cc2(p, a2, c, r * r)
 }
 
 fn cross_points_cc(c1: P, r1: f64, c2: P, r2: f64) -> (P, P) {
-    let d = (c1 - c2).length();
-    let a = (r1 * r1 - r2 * r2 + d * d) / (2. * d);
-    let h = (r1 * r1 - a * a).sqrt();
-    let p = c1 + (c2 - c1) * (a / d);
-    let w = (c2 - c1).normalize();
-    let n = rotate90(w);
-    (p - n * h, p + n * h)
+    cross_points_cc2(c1, r1 * r1, c2, r2 * r2)
+}
+
+// Taking two circles, one whose center is |c1| and whose radius is
+// r1 (where r1 = sqrt(r1_2)), and the other whose center is |c2|
+// and whose radius is r2 (where r2 = sqrt(r2_2)),
+// returns the crossing point, assuming there exist.
+//
+// Let
+//   - p1, p2 are the crossing points
+//   - dv is (c2 - c1)
+//   - d is the distance between c1 and c2 (i.e. d == |dv|), and
+//   - T is the angle of (p1 - c1) and dv.
+//
+// From cosine law:
+//  r2^2 = r1^2 + d^2 - 2 * r1 * d * cos(T).
+//  cos(T) = (r1^2 + d^2 - r2^2) / (2 * r1 * d)
+//  sin(T) = sqrt(1 - cos^2(T)) = sqrt(1 - {(r1^2 + d^2 - r2^2) / (2 * r1 * d)}^2)
+//  p1 = c1 + (r1 / d) * R(T) * dv
+//  p2 = c1 + (r1 / d) * R(-T) * dv
+//    where R(T) is the rotation matrix.
+// Specifically
+//  p1.x = c1.x + (r1 / d) * (cos(T) * dv.x - sin(T) * dv.y)
+//       = c1.x + (r1 / d) * ({(r1^2 + d^2 - r2^2) / (2 * r1 * d)} * dv.x
+//                            - sqrt(1 - {(r1^2 + d^2 - r2^2) / (2 * r1 * d)}) * dv.y
+//       = c1.x + {(r1^2 + d^2 - r2^2) / (2 * d^2)} * dv.x
+//              - sqrt(r1^2 / d^2 - {(r1^2 + d^2 - r2^2) / (2 * d^2)}) * dv.y
+//       = c1.x + {(r1^2 + d^2 - r2^2) / (2 * d^2)} * dv.x
+//              - sqrt(4 * r1^2 * d^2 - (r1^2 + d^2 - r2^2)) / (2 * d^2) * dv.y
+#[inline]
+fn cross_points_cc2(c1: P, r1_2: f64, c2: P, r2_2: f64) -> (P, P) {
+    let dv = c2 - c1;
+    let d2 = dv.square_length();
+    let cv = d2 + r1_2 - r2_2;
+    let sv = (4. * d2 * r1_2 - cv * cv).sqrt();
+    let cv = cv / (2. * d2);
+    let sv = sv / (2. * d2);
+    let cvdx = cv * dv.x;
+    let svdx = sv * dv.x;
+    let cvdy = cv * dv.y;
+    let svdy = sv * dv.y;
+    // To align original behavior, swap p1 and p2.
+    (
+        c1 + P::new(cvdx + svdy, cvdy - svdx),
+        c1 + P::new(cvdx - svdy, cvdy + svdx),
+    )
 }
 
 pub fn rotate90(p: P) -> P {
