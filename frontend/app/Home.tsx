@@ -17,6 +17,7 @@ import { useCallback } from "react";
 import { orderBy } from "natural-orderby";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import ProblemListBar from "@/components/ProblemListBar";
+import { DateTime } from "luxon";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -43,6 +44,10 @@ function ProblemListItem({
   if (!problemSpec) {
     return null;
   }
+
+  const created = bestSolution
+    ? DateTime.fromISO(bestSolution.created).setZone("Asia/Tokyo")
+    : undefined;
 
   return (
     <tr>
@@ -83,6 +88,10 @@ function ProblemListItem({
                 )}
           </div>
         </div>
+      </td>
+      <td className="text-mono">{bestSolution?.solver}</td>
+      <td className="text-mono">
+        {created?.toFormat("ccc HH:mm:ss ZZZ")} ({created?.toRelative()})
       </td>
     </tr>
   );
@@ -164,6 +173,38 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
         ["asc", "asc"],
       );
       break;
+    case "by-created-at-desc":
+      problemKeys = orderBy(
+        problemKeys,
+        [
+          (i) => {
+            const c = bestSolutions.get(problems[i].id)?.submission?.created;
+            if (!c) {
+              return 0;
+            }
+            return DateTime.fromISO(c).toUnixInteger();
+          },
+          (i) => problems[i].id,
+        ],
+        ["desc", "asc"],
+      );
+      break;
+    case "by-created-at-asc":
+      problemKeys = orderBy(
+        problemKeys,
+        [
+          (i) => {
+            const c = bestSolutions.get(problems[i].id)?.submission?.created;
+            if (!c) {
+              return 0;
+            }
+            return DateTime.fromISO(c).toUnixInteger();
+          },
+          (i) => problems[i].id,
+        ],
+        ["asc", "asc"],
+      );
+      break;
   }
 
   return (
@@ -182,6 +223,8 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
             <option value="by-id">ID順</option>
             <option value="by-score-desc">スコアの高い順</option>
             <option value="by-score-asc">スコアの低い順</option>
+            <option value="by-created-at-desc">更新日時が新しい順</option>
+            <option value="by-created-at-asc">更新日時が古い順</option>
           </select>
           <button
             className="btn btn-sm"
@@ -247,6 +290,8 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
             <th>Image</th>
             <th>Best Score (公式)</th>
             <th>スコア寄与率</th>
+            <th>ソルバ</th>
+            <th>日時</th>
           </tr>
         </thead>
         <tbody>
