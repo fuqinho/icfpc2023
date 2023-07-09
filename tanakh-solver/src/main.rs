@@ -843,7 +843,7 @@ fn main(
 
     if !no_submit {
         let resp = client.post_submission(problem_id, solution)?;
-        eprintln!("Submitted: {:?}", resp);
+        eprintln!("Submitted: {:}", resp.0);
     }
 
     Ok(())
