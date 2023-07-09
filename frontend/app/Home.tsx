@@ -11,7 +11,7 @@ import {
   useProblemList,
   useProblemSpec,
 } from "@/components/api";
-import { formatNumber } from "@/components/number_format";
+import { formatNumber, formatPercentage } from "@/components/number_format";
 import { useState } from "react";
 import { orderBy } from "natural-orderby";
 
@@ -73,12 +73,11 @@ function ProblemListItem({
       <td className="text-mono">
         <div className="stat">
           <div className="stat-value">
-            {(
-              (bestSolution?.submission?.score ?? 0) / totalScore
-            ).toLocaleString(undefined, {
-              style: "percent",
-              minimumFractionDigits: 2,
-            })}
+            {(bestSolution?.submission?.score ?? -1) < 0
+              ? null
+              : formatPercentage(
+                  (bestSolution?.submission?.score ?? 0) / totalScore,
+                )}
           </div>
         </div>
       </td>
@@ -103,7 +102,19 @@ function ProblemList() {
     return <div>Loading...</div>;
   }
   let totalScore = 0;
-  bestSolutions.forEach((v) => (totalScore += v.submission?.score ?? 0));
+  let v1TotalScore = 0;
+  let v2TotalScore = 0;
+  bestSolutions.forEach((v) => {
+    const score = v.submission?.score ?? 0;
+    if (score > 0) {
+      totalScore += score;
+      if (v.problem_id <= 55) {
+        v1TotalScore += score;
+      } else {
+        v2TotalScore += score;
+      }
+    }
+  });
 
   let problemKeys = Array.from(problems.keys());
   if (!showV1) {
@@ -179,8 +190,18 @@ function ProblemList() {
             />
           </label>
         </div>
-        <div className="text-lg">
-          トータルスコア: {formatNumber(totalScore)}
+        <div className="text-lg text-right font-mono">
+          <p>トータルスコア: {formatNumber(totalScore)}</p>
+          <div className="text-sm">
+            <p>
+              V1トータルスコア: {formatNumber(v1TotalScore)} (
+              {formatPercentage(v1TotalScore / totalScore)})
+            </p>
+            <p>
+              V2トータルスコア: {formatNumber(v2TotalScore)} (
+              {formatPercentage(v2TotalScore / totalScore)})
+            </p>
+          </div>
         </div>
       </div>
       <table className="table">
