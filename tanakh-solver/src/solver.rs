@@ -126,11 +126,16 @@ impl saru::Annealer for Solver2 {
         let mut board = Board::new(self.problem_id, self.problem.clone(), SOLVER_NAME);
 
         if let Some(initial_solution) = &self.initial_solution {
+            for (i, v) in initial_solution.volumes.iter().enumerate() {
+                board.set_volume(i, *v);
+            }
             for (i, p) in initial_solution.placements.iter().enumerate() {
                 board.try_place(i, p.position).unwrap();
             }
         } else if self.better_initial {
             for i in 0..board.prob.musicians.len() {
+                board.set_volume(i, 5.0);
+
                 let mut best = (f64::MIN, Point::new(0.0, 0.0));
                 for _ in 0..100 {
                     loop {
@@ -152,10 +157,10 @@ impl saru::Annealer for Solver2 {
                 }
 
                 board.try_place(i, best.1).unwrap();
-                board.set_volume(i, 5.0);
             }
         } else {
             for i in 0..board.prob.musicians.len() {
+                board.set_volume(i, 5.0);
                 loop {
                     let x: f64 = rng
                         .gen_range(board.prob.stage.min.x..=board.prob.stage.max.x)
@@ -167,7 +172,6 @@ impl saru::Annealer for Solver2 {
                         break;
                     }
                 }
-                board.set_volume(i, 5.0);
             }
         }
 
