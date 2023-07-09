@@ -14,9 +14,9 @@ common = { path = "../common" }
 console_error_panic_hook = "0.1.7"
 euclid = "0.22.9"
 lyon_geom = "1.0.4"
-rand = { version = "0.8.5", default-features = false, features = ["std_rng", "small_rng"] }
 saru = { path = "../third_party/saru" }
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
+tanakh-solver = { path = "../tanakh-solver" }
 thiserror = "*"
 wasm-bindgen = "0.2"

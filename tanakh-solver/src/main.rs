@@ -84,10 +84,10 @@ fn main(
 
     let solver = Solver2 {
         problem_id,
-        problem: problem.clone(),
+        problem: &problem,
         start_temp,
         better_initial,
-        initial_solution,
+        initial_solution: initial_solution.as_ref(),
     };
 
     let solution = saru::annealing(
