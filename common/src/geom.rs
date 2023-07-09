@@ -99,21 +99,39 @@ pub fn circles_tangenting_lines(p1: P, p2: P, q1: P, q2: P, r: f64) -> Vec<P> {
 }
 
 pub fn circles_tangenting_line_and_circle(p1: P, p2: P, c: P, cr: f64, r: f64) -> Vec<P> {
-    let line = new_line(p1, p2);
+    let dir = rotate90((p2 - p1).normalize() * r);
 
-    let q = line.equation().project_point(&c.to_point());
+    assert_not_nan_point(dir);
 
-    let dir = (c - q.to_vector()).normalize() * r;
-
-    line_circle_intersections(p1 + dir, p2 + dir, c, r + cr)
+    let mut res = vec![];
+    res.append(&mut line_circle_intersections(
+        p1 + dir,
+        p2 + dir,
+        c,
+        r + cr,
+    ));
+    res.append(&mut line_circle_intersections(
+        p1 - dir,
+        p2 - dir,
+        c,
+        r + cr,
+    ));
+    res
 }
 
 pub fn line_circle_intersections(p1: P, p2: P, c: P, cr: f64) -> Vec<P> {
+    assert_not_nan(cr);
+    assert_not_nan_point(c);
+    assert_not_nan_point(p1);
+    assert_not_nan_point(p2);
+
     let line = new_line(p1, p2);
 
-    let p = line.equation().project_point(&c.to_point());
+    let p = line.equation().project_point(&c.to_point()).to_vector();
 
-    let d2 = (p.to_vector() - c).square_length();
+    assert_not_nan_point(p);
+
+    let d2 = (p - c).square_length();
 
     let cr2 = cr * cr;
 
@@ -123,9 +141,21 @@ pub fn line_circle_intersections(p1: P, p2: P, c: P, cr: f64) -> Vec<P> {
         return vec![];
     }
 
-    let n = rotate90((c - p.to_vector()).normalize() * l2);
+    let l = l2.sqrt();
 
-    vec![(p + n).to_vector(), (p - n).to_vector()]
+    let n = (p2 - p1).normalize() * l;
+
+    assert_not_nan_point(n);
+
+    vec![p + n, p - n]
+}
+
+fn assert_not_nan_point(p: P) {
+    assert!(!p.x.is_nan() && !p.y.is_nan());
+}
+
+fn assert_not_nan(f: f64) {
+    assert!(!f.is_nan());
 }
 
 pub fn new_line(p1: P, p2: P) -> Line<f64> {
@@ -170,16 +200,44 @@ mod tests {
         let q1 = P::new(0., 0.);
         let q2 = P::new(0., 1.);
 
-        let res = super::circles_tangenting_lines(p1, p2, q1, q2, 1.);
+        for r in [1., 2.] {
+            let res = super::circles_tangenting_lines(p1, p2, q1, q2, r);
 
-        assert_eq!(res.len(), 4);
+            assert_eq!(res.len(), 4);
 
-        for i in 0..4 {
+            for i in 0..4 {
+                for j in 0..i {
+                    assert!((res[i] - res[j]).length() > 1e-9);
+                }
+                let dx = (res[i].x.abs() - r).abs();
+                let dy = (res[i].y.abs() - r).abs();
+
+                assert!(dx < 1e-9 || dy < 1e-9);
+            }
+        }
+    }
+
+    #[test]
+    fn test_circles_tangenting_line_and_circle() {
+        let p1 = P::new(0., 0.);
+        let p2 = P::new(1., 0.);
+        let c = P::new(0., 5.);
+        let cr = 3.;
+        let r = 2.;
+
+        let res = super::circles_tangenting_line_and_circle(p1, p2, c, cr, r);
+
+        assert_eq!(res.len(), 2);
+
+        for i in 0..2 {
             for j in 0..i {
                 assert!((res[i] - res[j]).length() > 1e-9);
             }
-            let dx = (res[i].x.abs() - 1.0).abs();
-            let dy = (res[i].y.abs() - 1.0).abs();
+
+            let exp = (4., 2.);
+
+            let dx = (res[i].x.abs() - exp.0).abs();
+            let dy = (res[i].y.abs() - exp.1).abs();
 
             assert!(dx < 1e-9 || dy < 1e-9);
         }

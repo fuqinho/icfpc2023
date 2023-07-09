@@ -27,26 +27,13 @@ fn main(problem_id: u32, #[opt(short, long, default_value = "")] out: String) ->
 
     let mut solver = Solver::new(problem_id, problem.clone());
 
-    let (score, board) = solver.solve();
+    let (_score, board) = solver.solve();
 
-    let solution: Solution = board.try_into().unwrap();
+    let solution: Solution = board.solution_with_optimized_volume().unwrap();
 
     let eval_score = evaluate(&problem, &solution);
 
     eprintln!("final score: {}", eval_score);
-
-    if score != eval_score {
-        let diff = (1. - score / eval_score).abs() * 100.;
-        eprintln!(
-            "WARNING: board and evaluate score differ by {}% {}",
-            diff,
-            if score < eval_score {
-                "board score is smaller"
-            } else {
-                "board score is larger"
-            }
-        );
-    }
 
     if eval_score > best_score {
         cl.post_submission(problem_id, solution.clone())?;
