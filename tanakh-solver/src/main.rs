@@ -1,7 +1,7 @@
 use anyhow::Result;
 use common::{api::Client, board::Board, RawSolution, Solution};
 use euclid::{default::*, point2, vec2};
-use lyon_geom::Point;
+use lyon_geom::{LineSegment, Point};
 use rand::Rng;
 use std::path::PathBuf;
 // use parry2d_f64::{
@@ -10,8 +10,8 @@ use std::path::PathBuf;
 //     shape::{Compound, SharedShape},
 // };
 
-const PROBLEM_PATH: &str = "../problems";
-const EPS: f64 = 1e-6;
+// const PROBLEM_PATH: &str = "../problems";
+// const EPS: f64 = 1e-6;
 
 // struct Solver(Problem);
 
@@ -250,18 +250,6 @@ const EPS: f64 = 1e-6;
 //     }
 // }
 
-enum Move {
-    Change {
-        id: usize,
-        new_pos: Point2D<f64>,
-        old_pos: Point2D<f64>,
-    },
-    Swap {
-        i: usize,
-        j: usize,
-    },
-}
-
 // impl Solver {
 //     fn stage_valid(&self) -> Box2D<f64> {
 //         let s = &self.0;
@@ -442,6 +430,78 @@ struct State2 {
     board: Board,
 }
 
+enum Move {
+    Change {
+        id: usize,
+        new_pos: Point2D<f64>,
+        old_pos: Point2D<f64>,
+    },
+    Swap {
+        i: usize,
+        j: usize,
+    },
+    Multiple {
+        moves: Vec<Move>,
+    },
+}
+
+impl Move {
+    fn gen_change(rng: &mut impl Rng, board: &Board, progress_ratio: f64) -> Self {
+        let stage = &board.prob.stage;
+
+        let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(5.0);
+        let scale_y = (stage.height() / 5.0 * (1.0 - progress_ratio)).max(5.0);
+
+        let grid = 0.25_f64;
+        let scale_x = (scale_x / grid).round() as i32;
+        let scale_y = (scale_y / grid).round() as i32;
+
+        loop {
+            let id = rng.gen_range(0..board.musicians().len());
+
+            // let theta = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+            // let len = rng.gen_range(0.1..=scale);
+            // let d = Vector2D::from_angle_and_length(Angle::radians(theta), len);
+
+            let d = vec2(
+                rng.gen_range(-scale_x..=scale_x) as f64 * grid,
+                rng.gen_range(-scale_y..=scale_y) as f64 * grid,
+            );
+
+            let old_pos = board.musicians()[id].unwrap().0.to_point();
+            let new_pos = old_pos + d;
+            let new_pos = point2(
+                new_pos.x.clamp(stage.min.x, stage.max.x),
+                new_pos.y.clamp(stage.min.y, stage.max.y),
+            );
+
+            if new_pos == old_pos {
+                continue;
+            }
+
+            if !board.can_place(id, new_pos) {
+                continue;
+            }
+
+            break Move::Change {
+                id,
+                new_pos,
+                old_pos,
+            };
+        }
+    }
+
+    fn gen_swap(rng: &mut impl Rng, board: &Board) -> Self {
+        loop {
+            let i = rng.gen_range(0..board.prob.musicians.len());
+            let j = rng.gen_range(0..board.prob.musicians.len());
+            if i != j && board.prob.musicians[i] != board.prob.musicians[j] {
+                break Move::Swap { i, j };
+            }
+        }
+    }
+}
+
 impl saru::Annealer for Solver2 {
     type State = State2;
 
@@ -522,62 +582,42 @@ impl saru::Annealer for Solver2 {
         rng: &mut impl Rng,
         progress_ratio: f64,
     ) -> Self::Move {
-        let stage = &state.board.prob.stage;
+        match rng.gen_range(0..=4) {
+            0..=2 => Move::gen_change(rng, &state.board, progress_ratio),
 
-        // let scale = 15.0;
+            3 => loop {
+                let m1 = Move::gen_change(rng, &state.board, progress_ratio);
+                let m2 = Move::gen_change(rng, &state.board, progress_ratio);
 
-        // let scale_x = 15.0;
-        // let scale_y = 15.0;
-
-        let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(5.0);
-        let scale_y = (stage.height() / 5.0 * (1.0 - progress_ratio)).max(5.0);
-
-        let grid = 0.25_f64;
-        let scale_x = (scale_x / grid).round() as i32;
-        let scale_y = (scale_y / grid).round() as i32;
-
-        match rng.gen_range(0..=3) {
-            0..=2 => loop {
-                let id = rng.gen_range(0..state.board.musicians().len());
-
-                // let theta = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
-                // let len = rng.gen_range(0.1..=scale);
-                // let d = Vector2D::from_angle_and_length(Angle::radians(theta), len);
-
-                let d = vec2(
-                    rng.gen_range(-scale_x..=scale_x) as f64 * grid,
-                    rng.gen_range(-scale_y..=scale_y) as f64 * grid,
-                );
-
-                let old_pos = state.board.musicians()[id].unwrap().0.to_point();
-                let new_pos = old_pos + d;
-                let new_pos = point2(
-                    new_pos.x.clamp(stage.min.x, stage.max.x),
-                    new_pos.y.clamp(stage.min.y, stage.max.y),
-                );
-
-                if new_pos == old_pos {
-                    continue;
+                match (&m1, &m2) {
+                    (
+                        Move::Change {
+                            id: id1,
+                            new_pos: new_pos1,
+                            ..
+                        },
+                        Move::Change {
+                            id: id2,
+                            new_pos: new_pos2,
+                            ..
+                        },
+                    ) => {
+                        if id1 == id2 {
+                            continue;
+                        }
+                        if new_pos1.distance_to(*new_pos2) < 10.0 {
+                            continue;
+                        }
+                    }
+                    _ => unreachable!(),
                 }
 
-                if !state.board.can_place(id, new_pos) {
-                    continue;
-                }
-
-                break Move::Change {
-                    id,
-                    new_pos,
-                    old_pos,
+                break Move::Multiple {
+                    moves: vec![m1, m2],
                 };
             },
 
-            3 => loop {
-                let i = rng.gen_range(0..self.problem.musicians.len());
-                let j = rng.gen_range(0..self.problem.musicians.len());
-                if i != j && self.problem.musicians[i] != self.problem.musicians[j] {
-                    break Move::Swap { i, j };
-                }
-            },
+            4 => Move::gen_swap(rng, &state.board),
             _ => unreachable!(),
         }
     }
@@ -596,6 +636,11 @@ impl saru::Annealer for Solver2 {
                 state.board.try_place(*i, pj).unwrap();
                 state.board.try_place(*j, pi).unwrap();
             }
+            Move::Multiple { moves } => {
+                for mov in moves {
+                    self.apply(state, mov);
+                }
+            }
         }
     }
 
@@ -607,6 +652,11 @@ impl saru::Annealer for Solver2 {
             }
             Move::Swap { .. } => {
                 self.apply(state, mov);
+            }
+            Move::Multiple { moves } => {
+                for mov in moves.iter().rev() {
+                    self.unapply(state, mov);
+                }
             }
         }
     }
@@ -631,6 +681,12 @@ fn main(
     /// specify start temperature
     #[opt(long)]
     start_temp: Option<f64>,
+    /// specify limit temerature
+    #[opt(long, default_value = "10.0")]
+    limit_temp: f64,
+    /// prune far atendees
+    #[opt(long)]
+    prune_far: Option<f64>,
     /// start from current best solution
     #[opt(
         long,
@@ -658,10 +714,45 @@ fn main(
     let client = Client::new();
 
     // let problem = get_problem_from_file(problem_id)?;
-    let problem = client.get_problem(problem_id)?;
+    let mut problem = client.get_problem(problem_id)?;
 
     eprintln!("Musicians: {}", problem.musicians.len());
     eprintln!("Atendees:  {}", problem.attendees.len());
+
+    let orig_problem = problem.clone();
+
+    if let Some(prune_dist) = prune_far {
+        let p00 = Point::new(problem.stage.min.x, problem.stage.min.y);
+        let p01 = Point::new(problem.stage.min.x, problem.stage.max.y);
+        let p10 = Point::new(problem.stage.max.x, problem.stage.min.y);
+        let p11 = Point::new(problem.stage.max.x, problem.stage.max.y);
+
+        let s1 = LineSegment { from: p00, to: p01 };
+        let s2 = LineSegment { from: p01, to: p11 };
+        let s3 = LineSegment { from: p11, to: p10 };
+        let s4 = LineSegment { from: p10, to: p00 };
+
+        let ss = vec![s1, s2, s3, s4];
+
+        let mut pruned = vec![];
+
+        for attendee in &mut problem.attendees {
+            if ss
+                .iter()
+                .any(|s| s.distance_to_point(attendee.position) < prune_dist)
+            {
+                pruned.push(attendee.clone());
+            }
+        }
+
+        eprintln!(
+            "Prune attendee : {} -> {}",
+            problem.attendees.len(),
+            pruned.len()
+        );
+
+        problem.attendees = pruned;
+    }
 
     let initial_solution: Option<Solution> = if let Some(path) = initial_solution {
         let s = std::fs::read_to_string(path)?;
@@ -686,7 +777,7 @@ fn main(
         &solver,
         &saru::AnnealingOptions {
             time_limit,
-            limit_temp: 10.0,
+            limit_temp,
             restart: 0,
             threads,
             silent: false,
@@ -694,13 +785,6 @@ fn main(
         },
         rand::thread_rng().gen(),
     );
-
-    eprintln!("Statistics:");
-    eprintln!("Problem ID:    {}", problem_id);
-    eprintln!("Score:         {}", -solution.score);
-    eprintln!("Musicians:     {}", solver.problem.musicians.len());
-    eprintln!("Atendees:      {}", solver.problem.attendees.len());
-    eprintln!("Stage area:    {}", solver.problem.stage.area());
 
     // let lx = (solver.0.stage_valid().width() / 10.0).floor();
     // let ly = (solver.stage_valid().height() / 10.0).floor();
@@ -718,6 +802,17 @@ fn main(
 
     let mut solution: Solution = state.board.try_into()?;
     solution.problem_id = problem_id;
+
+    let acc_score = common::evaluate(&orig_problem, &solution);
+
+    eprintln!("Statistics:");
+    eprintln!("Problem ID:       {}", problem_id);
+    eprintln!("Score:            {}", score);
+    eprintln!("Score (accurate): {}", acc_score);
+    eprintln!("Musicians:        {}", solver.problem.musicians.len());
+    eprintln!("Atendees:         {}", solver.problem.attendees.len());
+    eprintln!("Stage area:       {}", solver.problem.stage.area());
+
     let raw_solution = RawSolution::from(solution.clone());
 
     {
