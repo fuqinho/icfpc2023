@@ -9,11 +9,17 @@ import {
   useState,
 } from "react";
 import { Problem, Solution } from "./problems";
-import { Renderer, RenderingOption } from "./visualizer/renderer";
+import {
+  Renderer,
+  RenderingOption,
+  UpdateHoveredItemEvent,
+} from "./visualizer/renderer";
 import { EvaluationResult } from "./evaluation_result";
 import { CANVAS_SIZE, initialViewportState } from "./visualizer/viewport";
 
-export interface VisualizerElement {}
+export interface VisualizerElement {
+  onUpdateHoveredItemEvent(fn: (e: UpdateHoveredItemEvent) => void): void;
+}
 
 const Visualizer = forwardRef(function Visualizer(
   {
@@ -39,7 +45,13 @@ const Visualizer = forwardRef(function Visualizer(
   useImperativeHandle(
     ref,
     () => {
-      return {};
+      return {
+        onUpdateHoveredItemEvent(fn: (e: UpdateHoveredItemEvent) => void) {
+          canvasRef.current?.addEventListener("updateHoveredItem", (e) =>
+            fn(e as UpdateHoveredItemEvent),
+          );
+        },
+      };
     },
     [],
   );
