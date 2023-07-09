@@ -394,6 +394,8 @@ pub fn pre_process(p: &mut Problem, prune_far: Option<f64>) {
 pub fn post_process(problem_id: u32, p: &Problem, s: &mut Solution) {
     let mut board = Board::new(problem_id, p.clone(), SOLVER_NAME);
 
+    eprintln!("Post processing...");
+
     for i in 0..s.placements.len() {
         board.try_place(i, s.placements[i].position).unwrap();
     }
@@ -401,7 +403,7 @@ pub fn post_process(problem_id: u32, p: &Problem, s: &mut Solution) {
     let init_score = board.score();
 
     for iter in 1.. {
-        eprintln!("Post processing iter {iter}...");
+        let iter_score = board.score();
 
         let mut changed = false;
         for i in 0..s.placements.len() {
@@ -446,8 +448,18 @@ pub fn post_process(problem_id: u32, p: &Problem, s: &mut Solution) {
 
         if !changed {
             break;
+        } else {
+            eprintln!(
+                "Post processing iter {iter}: {iter_score} -> {} ({:+.3}%)",
+                board.score(),
+                (board.score() - iter_score) / iter_score * 100.0,
+            );
         }
     }
 
-    eprintln!("Post processed score: {init_score} -> {}", board.score());
+    eprintln!(
+        "Post processed score: {init_score} -> {} ({:+.3}%)",
+        board.score(),
+        (board.score() - init_score) / init_score * 100.0,
+    );
 }
