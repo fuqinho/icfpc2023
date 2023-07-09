@@ -156,6 +156,21 @@ func (db *DB) ListMismatchedSolutions(ctx context.Context) ([]*Solution, error) 
 	return scanSolutions(rows)
 }
 
+func (db *DB) ClearMismatchedEvaluations(ctx context.Context) error {
+	if _, err := db.raw.ExecContext(ctx, `
+	DELETE evaluations
+	FROM evaluations
+	INNER JOIN submissions USING (uuid)
+	WHERE
+	submissions.accepted AND
+	evaluations.accepted AND
+	submissions.score != evaluations.score
+	`); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (db *DB) SubmitSolution(ctx context.Context, problemID int, solutionSpec string) (string, error) {
 	// Ensure the problem exists.
 	if _, err := db.GetProblem(ctx, problemID); err != nil {

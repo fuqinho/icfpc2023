@@ -1,6 +1,6 @@
 import { EvaluationResult } from "@/components/evaluation_result";
 import { formatNumber } from "@/components/number_format";
-import { Problem } from "@/components/problems";
+import { Problem, Solution } from "@/components/problems";
 import { HoveredItem, RenderingOption } from "@/components/visualizer/renderer";
 import { orderBy } from "natural-orderby";
 import { useMemo, useState } from "react";
@@ -10,19 +10,25 @@ import { VisualizerElement } from "./Visualizer";
 function HoveredItemData({
   hoveredItem,
   problem,
+  solution,
   evalResult,
 }: {
   hoveredItem: HoveredItem;
   problem: Problem;
+  solution: Solution | null;
   evalResult: EvaluationResult | null;
 }) {
   const instrumentSize = useMemo(() => {
     return new Set(problem.musicians).size;
   }, [problem]);
   if (hoveredItem.kind === "attendee") {
+    const attendee = problem.attendees[hoveredItem.index];
     return (
       <div className="w-full">
-        <h2 className="text-xl">Hovered Item (観客 {hoveredItem.index})</h2>
+        <h2 className="text-xl">
+          Hovered Item (観客 {hoveredItem.index}, 座標 ({attendee.x},{" "}
+          {attendee.y}))
+        </h2>
 
         <div className="stats">
           {evalResult ? (
@@ -39,6 +45,7 @@ function HoveredItemData({
   }
 
   const instr = problem.musicians[hoveredItem.index];
+  const pos = solution?.placements[hoveredItem.index];
   const col = tinycolor({
     h: (instr / instrumentSize) * 360,
     s: 100,
@@ -46,7 +53,9 @@ function HoveredItemData({
   });
   return (
     <div className="w-full">
-      <h2 className="text-xl">Hovered Item (奏者 {hoveredItem.index})</h2>
+      <h2 className="text-xl">
+        Hovered Item (奏者 {hoveredItem.index}, 座標 ({pos?.x}, {pos?.y}))
+      </h2>
 
       <div className="stats">
         {evalResult ? (
@@ -343,6 +352,7 @@ function Musicians({
 function ProblemInfo({
   problem,
   evalResult,
+  solution,
   rawSolution,
   setRawSolution,
   parseError,
@@ -350,6 +360,7 @@ function ProblemInfo({
 }: {
   problem: Problem;
   evalResult: EvaluationResult | null;
+  solution: Solution | null;
   rawSolution: string;
   setRawSolution: (s: string) => void;
   parseError: any;
@@ -404,6 +415,7 @@ function ProblemInfo({
         <HoveredItemData
           hoveredItem={hoveredItem}
           problem={problem}
+          solution={solution}
           evalResult={evalResult}
         />
       ) : null}
@@ -424,6 +436,7 @@ export default function VisualizerControl({
   visualizer,
   problem,
   evalResult,
+  solution,
   option,
   setOption,
   rawSolution,
@@ -433,6 +446,7 @@ export default function VisualizerControl({
   visualizer: VisualizerElement | null;
   problem: Problem;
   evalResult: EvaluationResult | null;
+  solution: Solution | null;
   option: RenderingOption;
   setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
   rawSolution: string;
@@ -448,6 +462,7 @@ export default function VisualizerControl({
       <ProblemInfo
         problem={problem}
         evalResult={evalResult}
+        solution={solution}
         rawSolution={rawSolution}
         setRawSolution={setRawSolution}
         parseError={parseError}
@@ -467,21 +482,26 @@ export default function VisualizerControl({
             onChange={(e) => {
               if (e.target.value === "Pick one") {
                 setOption((o) => {
-                  return { ...o, tasteHeatmapInstrument: undefined };
+                  return {
+                    ...o,
+                    scoreHeatmapAttendees: undefined,
+                    tasteHeatmapAttendeesInstrument: undefined,
+                  };
                 });
               } else {
                 setOption((o) => {
                   return {
                     ...o,
-                    tasteHeatmapInstrument: parseInt(e.target.value),
+                    scoreHeatmapAttendees: undefined,
+                    tasteHeatmapAttendeesInstrument: parseInt(e.target.value),
                   };
                 });
               }
             }}
             value={
-              option.tasteHeatmapInstrument === undefined
+              option.tasteHeatmapAttendeesInstrument === undefined
                 ? "Pick one"
-                : option.tasteHeatmapInstrument
+                : option.tasteHeatmapAttendeesInstrument
             }
           >
             <option>Pick one</option>
@@ -499,7 +519,9 @@ export default function VisualizerControl({
 
         <div className="form-control w-full max-w-xs">
           <label className="label cursor-pointer">
-            <span className="label-text">奏者のスコアでヒートマップ表示</span>
+            <span className="label-text">
+              奏者の寄与スコアでヒートマップ表示
+            </span>
             <input
               type="checkbox"
               className="checkbox"
@@ -507,6 +529,25 @@ export default function VisualizerControl({
               onChange={(e) => {
                 setOption((o) => {
                   return { ...o, scoreHeatmapMusicians: e.target.checked };
+                });
+              }}
+            />
+          </label>
+          <label className="label cursor-pointer">
+            <span className="label-text">
+              観客の寄与スコアでヒートマップ表示
+            </span>
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={option.scoreHeatmapAttendees ?? false}
+              onChange={(e) => {
+                setOption((o) => {
+                  return {
+                    ...o,
+                    scoreHeatmapAttendees: e.target.checked,
+                    tasteHeatmapAttendeesInstrument: undefined,
+                  };
                 });
               }}
             />

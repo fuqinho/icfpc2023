@@ -17,8 +17,9 @@ export class UpdateHoveredItemEvent extends Event {
 }
 
 export interface RenderingOption {
-  tasteHeatmapInstrument?: number;
+  tasteHeatmapAttendeesInstrument?: number;
   scoreHeatmapMusicians?: boolean;
+  scoreHeatmapAttendees?: boolean;
 }
 
 export interface HoveredItem {
@@ -71,7 +72,7 @@ export class Renderer {
     this.vp.clear();
     this.drawRoomAndStage();
 
-    if (this.option.tasteHeatmapInstrument === undefined) {
+    if (this.option.scoreHeatmapAttendees) {
       let maxScore = 0;
       this.problem.attendees.forEach((_, i) => {
         const score = this.evalResult?.attendees.at(i)?.score!;
@@ -84,9 +85,9 @@ export class Renderer {
           maxScore,
         ),
       );
-    } else {
+    } else if (this.option.tasteHeatmapAttendeesInstrument) {
       let maxTaste = 0;
-      const instr = this.option.tasteHeatmapInstrument;
+      const instr = this.option.tasteHeatmapAttendeesInstrument;
       this.problem.attendees.forEach((a) => {
         const taste = a.tastes[instr];
         maxTaste = Math.max(maxTaste, Math.abs(taste));
@@ -95,6 +96,8 @@ export class Renderer {
       this.problem.attendees.forEach((a) =>
         this.drawAttendeeWithHeat(a, a.tastes[instr], maxTaste),
       );
+    } else {
+      this.problem.attendees.forEach((a) => this.drawAttendeeNormal(a));
     }
 
     this.problem.pillars.forEach((p) => this.drawPillar(p));
@@ -118,6 +121,7 @@ export class Renderer {
         );
       }
     }
+    this.drawHoveredItem();
     this.vp.drawCursorPos();
   }
 
@@ -137,6 +141,39 @@ export class Renderer {
       pHeight: this.problem.room_height,
       strokeStyle: "blue",
       lineWidth: 10,
+    });
+  }
+
+  private drawHoveredItem() {
+    if (!this.currentHoveredItem) {
+      return;
+    }
+
+    if (this.currentHoveredItem.kind === "attendee") {
+      const attendee = this.problem.attendees[this.currentHoveredItem.index];
+      this.vp.drawCircle({
+        pXY: [attendee.x, attendee.y],
+        cRadius: ATTENDEE_RADIUS,
+        lineWidth: 10,
+        strokeStyle: "green",
+      });
+    } else if (this.currentHoveredItem.kind === "musician") {
+      const musician =
+        this.solution?.placements[this.currentHoveredItem.index]!;
+      this.vp.drawCircle({
+        pXY: [musician.x, musician.y],
+        pRadius: MUSICIAN_RADIUS,
+        lineWidth: 10,
+        strokeStyle: "green",
+      });
+    }
+  }
+
+  private drawAttendeeNormal(attendee: Attendee) {
+    this.vp.drawCircle({
+      pXY: [attendee.x, attendee.y],
+      cRadius: ATTENDEE_RADIUS,
+      fillStyle: "red",
     });
   }
 
