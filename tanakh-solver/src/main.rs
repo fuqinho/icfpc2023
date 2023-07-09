@@ -95,7 +95,7 @@ fn main(
         threads,
         if initial_solution.is_some() {
             ",w/init"
-        } else if from_current_best {
+        } else if from_current_best || from_recent {
             "/cont"
         } else {
             ""
