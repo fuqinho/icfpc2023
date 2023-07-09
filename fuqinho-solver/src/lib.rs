@@ -9,7 +9,7 @@ use thousands::Separable;
 
 const SOLVER_NAME: &str = "fuqinho-solver";
 const NUM_THREADS: usize = 32;
-const BEAM_WIDTH: usize = 100;
+const BEAM_WIDTH: usize = 32;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CandidatePos {
@@ -21,6 +21,7 @@ pub struct CandidatePos {
 struct Config {
     //rng: ThreadRng,
     locations: Vec<CandidatePos>,
+    num_instruments: usize,
 }
 
 #[allow(dead_code)]
@@ -45,13 +46,27 @@ struct Move {
 
 #[allow(dead_code)]
 impl State {
-    fn pick_random_avail_musician(&self, config: &Config, rng: &mut ThreadRng) -> usize {
+    fn pick_random_avail_musician(&self, _config: &Config, rng: &mut ThreadRng) -> usize {
         loop {
             let musician = rng.gen_range(0..self.board.prob.musicians.len());
             if !self.placed[musician] {
                 return musician;
             }
         }
+    }
+
+    fn pick_avail_musician_with_inst(
+        &self,
+        _config: &Config,
+        inst: usize,
+        _rng: &mut ThreadRng,
+    ) -> Option<usize> {
+        for m in 0..self.board.prob.musicians.len() {
+            if self.board.prob.musicians[m] == inst && !self.placed[m] {
+                return Some(m);
+            }
+        }
+        None
     }
 
     fn pick_random_avail_location(&self, config: &Config, rng: &mut ThreadRng) -> usize {
@@ -87,7 +102,7 @@ pub fn generate_line_points(start_x: f64, end_x: f64, y: f64, vertical: bool) ->
 
 pub fn generate_grid_points(problem: &Problem) -> Vec<CandidatePos> {
     let mut result = vec![];
-    for iteration in 0..2 {
+    for iteration in 0..5 {
         let min_x = problem.stage.min.x + 10.0 + 10.0 * iteration as f64;
         let max_x = problem.stage.max.x - 10.0 - 10.0 * iteration as f64;
         let min_y = problem.stage.min.y + 10.0 + 10.0 * iteration as f64;
@@ -116,6 +131,9 @@ pub fn generate_grid_points(problem: &Problem) -> Vec<CandidatePos> {
             let x = min_x;
             result.append(&mut generate_line_points(sy, ey, x, true));
         }
+        if iteration >= 3 && result.len() > problem.musicians.len() * 5 / 4 {
+            break;
+        }
     }
 
     result
@@ -125,8 +143,9 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
     // 1. Generate candidate grid points.
     let grid_points = generate_grid_points(problem);
 
-    let mut config = Config {
+    let config = Config {
         locations: grid_points,
+        num_instruments: (*problem.musicians.iter().max().unwrap() + 1) as usize,
     };
     let initial_state = State {
         index: 0,
@@ -157,28 +176,31 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
                     for b in range {
                         let state = &beam[b];
                         let mut board = state.board.clone();
-                        for _ in 0..5 {
+                        for inst in 0..config.num_instruments {
                             // Pick a musician to place.
-                            let m = state.pick_random_avail_musician(&config, &mut rng);
-                            let instrument = problem.musicians[m];
+                            //
+                            //let m = state.pick_random_avail_musician(&config, &mut rng);
+                            let mo = state.pick_avail_musician_with_inst(&config, inst, &mut rng);
 
-                            // Pick a location to place.
-                            for i in 0..state.placements.len() {
-                                if state.placements[i] != u16::MAX {
-                                    continue;
+                            if let Some(m) = mo {
+                                // Pick a location to place.
+                                for i in 0..state.placements.len() {
+                                    if state.placements[i] != u16::MAX {
+                                        continue;
+                                    }
+
+                                    board.try_place(m, config.locations[i].pos).unwrap();
+                                    let score = -board.score() as i64;
+                                    board.unplace(m);
+
+                                    moves.push(Move {
+                                        score,
+                                        musician: m,
+                                        instrument: inst,
+                                        location: i,
+                                        from: state.index,
+                                    });
                                 }
-
-                                board.try_place(m, config.locations[i].pos).unwrap();
-                                let score = -board.score() as i64;
-                                board.unplace(m);
-
-                                moves.push(Move {
-                                    score,
-                                    musician: m,
-                                    instrument,
-                                    location: i,
-                                    from: state.index,
-                                });
                             }
                         }
                     }
@@ -188,8 +210,7 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
             }
 
             for t in tasks {
-                let mut moves = t.join().unwrap();
-                for m in moves {
+                for m in t.join().unwrap() {
                     next_moves.push(m);
                 }
             }
