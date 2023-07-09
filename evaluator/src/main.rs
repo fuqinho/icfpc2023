@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Result};
 use clap::Parser;
-use common::{board::Board, evaluate, evaluate_musician, Problem, RawSolution, Solution};
+use common::{board::Board, evaluate, Problem, RawSolution, Solution};
 
 #[derive(Parser, Debug)]
 struct Args {

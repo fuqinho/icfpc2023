@@ -1,9 +1,18 @@
+#![allow(
+    dead_code,
+    unused_imports,
+    unused_variables,
+    clippy::needless_range_loop
+)]
+
 mod solver;
 
 use anyhow::Result;
 use common::{api::Client, evaluate, Solution};
 
 use crate::solver::Solver;
+
+// use crate::solver::Solver;
 
 #[argopt::cmd]
 fn main(problem_id: u32, #[opt(short, long, default_value = "")] out: String) -> Result<()> {
@@ -18,7 +27,7 @@ fn main(problem_id: u32, #[opt(short, long, default_value = "")] out: String) ->
 
     let mut solver = Solver::new(problem_id, problem.clone());
 
-    let (score, board) = solver.solve(algo);
+    let (score, board) = solver.solve();
 
     let solution: Solution = board.try_into().unwrap();
 

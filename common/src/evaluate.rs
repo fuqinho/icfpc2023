@@ -352,6 +352,7 @@ mod tests {
 
     // slow
     // #[test]
+    #[allow(dead_code)]
     fn test_evaluate_with_real_problems() {
         for (problem_id, expected_score) in [(2, 1458765625), (64, 93147223)] {
             let problem =
