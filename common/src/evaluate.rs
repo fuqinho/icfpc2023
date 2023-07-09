@@ -63,9 +63,9 @@ pub fn create_q_vector(musicians: &[usize], solution: &Solution) -> Vec<f64> {
 
 // Calculate the score of (attendee, musician) pair.
 fn evaluate_unit(
-    _a: usize,  // index of the target attendee.
+    _a: usize, // index of the target attendee.
     attendee: &Attendee,
-    m: usize,  // index of the target musician,
+    m: usize, // index of the target musician,
     instrument: usize,
     placements: &[Placement],
     pillars: &[Pillar],
@@ -95,7 +95,15 @@ fn evaluate_attendee(
     let mut score = 0f64;
     for (m, instrument) in musicians.iter().enumerate() {
         score += evaluate_unit(
-            ai, attendee, m, *instrument, &solution.placements, pillars, solution.volumes[m], q[m]);
+            ai,
+            attendee,
+            m,
+            *instrument,
+            &solution.placements,
+            pillars,
+            solution.volumes[m],
+            q[m],
+        );
     }
     score
 }
