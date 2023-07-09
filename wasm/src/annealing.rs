@@ -5,8 +5,6 @@ use wasm_bindgen::prelude::*;
 
 use crate::{ProblemHandle, SolutionHandle};
 
-const SOLVER_NAME: &str = "manual-annealer";
-
 struct Solver2<'a> {
     problem_id: u32,
     problem: &'a Problem,
@@ -104,7 +102,7 @@ impl saru::Annealer for Solver2<'_> {
     type Move = Move;
 
     fn init_state(&self, _rng: &mut impl Rng) -> Self::State {
-        let mut board = Board::new(self.problem_id, self.problem.clone(), SOLVER_NAME);
+        let mut board = Board::new(self.problem_id, self.problem.clone(), "");
 
         for (i, p) in self.initial_solution.placements.iter().enumerate() {
             board.try_place(i, p.position).unwrap();
@@ -251,5 +249,11 @@ pub fn perform_annealing(
         seed,
     );
 
-    result.solution.expect("Valid solution not found").into()
+    let mut solution = result.solution.expect("Valid solution not found");
+    solution.solver = initial_solution.real.solver.clone();
+    if !solution.solver.ends_with("+anneal") {
+        solution.solver = format!("{}+anneal", solution.solver);
+    }
+
+    solution.into()
 }
