@@ -98,14 +98,15 @@ fn evaluate_attendee(
     score
 }
 
-pub fn evaluate_musician(
+fn evaluate_musician_internal(
     m: usize,
     attendees: &Vec<Attendee>,
     musicians: &[usize],
     pillars: &[Pillar],
     solution: &Solution,
+    volume: f64,
+    q: &[f64],
 ) -> f64 {
-    let q = create_q_vector(musicians, solution);
     let mut score = 0.;
     let pm = solution.placements[m].position;
     for attendee in attendees.iter() {
@@ -122,6 +123,25 @@ pub fn evaluate_musician(
     score
 }
 
+pub fn evaluate_musician(
+    m: usize,
+    attendees: &Vec<Attendee>,
+    musicians: &[usize],
+    pillars: &[Pillar],
+    solution: &Solution,
+) -> f64 {
+    let q = create_q_vector(musicians, solution);
+    evaluate_musician_internal(
+        m,
+        attendees,
+        musicians,
+        pillars,
+        solution,
+        solution.volumes[m],
+        &q,
+    )
+}
+
 pub fn evaluate(problem: &Problem, solution: &Solution) -> f64 {
     problem
         .attendees
@@ -131,6 +151,35 @@ pub fn evaluate(problem: &Problem, solution: &Solution) -> f64 {
             evaluate_attendee(ai, attendee, &problem.musicians, &problem.pillars, solution)
         })
         .sum()
+}
+
+pub fn fixup_volumes(problem: &Problem, solution: &Solution) -> Solution {
+    let q = create_q_vector(&problem.musicians, solution);
+
+    let mut volumes = vec![];
+    for m in 0..solution.placements.len() {
+        let volume = if evaluate_musician_internal(
+            m,
+            &problem.attendees,
+            &problem.musicians,
+            &problem.pillars,
+            solution,
+            1.,
+            &q,
+        ) > 0.
+        {
+            10.
+        } else {
+            0.
+        };
+        volumes.push(volume);
+    }
+    Solution {
+        problem_id: solution.problem_id,
+        solver: solution.solver.clone(),
+        placements: solution.placements.clone(),
+        volumes,
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
