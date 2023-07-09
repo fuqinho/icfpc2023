@@ -26,9 +26,7 @@ fn main() -> Result<()> {
     if !args.solution.is_file() {
         bail!("File not found:{}", args.solution.display());
     }
-    let solution_str = std::fs::read_to_string(args.solution)?;
-    let solution_raw = RawSolution::from_json(&solution_str)?;
-    let solution = Solution::from(solution_raw);
+    let solution = Solution::read_from_file(args.solution)?;
 
     println!("score = {}", evaluate(&problem, &solution));
     // Evaluate by board

@@ -15,6 +15,7 @@ import { EvaluationResult } from "@/components/evaluation_result";
 import VisualizerControl from "@/components/VisualizerControl";
 import clsx from "clsx";
 import Link from "next/link";
+import VisualizerAnnealer from "@/components/VisualizerAnnealer";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -151,14 +152,21 @@ export default function Home({ params }: { params: { problemId: string } }) {
 
         <div>
           <div className="flex">
-            <Visualizer
-              ref={visualizer}
-              problem={problem}
-              solution={solution}
-              evalResult={evalResult}
-              option={option}
-              className="w-[800px] h-[800px] m-4 border border-slate-200"
-            />
+            <div>
+              <Visualizer
+                ref={visualizer}
+                problem={problem}
+                solution={solution}
+                evalResult={evalResult}
+                option={option}
+                className="w-[800px] h-[800px] m-4 border border-slate-200"
+              />
+              <VisualizerAnnealer
+                problem={problem}
+                solution={solution}
+                setRawSolution={parseAndSetSolution}
+              />
+            </div>
             <VisualizerControl
               visualizer={visualizer.current}
               problem={problem}
