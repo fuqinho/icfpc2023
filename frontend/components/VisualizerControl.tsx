@@ -276,28 +276,56 @@ function Musicians({
 function ProblemInfo({
   problem,
   evalResult,
+  rawSolution,
+  setRawSolution,
+  parseError,
 }: {
   problem: Problem;
   evalResult: EvaluationResult | null;
+  rawSolution: string;
+  setRawSolution: (s: string) => void;
+  parseError: any;
 }) {
   return (
     <div className="overflow-x-auto space-y-4">
-      <div className="flex">
-        <div className="stats">
-          <div className="stat">
-            <div className="stat-title">観客</div>
-            <div className="stat-value">
-              {formatNumber(problem.attendees.length)}
-            </div>
+      <div className="stats">
+        <div className="stat">
+          <div className="stat-title">観客</div>
+          <div className="stat-value">
+            {formatNumber(problem.attendees.length)}
           </div>
-          {evalResult ? (
-            <div className="stat">
-              <div className="stat-title">スコア</div>
-              <div className="stat-value">{formatNumber(evalResult.score)}</div>
-            </div>
-          ) : null}
+        </div>
+        {evalResult ? (
+          <div className="stat">
+            <div className="stat-title">スコア</div>
+            <div className="stat-value">{formatNumber(evalResult.score)}</div>
+          </div>
+        ) : null}
+        <div className="stat">
+          <div className="stat-title">解答</div>
+          <div className="stat-value">
+            <textarea
+              placeholder="Solution"
+              className="textarea textarea-bordered font-mono"
+              onChange={(e) => setRawSolution(e.target.value)}
+              value={rawSolution}
+            ></textarea>
+          </div>
+          <div className="stat-actions">
+            <button
+              className="btn btn-xs"
+              onClick={async () => {
+                setRawSolution(await navigator.clipboard.readText());
+              }}
+            >
+              クリップボードからコピー
+            </button>
+          </div>
         </div>
       </div>
+      <pre>
+        <code>{parseError ? `${parseError}` : null}</code>
+      </pre>
       <div className="flex">
         <div className="w-1/2">
           <Instruments problem={problem} evalResult={evalResult} />
@@ -317,12 +345,18 @@ export default function VisualizerControl({
   evalResult,
   option,
   setOption,
+  rawSolution,
+  setRawSolution,
+  parseError,
 }: {
   visualizer: VisualizerElement | null;
   problem: Problem;
   evalResult: EvaluationResult | null;
   option: RenderingOption;
   setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
+  rawSolution: string;
+  setRawSolution: (s: string) => void;
+  parseError: any;
 }) {
   const instruments = Array.from(new Set(problem.musicians)).sort(
     (a, b) => a - b,
@@ -330,7 +364,13 @@ export default function VisualizerControl({
 
   return (
     <div className="w-full">
-      <ProblemInfo problem={problem} evalResult={evalResult} />
+      <ProblemInfo
+        problem={problem}
+        evalResult={evalResult}
+        rawSolution={rawSolution}
+        setRawSolution={setRawSolution}
+        parseError={parseError}
+      />
 
       <div className="divider"></div>
 
