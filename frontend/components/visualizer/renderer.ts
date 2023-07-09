@@ -100,13 +100,13 @@ export class Renderer {
       } else {
         let maxScore = 0;
         this.problem.attendees.forEach((_, i) => {
-          const score = this.evalResult?.attendees.at(i)?.score!;
+          const score = this.evalResult?.attendees.at(i)!;
           maxScore = Math.max(maxScore, Math.abs(score));
         });
         this.problem.attendees.forEach((a, i) =>
           this.drawAttendeeWithHeat(
             a,
-            this.evalResult?.attendees.at(i)?.score!,
+            this.evalResult?.attendees.at(i)!,
             maxScore,
           ),
         );
@@ -145,13 +145,13 @@ export class Renderer {
         } else {
           let maxScore = 0;
           this.solution.placements.forEach((_, i) => {
-            const score = this.evalResult?.musicians.at(i)?.score!;
+            const score = this.evalResult?.musicians.at(i)!;
             maxScore = Math.max(maxScore, Math.abs(score));
           });
           this.solution.placements.forEach((m, i) =>
             this.drawMusicianWithHeat(
               m,
-              this.evalResult?.musicians.at(i)?.score!,
+              this.evalResult?.musicians.at(i)!,
               maxScore,
             ),
           );

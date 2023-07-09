@@ -17,6 +17,7 @@ pub fn perform_annealing(
         start_temp: Some(temp),
         better_initial: false,
         initial_solution: Some(&initial_solution.real),
+        taste: None,
     };
 
     let result = saru::annealing(
