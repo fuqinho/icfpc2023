@@ -4,6 +4,8 @@ use lyon_geom::Point;
 
 use crate::{geom::tangent_to_circle, Placement, Problem, Solution};
 
+use anyhow::Result;
+
 type P = Vector2D<f64, euclid::UnknownUnit>;
 
 const MUSICIAN_R: f64 = 5.;
@@ -93,6 +95,41 @@ impl Board {
             res += self.impact_if_kind(m, a, ins);
         }
         res
+    }
+
+    pub fn score_increase_if_put_musician_on(&mut self, m: usize, p: Point<f64>) -> Result<f64> {
+        let prev_score = self.score();
+
+        self.try_place(m, p)?;
+
+        let res = self.score() - prev_score;
+
+        self.unplace(m);
+
+        Ok(res)
+    }
+
+    pub fn score_increase_if_put_instrument_on(
+        &mut self,
+        ins: usize,
+        p: Point<f64>,
+    ) -> Result<f64> {
+        let m = self
+            .available_musician_with_instrument(ins)
+            .ok_or_else(|| anyhow::anyhow!("no musician with instrument {} available", ins))?;
+        self.score_increase_if_put_musician_on(m, p)
+    }
+
+    pub fn available_musician_with_instrument(&self, ins: usize) -> Option<usize> {
+        for (i, m) in self.musicians().iter().enumerate() {
+            if m.is_none() {
+                continue;
+            }
+            if self.prob.musicians[i] == ins {
+                return Some(i);
+            }
+        }
+        None
     }
 
     pub fn try_place(&mut self, i: usize, position: Point<f64>) -> anyhow::Result<()> {
