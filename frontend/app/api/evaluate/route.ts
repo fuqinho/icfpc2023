@@ -13,6 +13,8 @@ export async function POST(request: NextRequest) {
   const evalResult = wasm.Evaluator.from_json(
     JSON.stringify(problem),
     JSON.stringify(solution),
+    "",
+    0,
   );
   return NextResponse.json(JSON.parse(evalResult));
 }

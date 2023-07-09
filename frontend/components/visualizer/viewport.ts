@@ -96,11 +96,13 @@ export class Viewport {
     if (!this.cCursor) {
       return undefined;
     }
+    const center = [
+      this.state.pVpCenter[0] - this.toProblemScale(this.cVpCenterTempMove[0]),
+      this.state.pVpCenter[1] + this.toProblemScale(this.cVpCenterTempMove[1]),
+    ];
     return [
-      this.state.pVpCenter[0] -
-        this.state.pVpSize / 2 +
-        this.toProblemScale(this.cCursor[0]),
-      this.state.pVpCenter[1] -
+      center[0] - this.state.pVpSize / 2 + this.toProblemScale(this.cCursor[0]),
+      center[1] -
         this.state.pVpSize / 2 +
         this.toProblemScale(CANVAS_SIZE - this.cCursor[1]),
     ];

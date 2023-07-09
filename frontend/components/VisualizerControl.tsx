@@ -8,11 +8,13 @@ import tinycolor from "tinycolor2";
 import { VisualizerElement } from "./Visualizer";
 
 function HoveredItemData({
+  lockedItem,
   hoveredItem,
   problem,
   solution,
   evalResult,
 }: {
+  lockedItem?: HoveredItem;
   hoveredItem: HoveredItem;
   problem: Problem;
   solution: Solution | null;
@@ -22,6 +24,7 @@ function HoveredItemData({
     return new Set(problem.musicians).size;
   }, [problem]);
   if (hoveredItem.kind === "attendee") {
+    const showDetailedScore = lockedItem?.kind === "musician";
     const attendee = problem.attendees[hoveredItem.index];
     return (
       <div className="w-full">
@@ -39,11 +42,20 @@ function HoveredItemData({
               </div>
             </div>
           ) : null}
+          {showDetailedScore && evalResult ? (
+            <div className="stat">
+              <div className="stat-title">Locked Item からのスコア</div>
+              <div className="stat-value">
+                {formatNumber(evalResult.detailed_attendees[hoveredItem.index])}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     );
   }
 
+  const showDetailedScore = lockedItem?.kind === "attendee";
   const instr = problem.musicians[hoveredItem.index];
   const pos = solution?.placements[hoveredItem.index];
   const col = tinycolor({
@@ -71,7 +83,104 @@ function HoveredItemData({
           <div className="stat-value">
             {instr}
             <div
-              className="w-32"
+              className="w-16"
+              style={{ backgroundColor: col.toHex8String() }}
+            >
+              &nbsp;
+            </div>
+          </div>
+        </div>
+        {showDetailedScore && evalResult ? (
+          <div className="stat">
+            <div className="stat-title">Locked Item へのスコア</div>
+            <div className="stat-value">
+              {formatNumber(evalResult.detailed_musicians[hoveredItem.index])}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function LockedItemData({
+  hoveredItem,
+  problem,
+  solution,
+  evalResult,
+  setOption,
+}: {
+  hoveredItem: HoveredItem;
+  problem: Problem;
+  solution: Solution | null;
+  evalResult: EvaluationResult | null;
+  setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
+}) {
+  const instrumentSize = useMemo(() => {
+    return new Set(problem.musicians).size;
+  }, [problem]);
+  const unlock = () =>
+    setOption((o) => {
+      return { ...o, lockedItem: undefined };
+    });
+
+  if (hoveredItem.kind === "attendee") {
+    const attendee = problem.attendees[hoveredItem.index];
+    return (
+      <div className="w-full">
+        <h2 className="text-xl">
+          Locked Item (観客 {hoveredItem.index}, 座標 ({attendee.x},{" "}
+          {attendee.y}))
+          <button className="btn btn-sm ml-2" onClick={unlock}>
+            Unlock
+          </button>
+        </h2>
+
+        <div className="stats">
+          {evalResult ? (
+            <div className="stat">
+              <div className="stat-title">スコア</div>
+              <div className="stat-value">
+                {formatNumber(evalResult.attendees[hoveredItem.index].score)}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  const instr = problem.musicians[hoveredItem.index];
+  const pos = solution?.placements[hoveredItem.index];
+  const col = tinycolor({
+    h: (instr / instrumentSize) * 360,
+    s: 100,
+    v: 100,
+  });
+  return (
+    <div className="w-full">
+      <h2 className="text-xl">
+        Locked Item (奏者 {hoveredItem.index}, 座標 ({pos?.x}, {pos?.y}))
+        <button className="btn btn-sm ml-2" onClick={unlock}>
+          Unlock
+        </button>
+      </h2>
+
+      <div className="stats">
+        {evalResult ? (
+          <div className="stat">
+            <div className="stat-title">スコア</div>
+            <div className="stat-value">
+              {formatNumber(evalResult.musicians[hoveredItem.index].score)}
+            </div>
+          </div>
+        ) : null}
+        <div className="stat">
+          <div className="stat-title">楽器</div>
+          <div className="stat-value">
+            {instr}
+            <div
+              className="w-16"
               style={{ backgroundColor: col.toHex8String() }}
             >
               &nbsp;
@@ -178,7 +287,7 @@ function Instruments({
               <tr key={instr}>
                 <td className="w-8">{instr} </td>
                 <td
-                  className="w-32"
+                  className="w-16"
                   style={{ backgroundColor: col.toHex8String() }}
                 >
                   &nbsp;
@@ -307,7 +416,7 @@ function Musicians({
                 <td className="w-8">{m}</td>
                 <td className="w-8">{instr}</td>
                 <td
-                  className="w-32"
+                  className="w-16"
                   style={{ backgroundColor: col.toHex8String() }}
                 >
                   &nbsp;
@@ -357,6 +466,8 @@ function ProblemInfo({
   setRawSolution,
   parseError,
   visualizer,
+  option,
+  setOption,
 }: {
   problem: Problem;
   evalResult: EvaluationResult | null;
@@ -365,11 +476,30 @@ function ProblemInfo({
   setRawSolution: (s: string) => void;
   parseError: any;
   visualizer: VisualizerElement | null;
+  option: RenderingOption;
+  setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
 }) {
   const [hoveredItem, setHoveredItem] = useState<HoveredItem | undefined>(
     undefined,
   );
   visualizer?.onUpdateHoveredItemEvent((e) => setHoveredItem(e.hoveredItem));
+  visualizer?.onClickHoveredItemEvent((e) => {
+    setOption((o) => {
+      if (
+        o.lockedItem?.index === e.hoveredItem.index &&
+        o.lockedItem?.kind === e.hoveredItem.kind
+      ) {
+        return {
+          ...o,
+          lockedItem: undefined,
+        };
+      }
+      return {
+        ...o,
+        lockedItem: e.hoveredItem,
+      };
+    });
+  });
 
   return (
     <div className="overflow-x-auto space-y-4">
@@ -411,8 +541,18 @@ function ProblemInfo({
       <pre>
         <code>{parseError ? `${parseError}` : null}</code>
       </pre>
+      {option.lockedItem ? (
+        <LockedItemData
+          hoveredItem={option.lockedItem}
+          problem={problem}
+          solution={solution}
+          evalResult={evalResult}
+          setOption={setOption}
+        />
+      ) : null}
       {hoveredItem ? (
         <HoveredItemData
+          lockedItem={option.lockedItem}
           hoveredItem={hoveredItem}
           problem={problem}
           solution={solution}
@@ -467,6 +607,8 @@ export default function VisualizerControl({
         setRawSolution={setRawSolution}
         parseError={parseError}
         visualizer={visualizer}
+        option={option}
+        setOption={setOption}
       />
 
       <div className="divider"></div>
@@ -484,24 +626,26 @@ export default function VisualizerControl({
                 setOption((o) => {
                   return {
                     ...o,
-                    scoreHeatmapAttendees: undefined,
-                    tasteHeatmapAttendeesInstrument: undefined,
+                    attendeeHeatmapByScore: undefined,
+                    attendeeHeatmapByTasteWithThisInstrument: undefined,
                   };
                 });
               } else {
                 setOption((o) => {
                   return {
                     ...o,
-                    scoreHeatmapAttendees: undefined,
-                    tasteHeatmapAttendeesInstrument: parseInt(e.target.value),
+                    attendeeHeatmapByScore: undefined,
+                    attendeeHeatmapByTasteWithThisInstrument: parseInt(
+                      e.target.value,
+                    ),
                   };
                 });
               }
             }}
             value={
-              option.tasteHeatmapAttendeesInstrument === undefined
+              option.attendeeHeatmapByTasteWithThisInstrument === undefined
                 ? "Pick one"
-                : option.tasteHeatmapAttendeesInstrument
+                : option.attendeeHeatmapByTasteWithThisInstrument
             }
           >
             <option>Pick one</option>
@@ -525,10 +669,10 @@ export default function VisualizerControl({
             <input
               type="checkbox"
               className="checkbox"
-              checked={option.scoreHeatmapMusicians ?? false}
+              checked={option.musicianHeatmapByScore ?? false}
               onChange={(e) => {
                 setOption((o) => {
-                  return { ...o, scoreHeatmapMusicians: e.target.checked };
+                  return { ...o, musicianHeatmapByScore: e.target.checked };
                 });
               }}
             />
@@ -540,13 +684,13 @@ export default function VisualizerControl({
             <input
               type="checkbox"
               className="checkbox"
-              checked={option.scoreHeatmapAttendees ?? false}
+              checked={option.attendeeHeatmapByScore ?? false}
               onChange={(e) => {
                 setOption((o) => {
                   return {
                     ...o,
-                    scoreHeatmapAttendees: e.target.checked,
-                    tasteHeatmapAttendeesInstrument: undefined,
+                    attendeeHeatmapByScore: e.target.checked,
+                    attendeeHeatmapByTasteWithThisInstrument: undefined,
                   };
                 });
               }}
