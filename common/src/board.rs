@@ -76,7 +76,7 @@ impl Board {
 
     pub fn score(&self) -> f64 {
         let mut res = 0.;
-        for m in 0..self.usicians().len() {
+        for m in 0..self.musicians().len() {
             res += (self.volumes[m] * self.qs[m] * self.impacts[m]).ceil();
         }
         res
@@ -422,7 +422,7 @@ impl Board {
             problem_id: self.problem_id,
             solver: self.solver.clone(),
             placements,
-            volumes: vec![1.; self.prob.musicians.len()],
+            volumes: self.volumes.clone(),
         })
     }
 }
