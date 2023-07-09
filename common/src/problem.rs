@@ -67,6 +67,7 @@ pub struct RawAttendee {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct RawSolution {
     pub problem_id: u32,
+    #[serde(default)]
     pub solver: String,
     pub placements: Vec<RawPlacement>,
 }
