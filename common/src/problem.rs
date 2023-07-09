@@ -99,6 +99,13 @@ impl Problem {
 }
 
 impl Solution {
+    pub fn read_from_file<P: AsRef<Path>>(path: P) -> Result<Solution> {
+        let content = std::fs::read_to_string(path)?;
+        Ok(Solution::from(serde_json::from_str::<RawSolution>(
+            &content,
+        )?))
+    }
+
     pub fn write_to_file<P: AsRef<Path>>(path: P, solution: Solution) -> Result<()> {
         let raw = RawSolution::from(solution);
         let s = serde_json::to_string(&raw)?;

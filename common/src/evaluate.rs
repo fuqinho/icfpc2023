@@ -17,7 +17,7 @@ pub fn is_blocked(attendee: &Attendee, placement: &Placement, placements: &[Plac
         if blocker.position == placement.position {
             continue;
         }
-        if segment.square_distance_to_point(blocker.position) <= 25. {
+        if segment.square_distance_to_point(blocker.position) < 25. {
             return true;
         }
     }
@@ -34,7 +34,7 @@ fn is_blocked_internal(
         if i == current_index {
             continue;
         }
-        if seg.distance_to_point(blocker.position) <= 5. {
+        if seg.distance_to_point(blocker.position) < 5. {
             return true;
         }
     }
@@ -284,4 +284,24 @@ pub fn estimate(problem_id: u32, problem: &Problem) -> (f64, Solution) {
     };
     let score = evaluate(problem, &solution);
     (score, solution)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{evaluate, Problem, Solution};
+
+    #[test]
+    fn test_evaluate_with_problem2() {
+        let problem_id = 2;
+
+        let problem = Problem::read_from_file(format!("../problems/{}.json", problem_id)).unwrap();
+
+        let expected_score = 1458765625;
+        let solution =
+            Solution::read_from_file(format!("testcases/p2_{}.json", expected_score)).unwrap();
+
+        let score = evaluate(&problem, &solution);
+
+        assert_eq!(score as i32, expected_score);
+    }
 }
