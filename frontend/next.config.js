@@ -8,11 +8,12 @@ const nextConfig = {
     config.experiments.asyncWebAssembly = true;
 
     // https://github.com/vercel/next.js/issues/25852
-    config.optimization.moduleIds = 'named';
+    config.optimization.moduleIds = "named";
     if (options.isServer) {
-        config.output.webassemblyModuleFilename = './../static/wasm/[modulehash].wasm';
+      config.output.webassemblyModuleFilename =
+        "./../static/wasm/[modulehash].wasm";
     } else {
-        config.output.webassemblyModuleFilename = 'static/wasm/[modulehash].wasm';
+      config.output.webassemblyModuleFilename = "static/wasm/[modulehash].wasm";
     }
 
     config.plugins.push(
