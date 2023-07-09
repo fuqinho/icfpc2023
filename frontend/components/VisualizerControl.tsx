@@ -25,7 +25,10 @@ function HoveredItemData({
   }, [problem]);
   if (hoveredItem.kind === "attendee") {
     const showDetailedScore = lockedItem?.kind === "musician";
+    const lockedInstr =
+      lockedItem?.kind === "musician" ? problem.musicians[lockedItem.index] : 0;
     const attendee = problem.attendees[hoveredItem.index];
+    const taste = showDetailedScore ? attendee.tastes[lockedInstr] : 0;
     return (
       <div className="w-full">
         <h2 className="text-xl">
@@ -50,6 +53,12 @@ function HoveredItemData({
               </div>
             </div>
           ) : null}
+          {showDetailedScore && evalResult ? (
+            <div className="stat">
+              <div className="stat-title">Locked Item のTaste</div>
+              <div className="stat-value">{taste}</div>
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -57,6 +66,9 @@ function HoveredItemData({
 
   const showDetailedScore = lockedItem?.kind === "attendee";
   const instr = problem.musicians[hoveredItem.index];
+  const taste = showDetailedScore
+    ? problem.attendees[lockedItem.index].tastes[instr]
+    : 0;
   const pos = solution?.placements[hoveredItem.index];
   const col = tinycolor({
     h: (instr / instrumentSize) * 360,
@@ -96,6 +108,12 @@ function HoveredItemData({
             <div className="stat-value">
               {formatNumber(evalResult.detailed_musicians[hoveredItem.index])}
             </div>
+          </div>
+        ) : null}
+        {showDetailedScore && evalResult ? (
+          <div className="stat">
+            <div className="stat-title">Locked Item のTaste</div>
+            <div className="stat-value">{taste}</div>
           </div>
         ) : null}
       </div>
@@ -195,12 +213,16 @@ function LockedItemData({
 function Instruments({
   problem,
   evalResult,
+  option,
 }: {
   problem: Problem;
   evalResult: EvaluationResult | null;
+  option: RenderingOption;
 }) {
   const [instrumentsPage, setInstrumentsPage] = useState(1);
   const [order, setOrder] = useState("by-instr");
+  const hasLockedItem = option.lockedItem?.kind === "musician";
+
   const instruments = useMemo(() => {
     const instruments = new Map<number, number[]>();
     for (let i = 0; i < problem.musicians.length; i++) {
@@ -246,6 +268,24 @@ function Instruments({
         ["asc", "asc"],
       );
       break;
+    case "by-locked-score-desc":
+      if (hasLockedItem) {
+        instrumentsKeys = orderBy(
+          instrumentsKeys,
+          [(v) => evalResult?.detailed_instruments?.at(v), (v) => v],
+          ["desc", "asc"],
+        );
+      }
+      break;
+    case "by-locked-score-asc":
+      if (hasLockedItem) {
+        instrumentsKeys = orderBy(
+          instrumentsKeys,
+          [(v) => evalResult?.detailed_instruments?.at(v), (v) => v],
+          ["asc", "asc"],
+        );
+      }
+      break;
   }
 
   const instrumentsCurrentPage = instrumentsKeys.slice(
@@ -266,6 +306,12 @@ function Instruments({
         <option value="by-num-musicians-asc">奏者が少ない順</option>
         <option value="by-score-desc">スコアの高い順</option>
         <option value="by-score-asc">スコアの低い順</option>
+        {hasLockedItem ? (
+          <>
+            <option value="by-locked-score-desc">Lockedスコアの高い順</option>
+            <option value="by-locked-score-asc">Lockedスコアの低い順</option>
+          </>
+        ) : null}
       </select>
       <table className="table w-auto">
         <thead>
@@ -274,6 +320,7 @@ function Instruments({
             <th></th>
             <th>奏者の人数</th>
             <th>スコア</th>
+            {hasLockedItem ? <th>Lockedスコア</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -296,6 +343,11 @@ function Instruments({
                 <td className="font-mono text-right">
                   {formatNumber(evalResult?.instruments.at(instr)?.score)}
                 </td>
+                {hasLockedItem ? (
+                  <td className="font-mono text-right">
+                    {formatNumber(evalResult?.detailed_instruments.at(instr))}
+                  </td>
+                ) : null}
               </tr>
             );
           })}
@@ -333,12 +385,15 @@ function Instruments({
 function Musicians({
   problem,
   evalResult,
+  option,
 }: {
   problem: Problem;
   evalResult: EvaluationResult | null;
+  option: RenderingOption;
 }) {
   const [page, setPage] = useState(1);
   const [order, setOrder] = useState("by-musician");
+  const hasLockedItem = option.lockedItem?.kind === "attendee";
 
   const instruments = useMemo(() => {
     const instruments = new Map<number, number[]>();
@@ -378,6 +433,24 @@ function Musicians({
         ["asc", "asc"],
       );
       break;
+    case "by-locked-score-desc":
+      if (hasLockedItem) {
+        musicianKeys = orderBy(
+          musicianKeys,
+          [(v) => evalResult?.detailed_musicians?.at(v), (v) => v],
+          ["desc", "asc"],
+        );
+      }
+      break;
+    case "by-locked-score-asc":
+      if (hasLockedItem) {
+        musicianKeys = orderBy(
+          musicianKeys,
+          [(v) => evalResult?.detailed_musicians?.at(v), (v) => v],
+          ["asc", "asc"],
+        );
+      }
+      break;
   }
 
   const currentPage = musicianKeys.slice((page - 1) * 10, page * 10);
@@ -393,6 +466,12 @@ function Musicians({
         <option value="by-instr">楽器番号順</option>
         <option value="by-score-desc">スコアの高い順</option>
         <option value="by-score-asc">スコアの低い順</option>
+        {hasLockedItem ? (
+          <>
+            <option value="by-locked-score-desc">Lockedスコアの高い順</option>
+            <option value="by-locked-score-asc">Lockedスコアの低い順</option>
+          </>
+        ) : null}
       </select>
       <table className="table w-auto">
         <thead>
@@ -401,6 +480,7 @@ function Musicians({
             <th>楽器</th>
             <th></th>
             <th>スコア</th>
+            {hasLockedItem ? <th>Lockedスコア</th> : null}
           </tr>
         </thead>
         <tbody>
@@ -424,6 +504,11 @@ function Musicians({
                 <td className="font-mono text-right">
                   {formatNumber(evalResult?.musicians.at(m)?.score)}
                 </td>
+                {hasLockedItem ? (
+                  <td className="font-mono text-right">
+                    {formatNumber(evalResult?.detailed_musicians.at(m))}
+                  </td>
+                ) : null}
               </tr>
             );
           })}
@@ -561,11 +646,19 @@ function ProblemInfo({
       ) : null}
       <div className="flex">
         <div className="w-1/2">
-          <Instruments problem={problem} evalResult={evalResult} />
+          <Instruments
+            problem={problem}
+            evalResult={evalResult}
+            option={option}
+          />
         </div>
         <div className="divider divider-horizontal"></div>
         <div className="w-1/2">
-          <Musicians problem={problem} evalResult={evalResult} />
+          <Musicians
+            problem={problem}
+            evalResult={evalResult}
+            option={option}
+          />
         </div>
       </div>
     </div>
@@ -691,6 +784,22 @@ export default function VisualizerControl({
                     ...o,
                     attendeeHeatmapByScore: e.target.checked,
                     attendeeHeatmapByTasteWithThisInstrument: undefined,
+                  };
+                });
+              }}
+            />
+          </label>
+          <label className="label cursor-pointer">
+            <span className="label-text">ヒートマップ表示を極端にする</span>
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={option.useBipolarHeatmap ?? false}
+              onChange={(e) => {
+                setOption((o) => {
+                  return {
+                    ...o,
+                    useBipolarHeatmap: e.target.checked,
                   };
                 });
               }}
