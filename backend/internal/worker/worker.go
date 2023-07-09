@@ -13,34 +13,26 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
 
 func patchSolutionSpec(spec string, problemID int) (string, error) {
-	var partial struct {
-		ProblemID int `json:"problem_id"`
-	}
-	if err := json.Unmarshal([]byte(spec), &partial); err != nil {
+	var values map[string]any
+	if err := json.Unmarshal([]byte(spec), &values); err != nil {
 		return "", err
 	}
 
-	if partial.ProblemID != 0 {
+	if p, ok := values["problem_id"].(float64); ok && p != 0 {
 		return spec, nil
 	}
+	values["problem_id"] = problemID
 
-	spec = strings.TrimSpace(spec)
-	if !strings.HasPrefix(spec, "{") {
-		return "", errors.New("solution spec does not start with {")
+	b, err := json.Marshal(values)
+	if err != nil {
+		return "", nil
 	}
 
-	spec = fmt.Sprintf("{\"problem_id\":%d,%s", problemID, spec[1:])
-
-	// Ensure validity.
-	if err := json.Unmarshal([]byte(spec), &json.RawMessage{}); err != nil {
-		return "", err
-	}
-	return spec, nil
+	return string(b), nil
 }
 
 type worker struct {
