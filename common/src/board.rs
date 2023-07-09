@@ -1,6 +1,6 @@
 use anyhow::bail;
 use euclid::{Box2D, Vector2D};
-use lyon_geom::{Point, LineSegment};
+use lyon_geom::{LineSegment, Point};
 
 use crate::{geom::tangent_to_circle, Placement, Problem, Solution};
 
@@ -297,11 +297,11 @@ impl Board {
                 let r1: f64 = (t1 - blocked).angle_from_x_axis().radians + eps;
                 let r2: f64 = (t2 - blocked).angle_from_x_axis().radians - eps;
 
-                let distance_to_blocker_sq = LineSegment{
+                let distance_to_blocker_sq = LineSegment {
                     from: blocked.to_point(),
                     to: blocking.to_point(),
-                }.square_length();
-
+                }
+                .square_length();
 
                 if r1 < r2 {
                     let j1 = aids.partition_point(|r| r.0 < r1);
@@ -309,16 +309,17 @@ impl Board {
                         if *r > r2 {
                             break;
                         }
-                        let distance_to_attendee_sq = LineSegment{
+                        let distance_to_attendee_sq = LineSegment {
                             from: blocked.to_point(),
                             to: self.prob.attendees[*a].position,
-                        }.square_length();
+                        }
+                        .square_length();
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
                                 Self::inc_blocks(blocks, impacts, prob, ps, i, *a);
                             } else {
                                 Self::dec_blocks(blocks, impacts, prob, ps, i, *a);
-                            }    
+                            }
                         }
                     }
                 } else {
@@ -326,32 +327,34 @@ impl Board {
                         if *r > r2 {
                             break;
                         }
-                        let distance_to_attendee_sq = LineSegment{
+                        let distance_to_attendee_sq = LineSegment {
                             from: blocked.to_point(),
                             to: self.prob.attendees[*a].position,
-                        }.square_length();
+                        }
+                        .square_length();
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
                                 Self::inc_blocks(blocks, impacts, prob, ps, i, *a);
                             } else {
                                 Self::dec_blocks(blocks, impacts, prob, ps, i, *a);
-                            }    
+                            }
                         }
                     }
                     for (r, a) in aids.iter().rev() {
                         if *r < r1 {
                             break;
                         }
-                        let distance_to_attendee_sq = LineSegment{
+                        let distance_to_attendee_sq = LineSegment {
                             from: blocked.to_point(),
                             to: self.prob.attendees[*a].position,
-                        }.square_length();
+                        }
+                        .square_length();
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
                                 Self::inc_blocks(blocks, impacts, prob, ps, i, *a);
                             } else {
                                 Self::dec_blocks(blocks, impacts, prob, ps, i, *a);
-                            }    
+                            }
                         }
                     }
                 }
@@ -359,7 +362,7 @@ impl Board {
                 // for debug. Please keep it.
                 if false {
                     for (r, a) in aids.iter() {
-                        let seg = LineSegment{
+                        let seg = LineSegment {
                             from: self.prob.attendees[*a].position,
                             to: self.ps[i].unwrap().0.to_point(),
                         };
@@ -368,7 +371,8 @@ impl Board {
                         } else {
                             *r <= r2 || r1 <= *r
                         } && seg.square_length() > distance_to_blocker_sq;
-                        let is_blocked = seg.distance_to_point(self.ps[bi].unwrap().0.to_point()) < self.ps[bi].unwrap().1;
+                        let is_blocked = seg.distance_to_point(self.ps[bi].unwrap().0.to_point())
+                            < self.ps[bi].unwrap().1;
                         if included != is_blocked {
                             eprintln!("Blocking mismatch: blocker={} {}({:?}), blocked={}({:?}), attendee={}({:?}), distance={:?}, radius={:?}, angle={:?}, angle_range=({:?}, {:?}, t1={:?}, t2={:?})",
                                 if bi < self.prob.musicians.len() { "musician" } else { "pillar" },
@@ -381,7 +385,6 @@ impl Board {
                                 r1, r2, t1, t2);
                         }
                     }
-
                 }
             }
         }
