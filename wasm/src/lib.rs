@@ -2,12 +2,21 @@ mod annealing;
 
 pub use annealing::*;
 
-use wasm_bindgen::{prelude::wasm_bindgen, JsError, JsValue};
+use wasm_bindgen::{prelude::*, JsError, JsValue};
 
-/// Wraps [`anyhow::Error`] for conversion to [`JsValue`].
+#[wasm_bindgen]
+pub fn init_panic_hook() {
+    console_error_panic_hook::set_once();
+}
+
+/// Wraps various error types for conversion to [`JsValue`].
 #[derive(thiserror::Error, Debug)]
-#[error(transparent)]
-pub struct Error(#[from] anyhow::Error);
+pub enum Error {
+    #[error(transparent)]
+    Anyhow(#[from] anyhow::Error),
+    #[error(transparent)]
+    SerdeJson(#[from] serde_json::Error),
+}
 
 impl From<Error> for JsValue {
     fn from(value: Error) -> JsValue {
@@ -20,7 +29,7 @@ type Result<T> = std::result::Result<T, Error>;
 
 #[wasm_bindgen]
 pub struct ProblemHandle {
-    problem: common::Problem,
+    pub(crate) real: common::Problem,
 }
 
 #[wasm_bindgen]
@@ -28,14 +37,20 @@ impl ProblemHandle {
     pub fn from_json(json: &str) -> Result<ProblemHandle> {
         let problem = common::RawProblem::from_json(json)?;
         Ok(ProblemHandle {
-            problem: problem.into(),
+            real: problem.into(),
         })
+    }
+}
+
+impl From<common::Problem> for ProblemHandle {
+    fn from(problem: common::Problem) -> Self {
+        Self { real: problem }
     }
 }
 
 #[wasm_bindgen]
 pub struct SolutionHandle {
-    solution: common::Solution,
+    pub(crate) real: common::Solution,
 }
 
 #[wasm_bindgen]
@@ -43,8 +58,20 @@ impl SolutionHandle {
     pub fn from_json(json: &str) -> Result<SolutionHandle> {
         let solution = common::RawSolution::from_json(json)?;
         Ok(SolutionHandle {
-            solution: solution.into(),
+            real: solution.into(),
         })
+    }
+
+    pub fn as_json(&self) -> Result<String> {
+        Ok(serde_json::to_string(&common::RawSolution::from(
+            self.real.clone(),
+        ))?)
+    }
+}
+
+impl From<common::Solution> for SolutionHandle {
+    fn from(solution: common::Solution) -> Self {
+        Self { real: solution }
     }
 }
 
