@@ -682,7 +682,7 @@ fn main(
     #[opt(long)]
     start_temp: Option<f64>,
     /// specify limit temerature
-    #[opt(long, default_value = "10.0")]
+    #[opt(long, default_value = "0.1")]
     limit_temp: f64,
     /// prune far atendees
     #[opt(long)]
@@ -708,6 +708,9 @@ fn main(
         conflicts_with = "better-initial"
     )]
     initial_solution: Option<PathBuf>,
+    /// do not submit
+    #[opt(long)]
+    no_submit: bool,
     /// problem id
     problem_id: u32,
 ) -> Result<()> {
@@ -827,8 +830,10 @@ fn main(
         anyhow::bail!("Positive score not found");
     }
 
-    let resp = client.post_submission(problem_id, solution)?;
-    eprintln!("Submitted: {:?}", resp);
+    if !no_submit {
+        let resp = client.post_submission(problem_id, solution)?;
+        eprintln!("Submitted: {:?}", resp);
+    }
 
     Ok(())
 }
