@@ -1,214 +1,10 @@
 import { EvaluationResult } from "@/components/evaluation_result";
 import { formatNumber } from "@/components/number_format";
-import { Problem, Solution } from "@/components/problems";
-import { HoveredItem, RenderingOption } from "@/components/visualizer/renderer";
+import { Problem } from "@/components/problems";
+import { RenderingOption } from "@/components/visualizer/renderer";
 import { orderBy } from "natural-orderby";
 import { useMemo, useState } from "react";
 import tinycolor from "tinycolor2";
-import { VisualizerElement } from "./Visualizer";
-
-function HoveredItemData({
-  lockedItem,
-  hoveredItem,
-  problem,
-  solution,
-  evalResult,
-}: {
-  lockedItem?: HoveredItem;
-  hoveredItem: HoveredItem;
-  problem: Problem;
-  solution: Solution | null;
-  evalResult: EvaluationResult | null;
-}) {
-  const instrumentSize = useMemo(() => {
-    return new Set(problem.musicians).size;
-  }, [problem]);
-  if (hoveredItem.kind === "attendee") {
-    const showDetailedScore = lockedItem?.kind === "musician";
-    const lockedInstr =
-      lockedItem?.kind === "musician" ? problem.musicians[lockedItem.index] : 0;
-    const attendee = problem.attendees[hoveredItem.index];
-    const taste = showDetailedScore ? attendee.tastes[lockedInstr] : 0;
-    return (
-      <div className="w-full">
-        <h2 className="text-xl">
-          Hovered Item (観客 {hoveredItem.index}, 座標 ({attendee.x},{" "}
-          {attendee.y}))
-        </h2>
-
-        <div className="stats">
-          {evalResult ? (
-            <div className="stat">
-              <div className="stat-title">スコア</div>
-              <div className="stat-value">
-                {formatNumber(evalResult.attendees[hoveredItem.index])}
-              </div>
-            </div>
-          ) : null}
-          {showDetailedScore && evalResult ? (
-            <div className="stat">
-              <div className="stat-title">Locked Item からのスコア</div>
-              <div className="stat-value">
-                {formatNumber(evalResult.detailed_attendees[hoveredItem.index])}
-              </div>
-            </div>
-          ) : null}
-          {showDetailedScore && evalResult ? (
-            <div className="stat">
-              <div className="stat-title">Locked Item のTaste</div>
-              <div className="stat-value">{taste}</div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
-  const showDetailedScore = lockedItem?.kind === "attendee";
-  const instr = problem.musicians[hoveredItem.index];
-  const taste = showDetailedScore
-    ? problem.attendees[lockedItem.index].tastes[instr]
-    : 0;
-  const pos = solution?.placements[hoveredItem.index];
-  const col = tinycolor({
-    h: (instr / instrumentSize) * 360,
-    s: 100,
-    v: 100,
-  });
-  return (
-    <div className="w-full">
-      <h2 className="text-xl">
-        Hovered Item (奏者 {hoveredItem.index}, 座標 ({pos?.x}, {pos?.y}))
-      </h2>
-
-      <div className="stats">
-        {evalResult ? (
-          <div className="stat">
-            <div className="stat-title">スコア</div>
-            <div className="stat-value">
-              {formatNumber(evalResult.musicians[hoveredItem.index])}
-            </div>
-          </div>
-        ) : null}
-        <div className="stat">
-          <div className="stat-title">楽器</div>
-          <div className="stat-value">
-            {instr}
-            <div
-              className="w-16"
-              style={{ backgroundColor: col.toHex8String() }}
-            >
-              &nbsp;
-            </div>
-          </div>
-        </div>
-        {showDetailedScore && evalResult ? (
-          <div className="stat">
-            <div className="stat-title">Locked Item へのスコア</div>
-            <div className="stat-value">
-              {formatNumber(evalResult.detailed_musicians[hoveredItem.index])}
-            </div>
-          </div>
-        ) : null}
-        {showDetailedScore && evalResult ? (
-          <div className="stat">
-            <div className="stat-title">Locked Item のTaste</div>
-            <div className="stat-value">{taste}</div>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function LockedItemData({
-  hoveredItem,
-  problem,
-  solution,
-  evalResult,
-  setOption,
-}: {
-  hoveredItem: HoveredItem;
-  problem: Problem;
-  solution: Solution | null;
-  evalResult: EvaluationResult | null;
-  setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
-}) {
-  const instrumentSize = useMemo(() => {
-    return new Set(problem.musicians).size;
-  }, [problem]);
-  const unlock = () =>
-    setOption((o) => {
-      return { ...o, lockedItem: undefined };
-    });
-
-  if (hoveredItem.kind === "attendee") {
-    const attendee = problem.attendees[hoveredItem.index];
-    return (
-      <div className="w-full">
-        <h2 className="text-xl">
-          Locked Item (観客 {hoveredItem.index}, 座標 ({attendee.x},{" "}
-          {attendee.y}))
-          <button className="btn btn-sm ml-2" onClick={unlock}>
-            Unlock
-          </button>
-        </h2>
-
-        <div className="stats">
-          {evalResult ? (
-            <div className="stat">
-              <div className="stat-title">スコア</div>
-              <div className="stat-value">
-                {formatNumber(evalResult.attendees[hoveredItem.index])}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    );
-  }
-
-  const instr = problem.musicians[hoveredItem.index];
-  const pos = solution?.placements[hoveredItem.index];
-  const col = tinycolor({
-    h: (instr / instrumentSize) * 360,
-    s: 100,
-    v: 100,
-  });
-  return (
-    <div className="w-full">
-      <h2 className="text-xl">
-        Locked Item (奏者 {hoveredItem.index}, 座標 ({pos?.x}, {pos?.y}))
-        <button className="btn btn-sm ml-2" onClick={unlock}>
-          Unlock
-        </button>
-      </h2>
-
-      <div className="stats">
-        {evalResult ? (
-          <div className="stat">
-            <div className="stat-title">スコア</div>
-            <div className="stat-value">
-              {formatNumber(evalResult.musicians[hoveredItem.index])}
-            </div>
-          </div>
-        ) : null}
-        <div className="stat">
-          <div className="stat-title">楽器</div>
-          <div className="stat-value">
-            {instr}
-            <div
-              className="w-16"
-              style={{ backgroundColor: col.toHex8String() }}
-            >
-              &nbsp;
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function Instruments({
   problem,
@@ -543,107 +339,197 @@ function Musicians({
   );
 }
 
-function ProblemInfo({
+function Control({
   problem,
-  evalResult,
-  solution,
-  rawSolution,
-  setRawSolution,
-  parseError,
-  visualizer,
   option,
   setOption,
 }: {
   problem: Problem;
-  evalResult: EvaluationResult | null;
-  solution: Solution | null;
-  rawSolution: string;
-  setRawSolution: (s: string) => void;
-  parseError: any;
-  visualizer: VisualizerElement | null;
   option: RenderingOption;
   setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
 }) {
-  const [hoveredItem, setHoveredItem] = useState<HoveredItem | undefined>(
-    undefined,
+  const instruments = Array.from(new Set(problem.musicians)).sort(
+    (a, b) => a - b,
   );
-  visualizer?.onUpdateHoveredItemEvent((e) => setHoveredItem(e.hoveredItem));
-  visualizer?.onClickHoveredItemEvent((e) => {
-    setOption((o) => {
-      if (
-        o.lockedItem?.index === e.hoveredItem.index &&
-        o.lockedItem?.kind === e.hoveredItem.kind
-      ) {
-        return {
-          ...o,
-          lockedItem: undefined,
-        };
-      }
-      return {
-        ...o,
-        lockedItem: e.hoveredItem,
-      };
-    });
-  });
 
   return (
-    <div className="overflow-x-auto space-y-4">
-      <div className="stats">
-        <div className="stat">
-          <div className="stat-title">観客</div>
-          <div className="stat-value">
-            {formatNumber(problem.attendees.length)}
-          </div>
-        </div>
-        {evalResult ? (
-          <div className="stat">
-            <div className="stat-title">スコア</div>
-            <div className="stat-value">{formatNumber(evalResult.score)}</div>
-          </div>
-        ) : null}
-        <div className="stat">
-          <div className="stat-title">解答</div>
-          <div className="stat-value">
-            <textarea
-              placeholder="Solution"
-              className="textarea textarea-bordered font-mono"
-              onChange={(e) => setRawSolution(e.target.value)}
-              value={rawSolution}
-            ></textarea>
-          </div>
-          <div className="stat-actions">
-            <button
-              className="btn btn-xs"
-              onClick={async () => {
-                setRawSolution(await navigator.clipboard.readText());
+    <div className="flex">
+      <div className="form-control w-1/2">
+        <div className="w-fit">
+          <label className="label cursor-pointer space-x-2">
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={option.musicianHeatmapByScore ?? false}
+              onChange={(e) => {
+                setOption((o) => {
+                  return { ...o, musicianHeatmapByScore: e.target.checked };
+                });
               }}
-            >
-              クリップボードからコピー
-            </button>
-          </div>
+            />
+            <span className="label-text">
+              奏者の寄与スコアでヒートマップ表示
+            </span>
+          </label>
+          <label className="label cursor-pointer space-x-2">
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={option.attendeeHeatmapByScore ?? false}
+              onChange={(e) => {
+                setOption((o) => {
+                  return {
+                    ...o,
+                    attendeeHeatmapByScore: e.target.checked,
+                    attendeeHeatmapByTasteWithThisInstrument: undefined,
+                  };
+                });
+              }}
+            />
+            <span className="label-text">
+              観客の寄与スコアでヒートマップ表示
+            </span>
+          </label>
+          <label className="label cursor-pointer space-x-2 justify-normal">
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={option.useBipolarHeatmap ?? false}
+              onChange={(e) => {
+                setOption((o) => {
+                  return {
+                    ...o,
+                    useBipolarHeatmap: e.target.checked,
+                  };
+                });
+              }}
+            />
+            <span className="label-text">ヒートマップ表示を極端にする</span>
+          </label>
+        </div>
+      </div>
+
+      <div className="form-control w-1/2">
+        <label className="label">
+          <span className="label-text">Tasteをヒートマップ表示</span>
+        </label>
+        <select
+          className="select select-bordered"
+          onChange={(e) => {
+            if (e.target.value === "Pick one") {
+              setOption((o) => {
+                return {
+                  ...o,
+                  attendeeHeatmapByScore: undefined,
+                  attendeeHeatmapByTasteWithThisInstrument: undefined,
+                };
+              });
+            } else {
+              setOption((o) => {
+                return {
+                  ...o,
+                  attendeeHeatmapByScore: undefined,
+                  attendeeHeatmapByTasteWithThisInstrument: parseInt(
+                    e.target.value,
+                  ),
+                };
+              });
+            }
+          }}
+          value={
+            option.attendeeHeatmapByTasteWithThisInstrument === undefined
+              ? "Pick one"
+              : option.attendeeHeatmapByTasteWithThisInstrument
+          }
+        >
+          <option>Pick one</option>
+          {instruments.map((instr) => {
+            return <option key={instr}>{instr}</option>;
+          })}
+        </select>
+
+        <label className="label">
+          <span className="label-text-alt">
+            赤(Taste最大)→白(0)→青(Taste最低)
+          </span>
+        </label>
+      </div>
+    </div>
+  );
+}
+
+function ClipboardIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={1.5}
+      stroke="currentColor"
+      className="w-6 h-6"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z"
+      />
+    </svg>
+  );
+}
+
+export default function VisualizerControl({
+  problem,
+  evalResult,
+  option,
+  setOption,
+  rawSolution,
+  setRawSolution,
+  parseError,
+}: {
+  problem: Problem;
+  evalResult: EvaluationResult | null;
+  option: RenderingOption;
+  setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
+  rawSolution: string;
+  setRawSolution: (s: string) => void;
+  parseError: any;
+}) {
+  return (
+    <div className="overflow-x-auto space-y-4 w-full">
+      <div className="flex justify-between items-center">
+        <p className="text-4xl">
+          スコア:
+          <span className="font-extrabold pl-3">
+            {formatNumber(evalResult?.score)}
+          </span>
+        </p>
+        <div className="w-1/4 flex">
+          <textarea
+            placeholder="Solution"
+            className="textarea textarea-bordered font-mono w-[16ch]"
+            onChange={(e) => setRawSolution(e.target.value)}
+            value={rawSolution}
+          ></textarea>
+          <button
+            className="btn btn-xs"
+            onClick={async () => {
+              setRawSolution(await navigator.clipboard.readText());
+            }}
+          >
+            <ClipboardIcon />
+          </button>
         </div>
       </div>
       <pre>
         <code>{parseError ? `${parseError}` : null}</code>
       </pre>
-      {option.lockedItem ? (
-        <LockedItemData
-          hoveredItem={option.lockedItem}
-          problem={problem}
-          solution={solution}
-          evalResult={evalResult}
-          setOption={setOption}
-        />
-      ) : null}
-      {hoveredItem ? (
-        <HoveredItemData
-          lockedItem={option.lockedItem}
-          hoveredItem={hoveredItem}
-          problem={problem}
-          solution={solution}
-          evalResult={evalResult}
-        />
-      ) : null}
+
+      <div className="divider"></div>
+
+      <Control option={option} setOption={setOption} problem={problem} />
+
+      <div className="divider"></div>
+
       <div className="flex">
         <div className="w-1/2">
           <Instruments
@@ -659,152 +545,6 @@ function ProblemInfo({
             evalResult={evalResult}
             option={option}
           />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export default function VisualizerControl({
-  visualizer,
-  problem,
-  evalResult,
-  solution,
-  option,
-  setOption,
-  rawSolution,
-  setRawSolution,
-  parseError,
-}: {
-  visualizer: VisualizerElement | null;
-  problem: Problem;
-  evalResult: EvaluationResult | null;
-  solution: Solution | null;
-  option: RenderingOption;
-  setOption: (fn: (option: RenderingOption) => RenderingOption) => void;
-  rawSolution: string;
-  setRawSolution: (s: string) => void;
-  parseError: any;
-}) {
-  const instruments = Array.from(new Set(problem.musicians)).sort(
-    (a, b) => a - b,
-  );
-
-  return (
-    <div className="w-full">
-      <ProblemInfo
-        problem={problem}
-        evalResult={evalResult}
-        solution={solution}
-        rawSolution={rawSolution}
-        setRawSolution={setRawSolution}
-        parseError={parseError}
-        visualizer={visualizer}
-        option={option}
-        setOption={setOption}
-      />
-
-      <div className="divider"></div>
-
-      <div>
-        <h2 className="text-xl">コントロール</h2>
-        <div className="form-control w-full max-w-xs">
-          <label className="label">
-            <span className="label-text">Tasteをヒートマップ表示</span>
-          </label>
-          <select
-            className="select select-bordered"
-            onChange={(e) => {
-              if (e.target.value === "Pick one") {
-                setOption((o) => {
-                  return {
-                    ...o,
-                    attendeeHeatmapByScore: undefined,
-                    attendeeHeatmapByTasteWithThisInstrument: undefined,
-                  };
-                });
-              } else {
-                setOption((o) => {
-                  return {
-                    ...o,
-                    attendeeHeatmapByScore: undefined,
-                    attendeeHeatmapByTasteWithThisInstrument: parseInt(
-                      e.target.value,
-                    ),
-                  };
-                });
-              }
-            }}
-            value={
-              option.attendeeHeatmapByTasteWithThisInstrument === undefined
-                ? "Pick one"
-                : option.attendeeHeatmapByTasteWithThisInstrument
-            }
-          >
-            <option>Pick one</option>
-            {instruments.map((instr) => {
-              return <option key={instr}>{instr}</option>;
-            })}
-          </select>
-
-          <label className="label">
-            <span className="label-text-alt">
-              赤(Taste最大)→白(0)→青(Taste最低)
-            </span>
-          </label>
-        </div>
-
-        <div className="form-control w-full max-w-xs">
-          <label className="label cursor-pointer">
-            <span className="label-text">
-              奏者の寄与スコアでヒートマップ表示
-            </span>
-            <input
-              type="checkbox"
-              className="checkbox"
-              checked={option.musicianHeatmapByScore ?? false}
-              onChange={(e) => {
-                setOption((o) => {
-                  return { ...o, musicianHeatmapByScore: e.target.checked };
-                });
-              }}
-            />
-          </label>
-          <label className="label cursor-pointer">
-            <span className="label-text">
-              観客の寄与スコアでヒートマップ表示
-            </span>
-            <input
-              type="checkbox"
-              className="checkbox"
-              checked={option.attendeeHeatmapByScore ?? false}
-              onChange={(e) => {
-                setOption((o) => {
-                  return {
-                    ...o,
-                    attendeeHeatmapByScore: e.target.checked,
-                    attendeeHeatmapByTasteWithThisInstrument: undefined,
-                  };
-                });
-              }}
-            />
-          </label>
-          <label className="label cursor-pointer">
-            <span className="label-text">ヒートマップ表示を極端にする</span>
-            <input
-              type="checkbox"
-              className="checkbox"
-              checked={option.useBipolarHeatmap ?? false}
-              onChange={(e) => {
-                setOption((o) => {
-                  return {
-                    ...o,
-                    useBipolarHeatmap: e.target.checked,
-                  };
-                });
-              }}
-            />
-          </label>
         </div>
       </div>
     </div>
