@@ -338,8 +338,8 @@ export class Renderer {
   ): [number, number] {
     const c = canvas.getBoundingClientRect();
     return [
-      ((e.pageX - c.left) * canvas.width) / c.width,
-      ((e.pageY - c.top) * canvas.height) / c.height,
+      ((e.clientX - c.left) * canvas.width) / c.width,
+      ((e.clientY - c.top) * canvas.height) / c.height,
     ];
   }
 

@@ -6,6 +6,8 @@ use common::{Placement, Problem, Solution};
 use euclid::default::Point2D;
 use lyon_geom::LineSegment;
 
+const SOLVER_NAME: &str = "psh-manual-solver";
+
 fn solver_10(problem: &Problem) -> Solution {
     let eps = 1e-9;
     let height_unit = 3f64.sqrt() * 5f64 + eps;
@@ -53,6 +55,7 @@ fn solver_10(problem: &Problem) -> Solution {
 
     Solution {
         problem_id: 10,
+        solver: SOLVER_NAME.to_owned(),
         placements: placements
             .into_iter()
             .map(|p| Placement { position: p })
@@ -93,7 +96,7 @@ fn main() -> Result<()> {
     let problem = Problem::read_from_file(f)?;
 
     let solution = match problem_id {
-        _ if is_estimate => common::estimate(problem_id, &problem).1,
+        _ if is_estimate => common::estimate(problem_id, &problem, SOLVER_NAME).1,
         10 => solver_10(&problem),
         _ => bail!("no solution for {:}", problem_id),
     };

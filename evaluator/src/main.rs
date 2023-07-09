@@ -28,7 +28,7 @@ fn main() -> Result<()> {
 
     println!("score = {}", evaluate(&problem, &solution));
     // Evaluate by board
-    let mut board = Board::new(args.problem_id, problem);
+    let mut board = Board::new(args.problem_id, problem, "N/A");
     for (i, placement) in solution.placements.iter().enumerate() {
         board.try_place(i, placement.position)?;
     }

@@ -417,6 +417,8 @@ use std::path::PathBuf;
 //     }
 // }
 
+const SOLVER_NAME: &str = "tanakh-solver";
+
 struct Solver2 {
     problem_id: u32,
     problem: common::Problem,
@@ -508,7 +510,7 @@ impl saru::Annealer for Solver2 {
     type Move = Move;
 
     fn init_state(&self, rng: &mut impl Rng) -> Self::State {
-        let mut board = Board::new(self.problem_id, self.problem.clone());
+        let mut board = Board::new(self.problem_id, self.problem.clone(), SOLVER_NAME);
 
         if let Some(initial_solution) = &self.initial_solution {
             for (i, p) in initial_solution.placements.iter().enumerate() {

@@ -10,6 +10,7 @@ import {
   useBestSolutions,
   useProblemList,
   useProblemSpec,
+  useScoreboard,
 } from "@/components/api";
 import { formatNumber, formatPercentage } from "@/components/number_format";
 import { useState } from "react";
@@ -88,9 +89,13 @@ function ProblemListItem({
 function ProblemList() {
   const { data: problems, error: errorProblems } = useProblemList();
   const { data: bestSolutions, error: errorBestSolutions } = useBestSolutions();
+  const { data: scoreboard, error: errorScoreboard } = useScoreboard();
+
   const [order, setOrder] = useState("by-id");
   const [showV1, setShowV1] = useState(true);
   const [showV2, setShowV2] = useState(true);
+
+  const winnerScore = scoreboard?.scoreboard[0]?.score ?? 999999999999;
 
   if (errorProblems) {
     throw errorProblems;
@@ -200,6 +205,10 @@ function ProblemList() {
             <p>
               V2トータルスコア: {formatNumber(v2TotalScore)} (
               {formatPercentage(v2TotalScore / totalScore)})
+            </p>
+            <p>
+              1位まであと: {formatNumber(winnerScore - totalScore)} (+
+              {formatPercentage(winnerScore / totalScore - 1)})
             </p>
           </div>
         </div>

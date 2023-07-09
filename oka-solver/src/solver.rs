@@ -4,6 +4,8 @@ use common::{board::Board, Problem};
 use lyon_geom::Point;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
+const SOLVER_NAME: &str = "oka-solver";
+
 pub struct Solver {
     board: Board,
 
@@ -17,7 +19,7 @@ pub struct Solver {
 
 impl Solver {
     pub fn new(problem_id: u32, problem: Problem, timeout_secs: u64, rng_seed: u64) -> Self {
-        let board = Board::new(problem_id, problem);
+        let board = Board::new(problem_id, problem, SOLVER_NAME);
 
         let rng = StdRng::seed_from_u64(rng_seed);
 

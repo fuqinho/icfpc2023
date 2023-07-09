@@ -40,6 +40,16 @@ export interface EvaluationMetadata {
   created: string;
 }
 
+export interface Scoreboard {
+  frozen: boolean;
+  scoreboard: ScoreboardTeam[];
+}
+
+export interface ScoreboardTeam {
+  username: string;
+  score: number;
+}
+
 export function problemImage(problemID: number) {
   return `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/${problemID}/image`;
 }
@@ -135,4 +145,12 @@ export async function loadSolutionSpec(uuid: string): Promise<Solution> {
     `api/solutions/${uuid}/spec`,
   )) as AxiosResponse<Solution>;
   return response.data;
+}
+
+export function useScoreboard() {
+  const { data, error, isLoading } = useSWR<AxiosResponse<Scoreboard>>(
+    "https://api.icfpcontest.com/scoreboard",
+    client,
+  );
+  return { data: data?.data, error, isLoading };
 }
