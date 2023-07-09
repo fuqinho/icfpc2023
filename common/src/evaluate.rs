@@ -197,9 +197,9 @@ pub struct AttendeeStat {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, PartialOrd)]
 pub struct EvaluationResult {
     pub score: f64,
-    pub musicians: Vec<MusicianStat>,
-    pub instruments: Vec<InstrumentStat>,
-    pub attendees: Vec<AttendeeStat>,
+    pub musicians: Vec<f64>,
+    pub instruments: Vec<f64>,
+    pub attendees: Vec<f64>,
 
     pub detailed_musicians: Vec<f64>,
     pub detailed_attendees: Vec<f64>,
@@ -224,9 +224,9 @@ impl EvaluationResult {
         };
 
         let mut total_score = 0f64;
-        let mut musician_stats = vec![MusicianStat { score: 0f64 }; problem.musicians.len()];
-        let mut instrument_stats = vec![InstrumentStat { score: 0f64 }; instrument_count];
-        let mut attendee_stats = vec![AttendeeStat { score: 0f64 }; problem.attendees.len()];
+        let mut musician_stats = vec![0f64; problem.musicians.len()];
+        let mut instrument_stats = vec![0f64; instrument_count];
+        let mut attendee_stats = vec![0f64; problem.attendees.len()];
         let mut detailed_musicians = vec![0f64; problem.musicians.len()];
         let mut detailed_instruments = vec![0f64; instrument_count];
         let mut detailed_attendees = vec![0f64; problem.attendees.len()];
@@ -248,9 +248,9 @@ impl EvaluationResult {
                     q[musician],
                 );
                 total_score += attendee_musician_score;
-                musician_stats[musician].score += attendee_musician_score;
-                instrument_stats[*inst].score += attendee_musician_score;
-                attendee_stats[attendee_id].score += attendee_musician_score;
+                musician_stats[musician] += attendee_musician_score;
+                instrument_stats[*inst] += attendee_musician_score;
+                attendee_stats[attendee_id] += attendee_musician_score;
 
                 if is_detailed_attendee && attendee_id == detailed_index {
                     detailed_musicians[musician] += attendee_musician_score;

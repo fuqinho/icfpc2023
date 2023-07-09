@@ -41,7 +41,7 @@ function HoveredItemData({
             <div className="stat">
               <div className="stat-title">スコア</div>
               <div className="stat-value">
-                {formatNumber(evalResult.attendees[hoveredItem.index].score)}
+                {formatNumber(evalResult.attendees[hoveredItem.index])}
               </div>
             </div>
           ) : null}
@@ -86,7 +86,7 @@ function HoveredItemData({
           <div className="stat">
             <div className="stat-title">スコア</div>
             <div className="stat-value">
-              {formatNumber(evalResult.musicians[hoveredItem.index].score)}
+              {formatNumber(evalResult.musicians[hoveredItem.index])}
             </div>
           </div>
         ) : null}
@@ -159,7 +159,7 @@ function LockedItemData({
             <div className="stat">
               <div className="stat-title">スコア</div>
               <div className="stat-value">
-                {formatNumber(evalResult.attendees[hoveredItem.index].score)}
+                {formatNumber(evalResult.attendees[hoveredItem.index])}
               </div>
             </div>
           ) : null}
@@ -189,7 +189,7 @@ function LockedItemData({
           <div className="stat">
             <div className="stat-title">スコア</div>
             <div className="stat-value">
-              {formatNumber(evalResult.musicians[hoveredItem.index].score)}
+              {formatNumber(evalResult.musicians[hoveredItem.index])}
             </div>
           </div>
         ) : null}
@@ -257,14 +257,14 @@ function Instruments({
     case "by-score-desc":
       instrumentsKeys = orderBy(
         instrumentsKeys,
-        [(v) => evalResult?.instruments?.at(v)?.score, (v) => v],
+        [(v) => evalResult?.instruments?.at(v), (v) => v],
         ["desc", "asc"],
       );
       break;
     case "by-score-asc":
       instrumentsKeys = orderBy(
         instrumentsKeys,
-        [(v) => evalResult?.instruments?.at(v)?.score, (v) => v],
+        [(v) => evalResult?.instruments?.at(v), (v) => v],
         ["asc", "asc"],
       );
       break;
@@ -341,7 +341,7 @@ function Instruments({
                 </td>
                 <td>{instruments.get(instr)?.length}人</td>
                 <td className="font-mono text-right">
-                  {formatNumber(evalResult?.instruments.at(instr)?.score)}
+                  {formatNumber(evalResult?.instruments.at(instr))}
                 </td>
                 {hasLockedItem ? (
                   <td className="font-mono text-right">
@@ -422,14 +422,14 @@ function Musicians({
     case "by-score-desc":
       musicianKeys = orderBy(
         musicianKeys,
-        [(v) => evalResult?.musicians?.at(v)?.score, (v) => v],
+        [(v) => evalResult?.musicians?.at(v), (v) => v],
         ["desc", "asc"],
       );
       break;
     case "by-score-asc":
       musicianKeys = orderBy(
         musicianKeys,
-        [(v) => evalResult?.musicians?.at(v)?.score, (v) => v],
+        [(v) => evalResult?.musicians?.at(v), (v) => v],
         ["asc", "asc"],
       );
       break;
@@ -502,7 +502,7 @@ function Musicians({
                   &nbsp;
                 </td>
                 <td className="font-mono text-right">
-                  {formatNumber(evalResult?.musicians.at(m)?.score)}
+                  {formatNumber(evalResult?.musicians.at(m))}
                 </td>
                 {hasLockedItem ? (
                   <td className="font-mono text-right">
