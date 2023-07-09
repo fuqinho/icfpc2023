@@ -247,10 +247,10 @@ impl Board {
 
                     for (mut r1, mut r2) in rs {
                         if r1.0 != -std::f64::consts::PI {
-                            r1.0 += 1e-9;
+                            r1.0 += 1e-12;
                         }
                         if r2.0 != std::f64::consts::PI {
-                            r2.0 -= 1e-9;
+                            r2.0 -= 1e-12;
                         }
 
                         let j1 = self.aids[i].binary_search(&(r1, 0)).unwrap_or_else(|j| j);
