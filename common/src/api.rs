@@ -219,3 +219,11 @@ impl Client {
         }
     }
 }
+
+pub fn get_best_solution(problem_id: u32) -> Result<Solution> {
+    let url = format!(
+        "https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/{problem_id}/best-solution"
+    );
+    let raw: RawSolution = reqwest::blocking::get(&url)?.json()?;
+    Ok(raw.into())
+}

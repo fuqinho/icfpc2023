@@ -543,31 +543,6 @@ function Musicians({
   );
 }
 
-async function doAnnealing(
-  problem: Problem,
-  solution: Solution | null,
-  setRawSolution: (s: string) => void,
-): Promise<void> {
-  if (!solution) {
-    return;
-  }
-
-  const wasm = await import("wasm");
-  wasm.init_panic_hook();
-  const problemHandle = wasm.ProblemHandle.from_json(JSON.stringify(problem));
-  const solutionHandle = wasm.SolutionHandle.from_json(
-    JSON.stringify(solution),
-  );
-  const newSolutionHandle = wasm.perform_annealing(
-    problemHandle,
-    solutionHandle,
-    1.0,
-    1.0,
-    BigInt(283),
-  );
-  setRawSolution(newSolutionHandle.as_json());
-}
-
 function ProblemInfo({
   problem,
   evalResult,
@@ -830,14 +805,6 @@ export default function VisualizerControl({
               }}
             />
           </label>
-          <div>
-            <button
-              className="btn btn-sm btn-primary"
-              onClick={() => doAnnealing(problem, solution, setRawSolution)}
-            >
-              焼きなます(仮)
-            </button>
-          </div>
         </div>
       </div>
     </div>
