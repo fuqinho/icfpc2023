@@ -87,7 +87,7 @@ fn evaluate_attendee(
             continue;
         }
         let d = seg.length();
-        score += (q[index] * 1000000f64 * attendee.tastes[*inst] / (d * d)).ceil();
+        score += (q[index] * (1000000f64 * attendee.tastes[*inst] / (d * d)).ceil()).ceil();
     }
     score
 }
