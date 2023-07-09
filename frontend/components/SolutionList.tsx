@@ -64,11 +64,11 @@ export default function SolutionList({
 }: SolutionListProps) {
   return (
     <div className="overflow-x-auto">
-      <table className="table">
+      <table className="table w-auto">
         <thead>
           <tr>
             <th className="text-center">Status</th>
-            <th className="text-center">Score</th>
+            <th className="text-center">Score (公式)</th>
             <th className="text-center">Created</th>
             <th></th>
           </tr>
