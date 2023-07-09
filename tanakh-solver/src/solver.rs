@@ -58,7 +58,8 @@ impl Move {
         let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(5.0);
         let scale_y = (stage.height() / 5.0 * (1.0 - progress_ratio)).max(5.0);
 
-        let grid = 0.25_f64;
+        let grid_level = (progress_ratio * 8.0).floor() as i32;
+        let grid = 1.0 / 2.0_f64.powi(grid_level);
         let scale_x = (scale_x / grid).round() as i32;
         let scale_y = (scale_y / grid).round() as i32;
 
