@@ -12,6 +12,8 @@ import {
   useProblemSpec,
 } from "@/components/api";
 import { formatNumber } from "@/components/number_format";
+import { useState } from "react";
+import { orderBy } from "natural-orderby";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -73,6 +75,7 @@ function ProblemListItem({
 function ProblemList() {
   const { data: problems, error: errorProblems } = useProblemList();
   const { data: bestSolutions, error: errorBestSolutions } = useBestSolutions();
+  const [order, setOrder] = useState("by-id");
 
   if (errorProblems) {
     throw errorProblems;
@@ -84,24 +87,63 @@ function ProblemList() {
     return <div>Loading...</div>;
   }
 
+  let problemKeys = Array.from(problems.keys());
+  switch (order) {
+    case "by-id":
+      problemKeys = orderBy(problemKeys, [(i) => problems[i].id], ["asc"]);
+      break;
+    case "by-score-desc":
+      problemKeys = orderBy(
+        problemKeys,
+        [
+          (i) => bestSolutions.get(problems[i].id)?.submission?.score,
+          (i) => problems[i].id,
+        ],
+        ["desc", "asc"],
+      );
+      break;
+    case "by-score-asc":
+      problemKeys = orderBy(
+        problemKeys,
+        [
+          (i) => bestSolutions.get(problems[i].id)?.submission?.score,
+          (i) => problems[i].id,
+        ],
+        ["asc", "asc"],
+      );
+      break;
+  }
+
   return (
     <div className="overflow-x-auto">
+      <select
+        className="select select-bordered select-sm m-2"
+        onChange={(e) => setOrder(e.target.value)}
+        value={order}
+      >
+        <option value="by-id">ID順</option>
+        <option value="by-score-desc">スコアの高い順</option>
+        <option value="by-score-asc">スコアの低い順</option>
+      </select>
       <table className="table">
         <thead>
           <tr>
             <th>#</th>
-            <th>Map</th>
-            <th>Best Score</th>
+            <th>Image</th>
+            <th>Best Score (公式)</th>
           </tr>
         </thead>
         <tbody>
-          {(problems ?? []).map((problem) => (
-            <ProblemListItem
-              key={problem.id}
-              problem={problem}
-              bestSolution={bestSolutions.get(problem.id)}
-            />
-          ))}
+          {problemKeys.map((i) => {
+            const problem = problems[i];
+            return (
+              <ProblemListItem
+                key={problem.id}
+                problem={problem}
+                bestSolution={bestSolutions.get(problem.id)}
+              />
+            );
+          })}
         </tbody>
       </table>
     </div>
