@@ -112,6 +112,18 @@ fn main(
         better_initial,
         initial_solution: initial_solution.as_ref(),
         taste,
+        param: format!(
+            "{}sec,{}ths{}",
+            time_limit,
+            threads,
+            if initial_solution.is_some() {
+                ",w/init"
+            } else if from_current_best {
+                "/cont"
+            } else {
+                ""
+            }
+        ),
     };
 
     let solution = saru::annealing(
