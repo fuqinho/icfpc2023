@@ -28,6 +28,9 @@ pub struct Board {
     qs: Vec<f64>,
     // m -> I
     impacts: Vec<f64>,
+
+    // ins -> an available musician
+    available_musician: Vec<Option<usize>>,
 }
 
 impl Board {
@@ -45,6 +48,11 @@ impl Board {
         let qs = vec![1.; n];
         let impacts = vec![0.; n];
 
+        let mut available_musician = vec![None; prob.attendees[0].tastes.len()];
+        for (m, i) in prob.musicians.iter().enumerate() {
+            available_musician[*i] = Some(m);
+        }
+
         prob.stage = Box2D::new(
             prob.stage.min + P::new(10., 10.),
             prob.stage.max - P::new(10., 10.),
@@ -59,6 +67,7 @@ impl Board {
             blocks,
             qs,
             impacts,
+            available_musician,
         }
     }
 
@@ -120,16 +129,8 @@ impl Board {
         self.score_increase_if_put_musician_on(m, p)
     }
 
-    pub fn available_musician_with_instrument(&self, ins: usize) -> Option<usize> {
-        for (i, m) in self.musicians().iter().enumerate() {
-            if m.is_none() {
-                continue;
-            }
-            if self.prob.musicians[i] == ins {
-                return Some(i);
-            }
-        }
-        None
+    pub fn available_musician_with_instrument(&mut self, ins: usize) -> Option<usize> {
+        return self.available_musician[ins];
     }
 
     pub fn try_place(&mut self, i: usize, position: Point<f64>) -> anyhow::Result<()> {
@@ -174,6 +175,8 @@ impl Board {
 
         // Update blocks
         self.update_blocks(m, p, true);
+
+        self.update_available_musician(m);
     }
 
     pub fn can_place(&self, i: usize, position: Point<f64>) -> bool {
@@ -205,6 +208,8 @@ impl Board {
         // Update ps and impacts.
         self.ps[m] = None;
         self.impacts[m] = 0.;
+
+        self.update_available_musician(m);
     }
 
     fn update_qs(&mut self, m: usize, inc: bool) {
@@ -324,6 +329,33 @@ impl Board {
         *b -= 1;
         if *b == 0 {
             impacts[i] += Self::impact_internal(prob, ps, prob.musicians[i], i, a);
+        }
+    }
+
+    fn update_available_musician(&mut self, m: usize) {
+        let ins = self.prob.musicians[m];
+
+        let m_is_available = self.ps[m].is_none();
+
+        if m_is_available {
+            self.available_musician[ins] = Some(m);
+            return;
+        }
+
+        if self.available_musician[ins].unwrap() != m {
+            return;
+        }
+
+        self.available_musician[ins] = None;
+
+        for (m, p) in self.musicians().iter().enumerate() {
+            if p.is_some() {
+                continue;
+            }
+            if self.prob.musicians[m] == ins {
+                self.available_musician[ins] = Some(m);
+                return;
+            }
         }
     }
 
