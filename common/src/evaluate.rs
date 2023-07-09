@@ -110,23 +110,17 @@ fn evaluate_attendee(
 
 fn evaluate_musician_internal(
     m: usize,
+    instrument: usize,
     attendees: &Vec<Attendee>,
-    musicians: &[usize],
+    placements: &[Placement],
     pillars: &[Pillar],
-    solution: &Solution,
     volume: f64,
     q: f64,
 ) -> f64 {
     let mut score = 0.;
-    let pm = solution.placements[m].position;
-    for attendee in attendees.iter() {
-        let pa = attendee.position;
-        let d = (pm - pa).square_length();
-        let seg = LineSegment { from: pa, to: pm };
-        if is_blocked_internal(&seg, m, &solution.placements, pillars) {
-            continue;
-        }
-        score += (volume * q * (1000000f64 * attendee.tastes[musicians[m]] / d).ceil()).ceil();
+    for (ai, attendee) in attendees.iter().enumerate() {
+        score += evaluate_unit(
+            ai, attendee, m, instrument, placements, pillars, volume, q);
     }
     score
 }
@@ -141,10 +135,10 @@ pub fn evaluate_musician(
     let q = create_q_vector(musicians, solution);
     evaluate_musician_internal(
         m,
+        musicians[m],
         attendees,
-        musicians,
+        &solution.placements,
         pillars,
-        solution,
         solution.volumes[m],
         q[m],
     )
@@ -166,16 +160,16 @@ pub fn fixup_volumes(problem: &Problem, solution: &Solution) -> Solution {
 
     let mut volumes = vec![];
     for m in 0..solution.placements.len() {
-        let volume = if evaluate_musician_internal(
+        let score = evaluate_musician_internal(
             m,
+            problem.musicians[m],
             &problem.attendees,
-            &problem.musicians,
+            &solution.placements,
             &problem.pillars,
-            solution,
-            1.,
+            1.,  // forces to 1.
             q[m],
-        ) > 0.
-        {
+        );
+        let volume = if score > 0. {
             10.
         } else {
             0.
@@ -247,26 +241,17 @@ impl EvaluationResult {
 
         let q = create_q_vector(&problem.musicians, solution);
         for (attendee_id, attendee) in problem.attendees.iter().enumerate() {
-            for (musician, (inst, placement)) in problem
-                .musicians
-                .iter()
-                .zip(solution.placements.iter())
-                .enumerate()
-            {
-                let seg = LineSegment {
-                    from: attendee.position,
-                    to: placement.position,
-                };
-                if is_blocked_internal(&seg, musician, &solution.placements, &problem.pillars) {
-                    continue;
-                }
-                let d = seg.length();
-                let attendee_musician_score = (solution.volumes[musician]
-                    * q[musician]
-                    * 1000000f64
-                    * attendee.tastes[*inst]
-                    / (d * d))
-                    .ceil();
+            for (musician, inst) in problem.musicians.iter().enumerate() {
+                let attendee_musician_score = evaluate_unit(
+                    attendee_id,
+                    attendee,
+                    musician,
+                    *inst,
+                    &solution.placements,
+                    &problem.pillars,
+                    solution.volumes[musician],
+                    q[musician]
+                );
                 total_score += attendee_musician_score;
                 musician_stats[musician].score += attendee_musician_score;
                 instrument_stats[*inst].score += attendee_musician_score;
