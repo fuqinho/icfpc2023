@@ -13,8 +13,9 @@ import {
   useScoreboard,
 } from "@/components/api";
 import { formatNumber, formatPercentage } from "@/components/number_format";
-import { useState } from "react";
+import { useCallback } from "react";
 import { orderBy } from "natural-orderby";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -91,9 +92,22 @@ function ProblemList() {
   const { data: bestSolutions, error: errorBestSolutions } = useBestSolutions();
   const { data: scoreboard, error: errorScoreboard } = useScoreboard();
 
-  const [order, setOrder] = useState("by-id");
-  const [showV1, setShowV1] = useState(true);
-  const [showV2, setShowV2] = useState(true);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams()!;
+
+  const createQueryString = useCallback(
+    (name: string, value: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set(name, value);
+      return params.toString();
+    },
+    [searchParams],
+  );
+
+  const order = searchParams.get("order") ?? "by-id";
+  const showV1 = searchParams.get("showV1") !== "false";
+  const showV2 = searchParams.get("showV2") !== "false";
 
   const winnerScore = scoreboard?.scoreboard[0]?.score ?? 999999999999;
 
@@ -161,7 +175,11 @@ function ProblemList() {
         <div className="flex w-fit">
           <select
             className="select select-bordered select-sm m-2"
-            onChange={(e) => setOrder(e.target.value)}
+            onChange={(e) =>
+              router.push(
+                pathname + "?" + createQueryString("order", e.target.value),
+              )
+            }
             value={order}
           >
             <option value="by-id">ID順</option>
@@ -182,7 +200,13 @@ function ProblemList() {
               type="checkbox"
               className="toggle toggle-primary"
               checked={showV1}
-              onChange={(e) => setShowV1(e.target.checked)}
+              onChange={(e) =>
+                router.push(
+                  pathname +
+                    "?" +
+                    createQueryString("showV1", `${e.target.checked}`),
+                )
+              }
             />
           </label>
           <label className="label cursor-pointer space-x-2">
@@ -191,7 +215,13 @@ function ProblemList() {
               type="checkbox"
               className="toggle toggle-primary"
               checked={showV2}
-              onChange={(e) => setShowV2(e.target.checked)}
+              onChange={(e) =>
+                router.push(
+                  pathname +
+                    "?" +
+                    createQueryString("showV2", `${e.target.checked}`),
+                )
+              }
             />
           </label>
         </div>
