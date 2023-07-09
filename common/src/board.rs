@@ -31,6 +31,8 @@ pub struct Board {
 
     // ins -> an available musician
     available_musician: Vec<Option<usize>>,
+
+    volumes: Vec<f64>,
 }
 
 impl Board {
@@ -68,6 +70,7 @@ impl Board {
             qs,
             impacts,
             available_musician,
+            volumes: vec![1.; n],
         }
     }
 
@@ -81,6 +84,15 @@ impl Board {
 
     pub fn musicians(&self) -> &[Option<(P, f64)>] {
         &self.ps[0..self.prob.musicians.len()]
+    }
+
+    pub fn volume(&self, m: usize) -> f64 {
+        self.volumes[m]
+    }
+
+    pub fn set_volume(&mut self, m: usize, volume: f64) {
+        self.volumes[m] = volume;
+        // TODO(chir): score recalcuration.
     }
 
     // The musician's contribution to the score
