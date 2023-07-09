@@ -42,7 +42,9 @@ export default function Home({ params }: { params: { problemId: string } }) {
   );
   const [solution, setSolution] = useState<Solution | null>(null);
   const [jsonParseException, setJSONParseException] = useState<any>(null);
-  const [option, setOption] = useState<RenderingOption>({});
+  const [option, setOption] = useState<RenderingOption>({
+    scoreHeatmapAttendees: true,
+  });
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
   const [firstLoad, setFirstLoad] = useState(true);
   const visualizer = useRef<VisualizerElement>(null);

@@ -467,21 +467,26 @@ export default function VisualizerControl({
             onChange={(e) => {
               if (e.target.value === "Pick one") {
                 setOption((o) => {
-                  return { ...o, tasteHeatmapInstrument: undefined };
+                  return {
+                    ...o,
+                    scoreHeatmapAttendees: undefined,
+                    tasteHeatmapAttendeesInstrument: undefined,
+                  };
                 });
               } else {
                 setOption((o) => {
                   return {
                     ...o,
-                    tasteHeatmapInstrument: parseInt(e.target.value),
+                    scoreHeatmapAttendees: undefined,
+                    tasteHeatmapAttendeesInstrument: parseInt(e.target.value),
                   };
                 });
               }
             }}
             value={
-              option.tasteHeatmapInstrument === undefined
+              option.tasteHeatmapAttendeesInstrument === undefined
                 ? "Pick one"
-                : option.tasteHeatmapInstrument
+                : option.tasteHeatmapAttendeesInstrument
             }
           >
             <option>Pick one</option>
@@ -499,7 +504,9 @@ export default function VisualizerControl({
 
         <div className="form-control w-full max-w-xs">
           <label className="label cursor-pointer">
-            <span className="label-text">奏者のスコアでヒートマップ表示</span>
+            <span className="label-text">
+              奏者の寄与スコアでヒートマップ表示
+            </span>
             <input
               type="checkbox"
               className="checkbox"
@@ -507,6 +514,25 @@ export default function VisualizerControl({
               onChange={(e) => {
                 setOption((o) => {
                   return { ...o, scoreHeatmapMusicians: e.target.checked };
+                });
+              }}
+            />
+          </label>
+          <label className="label cursor-pointer">
+            <span className="label-text">
+              観客の寄与スコアでヒートマップ表示
+            </span>
+            <input
+              type="checkbox"
+              className="checkbox"
+              checked={option.scoreHeatmapAttendees ?? false}
+              onChange={(e) => {
+                setOption((o) => {
+                  return {
+                    ...o,
+                    scoreHeatmapAttendees: e.target.checked,
+                    tasteHeatmapAttendeesInstrument: undefined,
+                  };
                 });
               }}
             />
