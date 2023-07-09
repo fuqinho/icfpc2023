@@ -10,30 +10,17 @@ use crate::problem::Solution;
 
 const EPS: f64 = 1e-9;
 
-pub fn is_blocked(attendee: &Attendee, placement: &Placement, placements: &[Placement]) -> bool {
-    let segment = LineSegment {
-        from: attendee.position,
-        to: placement.position,
-    };
-    for blocker in placements {
-        if blocker.position == placement.position {
-            continue;
-        }
-        if segment.square_distance_to_point(blocker.position) < 25. {
-            return true;
-        }
-    }
-    false
-}
-
+// Returns true, if the sound between seg.from and seg.to,
+// which is one of attendees and musician |m|, is blocked by
+// mucisians other than |m| or pillars.
 fn is_blocked_internal(
     seg: &LineSegment<f64>,
-    current_index: usize,
+    m: usize,
     placements: &[Placement],
     pillars: &[Pillar],
 ) -> bool {
     for (i, blocker) in placements.iter().enumerate() {
-        if i == current_index {
+        if i == m {
             continue;
         }
         if seg.distance_to_point(blocker.position) < 5. - EPS {
@@ -41,6 +28,7 @@ fn is_blocked_internal(
         }
     }
     for pillar in pillars {
+        // TODO(psh) check epsilon.
         if seg.distance_to_point(pillar.center) < pillar.radius {
             return true;
         }
@@ -48,22 +36,24 @@ fn is_blocked_internal(
     false
 }
 
+// Taking musitians and current solutions, then return a vector of |q|.
 pub fn create_q_vector(musicians: &[usize], solution: &Solution) -> Vec<f64> {
     let mut ret = vec![1.; solution.placements.len()];
     if solution.problem_id <= 55 {
+        // If problem is v1, returns a vector of 1.s.
         return ret;
     }
     for i in 0..solution.placements.len() {
         for j in 0..i {
             if musicians[i] != musicians[j] {
+                // If instruments are different, no effect.
                 continue;
             }
-            let q = 1.
-                / LineSegment {
-                    from: solution.placements[i].position,
-                    to: solution.placements[j].position,
-                }
-                .length();
+            let segment = LineSegment {
+                from: solution.placements[i].position,
+                to: solution.placements[j].position,
+            };
+            let q = 1. / segment.length();
             ret[i] += q;
             ret[j] += q;
         }
