@@ -29,6 +29,7 @@ export interface RenderingOption {
   attendeeHeatmapByTasteWithThisInstrument?: number;
   attendeeHeatmapByScore?: boolean;
   musicianHeatmapByScore?: boolean;
+  useBipolarHeatmap?: boolean;
   lockedItem?: HoveredItem;
 }
 
@@ -254,14 +255,14 @@ export class Renderer {
       color = tinycolor.fromRatio({
         // Red
         h: 0,
-        s: value / maxValue,
+        s: this.option.useBipolarHeatmap ? 1 : value / maxValue,
         v: 1,
       });
     } else {
       color = tinycolor.fromRatio({
         // Blue
         h: 240.0 / 360.0,
-        s: Math.abs(value) / maxValue,
+        s: this.option.useBipolarHeatmap ? 1 : Math.abs(value) / maxValue,
         v: 1,
       });
     }
@@ -299,14 +300,14 @@ export class Renderer {
       color = tinycolor.fromRatio({
         // Red
         h: 0,
-        s: value / maxValue,
+        s: this.option.useBipolarHeatmap ? 1 : value / maxValue,
         v: 1,
       });
     } else {
       color = tinycolor.fromRatio({
         // Blue
         h: 240.0 / 360.0,
-        s: Math.abs(value) / maxValue,
+        s: this.option.useBipolarHeatmap ? 1 : Math.abs(value) / maxValue,
         v: 1,
       });
     }
