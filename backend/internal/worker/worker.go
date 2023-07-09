@@ -1,14 +1,18 @@
 package worker
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"icfpc2023/backend/internal/database"
+	"icfpc2023/backend/internal/httputil"
 	"icfpc2023/backend/internal/official"
 	"log"
+	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -130,8 +134,84 @@ func (w *worker) DownloadSubmissions(ctx context.Context) error {
 	return nil
 }
 
+func (w *worker) EvaluateSolutions(ctx context.Context) error {
+	const endpoint = "https://icfpc2023-frontend-uadsges7eq-an.a.run.app/api/evaluate"
+
+	solutions, err := w.db.ListUnevaluatedSolutions(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, solution := range solutions {
+		log.Printf("Evaluating solution %s", solution.UUID)
+
+		problemSpec, err := os.ReadFile(fmt.Sprintf("../problems/%d.json", solution.ProblemID))
+		if err != nil {
+			return err
+		}
+
+		solutionSpecURL := w.db.SolutionURL(solution.UUID)
+		solutionSpec, err := httputil.Get(ctx, solutionSpecURL)
+		if err != nil {
+			return err
+		}
+
+		score, err := func() (int64, error) {
+			req, err := json.Marshal(struct {
+				Problem  json.RawMessage `json:"problem"`
+				Solution json.RawMessage `json:"solution"`
+			}{
+				Problem:  json.RawMessage(problemSpec),
+				Solution: json.RawMessage(solutionSpec),
+			})
+			if err != nil {
+				return 0, err
+			}
+
+			res, err := http.Post(endpoint, "application/json", bytes.NewBuffer(req))
+			if err != nil {
+				return 0, err
+			}
+			defer res.Body.Close()
+
+			if res.StatusCode/100 != 2 {
+				return 0, fmt.Errorf("HTTP status %d", res.StatusCode)
+			}
+
+			var result struct {
+				Score int64 `json:"score"`
+			}
+			if err := json.NewDecoder(res.Body).Decode(&result); err != nil {
+				return 0, err
+			}
+
+			return result.Score, nil
+		}()
+		if err != nil {
+			return err
+		}
+
+		// TODO: Handle rejected cases.
+		evaluation := &database.Evaluation{
+			SolutionUUID: solution.UUID,
+			Accepted:     true,
+			Score:        score,
+			Error:        "",
+			Created:      time.Now().UTC(),
+		}
+
+		if err := w.db.ReplaceEvaluation(ctx, evaluation); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (w *worker) Tick(ctx context.Context) error {
 	if err := w.DownloadSubmissions(ctx); err != nil {
+		return err
+	}
+	if err := w.EvaluateSolutions(ctx); err != nil {
 		return err
 	}
 	return nil
