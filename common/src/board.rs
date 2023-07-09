@@ -8,14 +8,20 @@ type P = Vector2D<f64, euclid::UnknownUnit>;
 
 const MUSICIAN_R: f64 = 5.;
 
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct F64(pub f64);
 
 impl Eq for F64 {}
 
+impl PartialOrd for F64 {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
 impl Ord for F64 {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).unwrap()
+        self.partial_cmp(other).expect("F64 Ord failed to compare")
     }
 }
 
