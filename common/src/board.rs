@@ -230,30 +230,34 @@ impl Board {
                     r1 += eps;
                     r2 -= eps;
 
-                    let mut update = |j: usize| {
-                        if inc {
-                            Self::inc_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
-                        } else {
-                            Self::dec_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
-                        }
-                    };
-
                     if r1 < r2 {
                         let j1 = aids[i].partition_point(|r| r.0 < r1);
                         let j2 = aids[i][j1..].partition_point(|r| r.0 < r2) + j1;
 
                         for j in j1..j2 {
-                            update(j);
+                            if inc {
+                                Self::inc_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                            } else {
+                                Self::dec_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                            }
                         }
                     } else {
                         let j2 = aids[i].partition_point(|r| r.0 < r2);
                         let j1 = aids[i][j2..].partition_point(|r| r.0 < r1) + j2;
 
                         for j in 0..j2 {
-                            update(j);
+                            if inc {
+                                Self::inc_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                            } else {
+                                Self::dec_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                            }
                         }
                         for j in j1..aids[i].len() {
-                            update(j);
+                            if inc {
+                                Self::inc_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                            } else {
+                                Self::dec_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                            }
                         }
                     };
                 }
@@ -291,7 +295,6 @@ impl Board {
         }
     }
 
-    #[inline]
     fn impact_internal(
         prob: &Problem,
         ps: &Vec<Option<(P, f64)>>,
