@@ -68,7 +68,7 @@ pub struct Userboard {
 pub struct Token(String);
 
 #[derive(Clone, Debug)]
-pub struct SubmissionId(String);
+pub struct SubmissionId(pub String);
 
 pub struct Client {
     client: reqwest::blocking::Client,
