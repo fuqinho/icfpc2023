@@ -5,6 +5,7 @@ members = [
   "chir-solver",
   "common",
   "evaluator",
+  "greedy-solver",
   "fuqinho-solver",
   "hungarian-solver",
   "sandbox/hello",
