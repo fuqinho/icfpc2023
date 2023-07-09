@@ -61,8 +61,30 @@ pub fn create_q_vector(musicians: &[usize], solution: &Solution) -> Vec<f64> {
     ret
 }
 
+// Calculate the score of (attendee, musician) pair.
+fn evaluate_unit(
+    _a: usize,  // index of the target attendee.
+    attendee: &Attendee,
+    m: usize,  // index of the target musician,
+    instrument: usize,
+    placements: &[Placement],
+    pillars: &[Pillar],
+    volume: f64,
+    q: f64,
+) -> f64 {
+    let seg = LineSegment {
+        from: attendee.position,
+        to: placements[m].position,
+    };
+    if is_blocked_internal(&seg, m, placements, pillars) {
+        return 0.;
+    }
+    let d = seg.length();
+    volume * q * (1000000f64 * attendee.tastes[instrument] / (d * d)).ceil()
+}
+
 fn evaluate_attendee(
-    _ai: usize,
+    ai: usize,
     attendee: &Attendee,
     musicians: &[usize],
     pillars: &[Pillar],
@@ -71,19 +93,9 @@ fn evaluate_attendee(
     let q = create_q_vector(musicians, solution);
 
     let mut score = 0f64;
-    for (index, (inst, placement)) in musicians.iter().zip(solution.placements.iter()).enumerate() {
-        let seg = LineSegment {
-            from: attendee.position,
-            to: placement.position,
-        };
-        if is_blocked_internal(&seg, index, &solution.placements, pillars) {
-            continue;
-        }
-        let d = seg.length();
-        score += (solution.volumes[index]
-            * q[index]
-            * (1000000f64 * attendee.tastes[*inst] / (d * d)).ceil())
-        .ceil();
+    for (m, instrument) in musicians.iter().enumerate() {
+        score += evaluate_unit(
+            ai, attendee, m, *instrument, &solution.placements, pillars, solution.volumes[m], q[m]);
     }
     score
 }
