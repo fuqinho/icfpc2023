@@ -2,6 +2,7 @@ use euclid::default::{Box2D, Point2D, Vector2D};
 use lyon_geom::LineSegment;
 use serde::{Deserialize, Serialize};
 
+use crate::board::Board;
 use crate::problem::Attendee;
 use crate::problem::Pillar;
 use crate::problem::Placement;
@@ -264,6 +265,63 @@ impl EvaluationResult {
 
         return Self {
             score: total_score,
+            musicians: musician_stats,
+            instruments: instrument_stats,
+            attendees: attendee_stats,
+
+            detailed_musicians,
+            detailed_attendees,
+            detailed_instruments,
+        };
+    }
+
+    pub fn evaluate_board(
+        problem: &Problem,
+        solution: &Solution,
+        detailed_item: &str,
+        detailed_index: usize,
+    ) -> Self {
+        let instrument_count = {
+            let mut instrs = problem.musicians.to_vec();
+            instrs.dedup();
+            instrs.len()
+        };
+
+        let mut musician_stats = vec![0f64; problem.musicians.len()];
+        let mut instrument_stats = vec![0f64; instrument_count];
+        let mut attendee_stats = vec![0f64; problem.attendees.len()];
+        let mut detailed_musicians = vec![0f64; problem.musicians.len()];
+        let mut detailed_instruments = vec![0f64; instrument_count];
+        let mut detailed_attendees = vec![0f64; problem.attendees.len()];
+
+        let is_detailed_attendee = detailed_item == "attendee";
+        let is_detailed_musician = detailed_item == "musician";
+
+        let mut board = Board::new(solution.problem_id, problem.clone(), &solution.solver);
+        for (i, placement) in solution.placements.iter().enumerate() {
+            board.try_place(i, placement.position).unwrap();
+        }
+        for (i, volume) in solution.volumes.iter().enumerate() {
+            board.set_volume(i, *volume);
+        }
+        for (m, ins) in problem.musicians.iter().enumerate() {
+            musician_stats[m] = board.contribution(m);
+            instrument_stats[*ins] += board.contribution_if_instrument(m, *ins);
+            for a in 0..problem.attendees.len() {
+                let score = board.contribution_for(m, a);
+                attendee_stats[a] += score;
+                if is_detailed_attendee && detailed_index == a {
+                    detailed_musicians[m] += score;
+                    detailed_instruments[*ins] += score;
+                }
+                if is_detailed_musician && detailed_index == m {
+                    detailed_attendees[a] += score;
+                }
+            }
+        }
+
+        return Self {
+            score: board.score(),
             musicians: musician_stats,
             instruments: instrument_stats,
             attendees: attendee_stats,
