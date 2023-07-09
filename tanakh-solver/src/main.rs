@@ -80,6 +80,8 @@ fn main(
         None
     };
 
+    eprintln!("Solving...");
+
     let solver = Solver2 {
         problem_id,
         problem: problem.clone(),

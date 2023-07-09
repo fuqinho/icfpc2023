@@ -105,7 +105,7 @@ impl Move {
         loop {
             let id = rng.gen_range(0..board.prob.musicians.len());
             let old_volume = board.volume(id);
-            let new_volume = old_volume + if rng.gen() { 0.1 } else { -0.1 };
+            let new_volume = old_volume + if rng.gen() { 0.5 } else { -0.5 };
             if (0.0..=10.0).contains(&new_volume) {
                 break Move::ChangeVolume {
                     id,
@@ -459,9 +459,16 @@ pub fn post_process(problem_id: u32, p: &Problem, s: &mut Solution) {
         }
     }
 
+    let post_socre = common::evaluate(p, s);
+    let final_solution = common::evaluate::fixup_volumes(p, s);
+    let final_score = common::evaluate::evaluate(p, &final_solution);
+
+    assert!(final_score >= post_socre, "Fix volume reduce score!!!");
+
+    *s = final_solution;
+
     eprintln!(
-        "Post processed score: {init_score} -> {} ({:+.3}%)",
-        board.score(),
-        (board.score() - init_score) / init_score * 100.0,
+        "Post processed score: {init_score} -> {final_score} ({:+.3}%)",
+        (final_score - init_score) / init_score * 100.0,
     );
 }
