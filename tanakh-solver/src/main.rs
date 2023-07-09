@@ -417,7 +417,7 @@ use std::path::PathBuf;
 //     }
 // }
 
-const SOLVER_NAME: &str = "tanakh-solver";
+const SOLVER_NAME: &str = "(´･_･`)";
 
 struct Solver2 {
     problem_id: u32,
@@ -751,6 +751,55 @@ fn remove_invisible_atendees(p: &mut Problem) {
     p.attendees = new_attendees;
 }
 
+fn post_process(problem_id: u32, p: &Problem, s: &mut Solution) {
+    eprintln!("Post processing...");
+
+    let mut board = Board::new(problem_id, p.clone(), SOLVER_NAME);
+
+    for i in 0..s.placements.len() {
+        board.try_place(i, s.placements[i].position).unwrap();
+    }
+
+    let init_score = board.score();
+
+    for i in 0..s.placements.len() {
+        let mut pos = s.placements[i].position;
+        let mut score = board.score();
+        let mut changed = true;
+
+        while changed {
+            changed = false;
+
+            for d in [
+                vec2(1.0, 0.0),
+                vec2(-1.0, 0.0),
+                vec2(0.0, 1.0),
+                vec2(0.0, -1.0),
+            ] {
+                let new_pos = pos + d;
+                if board.can_place(i, new_pos) {
+                    board.unplace(i);
+                    board.try_place(i, new_pos).unwrap();
+
+                    let new_score = board.score();
+                    if new_score > score {
+                        score = new_score;
+                        pos = new_pos;
+                        changed = true;
+                    } else {
+                        board.unplace(i);
+                        board.try_place(i, pos).unwrap();
+                    }
+                }
+            }
+        }
+
+        s.placements[i].position = pos;
+    }
+
+    eprintln!("Post processed score: {init_score} -> {}", board.score());
+}
+
 #[argopt::cmd]
 fn main(
     /// time limit in seconds
@@ -853,7 +902,7 @@ fn main(
 
     let solver = Solver2 {
         problem_id,
-        problem,
+        problem: problem.clone(),
         start_temp,
         better_initial,
         initial_solution,
@@ -880,11 +929,11 @@ fn main(
     //     lx * ly / solver.0.musicians.len() as f64
     // );
 
-    let score = -solution.score;
-
     let Some(mut solution) = solution.solution else {
         anyhow::bail!("Valid solution not found")
     };
+
+    post_process(problem_id, &problem, &mut solution);
 
     solution.problem_id = problem_id;
 
@@ -892,8 +941,7 @@ fn main(
 
     eprintln!("Statistics:");
     eprintln!("Problem ID:       {}", problem_id);
-    eprintln!("Score:            {}", score);
-    eprintln!("Score (accurate): {}", acc_score);
+    eprintln!("Score:            {}", acc_score);
     eprintln!("Musicians:        {}", solver.problem.musicians.len());
     eprintln!("Atendees:         {}", solver.problem.attendees.len());
     eprintln!("Stage area:       {}", solver.problem.stage.area());
@@ -904,11 +952,11 @@ fn main(
         if !std::path::Path::new("results").is_dir() {
             std::fs::create_dir_all("results")?;
         }
-        let file_name = format!("results/sol-{problem_id:03}-{}.json", score);
+        let file_name = format!("results/sol-{problem_id:03}-{}.json", acc_score);
         std::fs::write(file_name, format!("{}", serde_json::json!(raw_solution)))?;
     }
 
-    if score <= 0.0 {
+    if acc_score <= 0.0 {
         anyhow::bail!("Positive score not found");
     }
 
