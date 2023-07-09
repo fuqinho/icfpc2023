@@ -43,7 +43,7 @@ export default function Home({ params }: { params: { problemId: string } }) {
   const [solution, setSolution] = useState<Solution | null>(null);
   const [jsonParseException, setJSONParseException] = useState<any>(null);
   const [option, setOption] = useState<RenderingOption>({
-    scoreHeatmapAttendees: true,
+    attendeeHeatmapByScore: true,
   });
   const [evalResult, setEvalResult] = useState<EvaluationResult | null>(null);
   const [firstLoad, setFirstLoad] = useState(true);
@@ -66,12 +66,14 @@ export default function Home({ params }: { params: { problemId: string } }) {
           wasm.Evaluator.from_json(
             JSON.stringify(problem),
             JSON.stringify(solution),
+            option.lockedItem?.kind ?? "",
+            option.lockedItem?.index ?? 0,
           ),
         ),
       );
       console.timeEnd("wasm-eval-time");
     })();
-  }, [problem, solution]);
+  }, [problem, solution, option.lockedItem]);
 
   const parseAndSetSolution = useCallback(
     (s: string) => {
