@@ -21,6 +21,7 @@ type Solution struct {
 	ProblemID  int         `json:"problem_id"`
 	Created    time.Time   `json:"created"`
 	Submission *Submission `json:"submission"`
+	Evaluation *Evaluation `json:"evaluation"`
 }
 
 type Submission struct {
@@ -32,6 +33,14 @@ type Submission struct {
 	Error        string    `json:"error"`
 	Created      time.Time `json:"created"`
 	Updated      time.Time `json:"updated"`
+}
+
+type Evaluation struct {
+	SolutionUUID string    `json:"solution_uuid"`
+	Accepted     bool      `json:"accepted"`
+	Score        int64     `json:"score"`
+	Error        string    `json:"error"`
+	Created      time.Time `json:"created"`
 }
 
 type DB struct {
@@ -107,12 +116,7 @@ func (db *DB) UpdateProblem(ctx context.Context, id int, spec string) error {
 
 func (db *DB) GetSolution(ctx context.Context, uuid string) (*Solution, error) {
 	row := db.raw.QueryRowContext(ctx, querySolutions+`WHERE uuid = ?`, uuid)
-
-	solution, err := scanSolution(row)
-	if err != nil {
-		return nil, err
-	}
-	return solution, nil
+	return scanSolution(row)
 }
 
 func (db *DB) ListSolutionsForProblem(ctx context.Context, problemID int) ([]*Solution, error) {
@@ -124,15 +128,7 @@ func (db *DB) ListSolutionsForProblem(ctx context.Context, problemID int) ([]*So
 	}
 	defer rows.Close()
 
-	var solutions []*Solution
-	for rows.Next() {
-		solution, err := scanSolution(rows)
-		if err != nil {
-			return nil, err
-		}
-		solutions = append(solutions, solution)
-	}
-	return solutions, nil
+	return scanSolutions(rows)
 }
 
 func (db *DB) ListAllSolutions(ctx context.Context) ([]*Solution, error) {
@@ -142,15 +138,7 @@ func (db *DB) ListAllSolutions(ctx context.Context) ([]*Solution, error) {
 	}
 	defer rows.Close()
 
-	var solutions []*Solution
-	for rows.Next() {
-		solution, err := scanSolution(rows)
-		if err != nil {
-			return nil, err
-		}
-		solutions = append(solutions, solution)
-	}
-	return solutions, nil
+	return scanSolutions(rows)
 }
 
 func (db *DB) SubmitSolution(ctx context.Context, problemID int, solutionSpec string) (string, error) {
@@ -186,12 +174,7 @@ func (db *DB) SubmitSolution(ctx context.Context, problemID int, solutionSpec st
 
 func (db *DB) GetSolutionBySubmissionID(ctx context.Context, submissionID string) (*Solution, error) {
 	row := db.raw.QueryRowContext(ctx, querySolutions+`WHERE submissions.submission_id = ?`, submissionID)
-
-	solution, err := scanSolution(row)
-	if err != nil {
-		return nil, err
-	}
-	return solution, nil
+	return scanSolution(row)
 }
 
 func (db *DB) ReplaceSubmission(ctx context.Context, submission *Submission) error {
@@ -199,6 +182,28 @@ func (db *DB) ReplaceSubmission(ctx context.Context, submission *Submission) err
 	REPLACE INTO submissions (uuid, submission_id, state, accepted, score, error, created, updated)
 	VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`, submission.SolutionUUID, submission.ID, submission.State, submission.Accepted, submission.Score, submission.Error, submission.Created, submission.Updated); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *DB) ListUnevaluatedSolutions(ctx context.Context) ([]*Solution, error) {
+	rows, err := db.raw.QueryContext(ctx, querySolutions+`
+	WHERE evaluations.uuid IS NULL
+	ORDER BY solutions.created ASC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanSolutions(rows)
+}
+
+func (db *DB) ReplaceEvaluation(ctx context.Context, evaluation *Evaluation) error {
+	if _, err := db.raw.ExecContext(ctx, `
+	REPLACE INTO evaluations (uuid, accepted, score, error, created)
+	VALUES (?, ?, ?, ?, ?)
+	`, evaluation.SolutionUUID, evaluation.Accepted, evaluation.Score, evaluation.Error, evaluation.Created); err != nil {
 		return err
 	}
 	return nil
@@ -255,9 +260,14 @@ SELECT
 	submissions.score,
 	submissions.error,
 	submissions.created,
-	submissions.updated
+	submissions.updated,
+	evaluations.accepted,
+	evaluations.score,
+	evaluations.error,
+	evaluations.created
 FROM solutions
 LEFT OUTER JOIN submissions USING (uuid)
+LEFT OUTER JOIN evaluations USING (uuid)
 `
 
 func scanSolution(row rowScanner) (*Solution, error) {
@@ -265,12 +275,31 @@ func scanSolution(row rowScanner) (*Solution, error) {
 	var problemID int
 	var solutionCreated time.Time
 	var submissionID *string
-	var state *string
-	var accepted *bool
-	var score *int64
-	var errorMsg *string
+	var submissionState *string
+	var submissionAccepted *bool
+	var submissionScore *int64
+	var submissionError *string
 	var submissionCreated, submissionUpdated *time.Time
-	if err := row.Scan(&uuid, &problemID, &solutionCreated, &submissionID, &state, &accepted, &score, &errorMsg, &submissionCreated, &submissionUpdated); err != nil {
+	var evaluationAccepted *bool
+	var evaluationScore *int64
+	var evaluationError *string
+	var evaluationCreated *time.Time
+	if err := row.Scan(
+		&uuid,
+		&problemID,
+		&solutionCreated,
+		&submissionID,
+		&submissionState,
+		&submissionAccepted,
+		&submissionScore,
+		&submissionError,
+		&submissionCreated,
+		&submissionUpdated,
+		&evaluationAccepted,
+		&evaluationScore,
+		&evaluationError,
+		&evaluationCreated,
+	); err != nil {
 		return nil, err
 	}
 
@@ -279,12 +308,23 @@ func scanSolution(row rowScanner) (*Solution, error) {
 		submission = &Submission{
 			SolutionUUID: uuid,
 			ID:           *submissionID,
-			State:        *state,
-			Accepted:     *accepted,
-			Score:        *score,
-			Error:        *errorMsg,
+			State:        *submissionState,
+			Accepted:     *submissionAccepted,
+			Score:        *submissionScore,
+			Error:        *submissionError,
 			Created:      *submissionCreated,
 			Updated:      *submissionUpdated,
+		}
+	}
+
+	var evaluation *Evaluation
+	if evaluationCreated != nil {
+		evaluation = &Evaluation{
+			SolutionUUID: uuid,
+			Accepted:     *evaluationAccepted,
+			Score:        *evaluationScore,
+			Error:        *evaluationError,
+			Created:      *evaluationCreated,
 		}
 	}
 
@@ -293,7 +333,20 @@ func scanSolution(row rowScanner) (*Solution, error) {
 		ProblemID:  problemID,
 		Created:    solutionCreated,
 		Submission: submission,
+		Evaluation: evaluation,
 	}
 
 	return solution, nil
+}
+
+func scanSolutions(rows *sql.Rows) ([]*Solution, error) {
+	var solutions []*Solution
+	for rows.Next() {
+		solution, err := scanSolution(rows)
+		if err != nil {
+			return nil, err
+		}
+		solutions = append(solutions, solution)
+	}
+	return solutions, nil
 }
