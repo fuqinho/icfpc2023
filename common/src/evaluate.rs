@@ -174,7 +174,7 @@ impl EvaluationResult {
 }
 
 // Find rough upper bound.
-pub fn estimate(problem_id: u32, problem: &Problem) -> (f64, Solution) {
+pub fn estimate(problem_id: u32, problem: &Problem, solver: &str) -> (f64, Solution) {
     let p1 = Point2D::new(problem.stage.min.x + 10., problem.stage.min.y + 10.);
     let p2 = Point2D::new(problem.stage.min.x + 10., problem.stage.max.y - 10.);
     let p3 = Point2D::new(problem.stage.max.x - 10., problem.stage.max.y - 10.);
@@ -289,6 +289,7 @@ pub fn estimate(problem_id: u32, problem: &Problem) -> (f64, Solution) {
     }
     let solution = Solution {
         problem_id,
+        solver: solver.to_owned(),
         placements,
     };
     let score = evaluate(problem, &solution);

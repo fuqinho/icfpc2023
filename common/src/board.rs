@@ -34,6 +34,7 @@ impl From<f64> for F64 {
 #[derive(Clone, Debug)]
 pub struct Board {
     problem_id: u32,
+    solver: String,
     // NB: stage is modified
     pub prob: Problem,
 
@@ -51,7 +52,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn new(problem_id: u32, mut prob: Problem) -> Self {
+    pub fn new(problem_id: u32, mut prob: Problem, solver: &str) -> Self {
         let n = prob.musicians.len();
         let m = prob.attendees.len();
         let p = prob.pillars.len();
@@ -72,6 +73,7 @@ impl Board {
 
         Self {
             problem_id,
+            solver: solver.to_owned(),
             prob,
             ps,
             aids,
@@ -366,6 +368,7 @@ impl TryInto<Solution> for Board {
         }
         Ok(Solution {
             problem_id: self.problem_id,
+            solver: self.solver,
             placements,
         })
     }
@@ -386,7 +389,7 @@ mod tests {
 
         let problem = Problem::read_from_file(format!("../problems/{}.json", 42)).unwrap();
 
-        let mut board = Board::new(problem_id, problem.clone());
+        let mut board = Board::new(problem_id, problem.clone(), "test_solver");
 
         for i in 0..board.prob.musicians.len() {
             loop {
@@ -433,7 +436,7 @@ mod tests {
                 pillars: vec![],
             };
 
-            let mut board = Board::new(0, problem.clone());
+            let mut board = Board::new(0, problem.clone(), "test_solver");
 
             board.try_place(0, pnt(20.0, 10.0)).unwrap();
             board.try_place(1, pnt(20.0, 20.0)).unwrap();
