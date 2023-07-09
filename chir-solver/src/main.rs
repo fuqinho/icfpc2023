@@ -384,7 +384,10 @@ fn particle(
             }
 
             let mut movement = Vector2D::new(0., 0.);
-            for attendee in prob.attendees.iter() {
+            for (a, attendee) in prob.attendees.iter().enumerate() {
+                if !board.is_musician_seeing(m, a) {
+                    continue;
+                }
                 let v = attendee.position - p;
                 let d = v.square_length();
                 let s =
