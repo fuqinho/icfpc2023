@@ -78,6 +78,9 @@ export default function Home({ params }: { params: { problemId: string } }) {
   const parseAndSetSolution = useCallback(
     (s: string) => {
       setRawSolution(s);
+      setOption({
+        attendeeHeatmapByScore: true,
+      });
       try {
         const solution = parseSolution(s, problemID);
         setSolution(solution);
