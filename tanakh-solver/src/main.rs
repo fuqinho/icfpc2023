@@ -584,7 +584,7 @@ impl saru::Annealer for Solver2 {
         rng: &mut impl Rng,
         progress_ratio: f64,
     ) -> Self::Move {
-        match rng.gen_range(0..=4) {
+        match rng.gen_range(0..=5) {
             0..=2 => Move::gen_change(rng, &state.board, progress_ratio),
 
             3 => loop {
@@ -620,6 +620,15 @@ impl saru::Annealer for Solver2 {
             },
 
             4 => Move::gen_swap(rng, &state.board),
+
+            5 => {
+                let s1 = Move::gen_swap(rng, &state.board);
+                let s2 = Move::gen_swap(rng, &state.board);
+                Move::Multiple {
+                    moves: vec![s1, s2],
+                }
+            }
+
             _ => unreachable!(),
         }
     }
