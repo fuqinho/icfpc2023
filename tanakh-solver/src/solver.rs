@@ -63,7 +63,7 @@ impl Move {
         let scale_x = (scale_x / grid).round() as i32;
         let scale_y = (scale_y / grid).round() as i32;
 
-        loop {
+        'outer: loop {
             let id = rng.gen_range(0..board.musicians().len());
 
             if let Some(taste) = taste {
@@ -76,31 +76,44 @@ impl Move {
             // let len = rng.gen_range(0.1..=scale);
             // let d = Vector2D::from_angle_and_length(Angle::radians(theta), len);
 
-            let d = vec2(
-                rng.gen_range(-scale_x..=scale_x) as f64 * grid,
-                rng.gen_range(-scale_y..=scale_y) as f64 * grid,
-            );
+            let mut xd = if rng.gen() {
+                rng.gen_range(-scale_x..=scale_x)
+            } else {
+                0
+            };
+            let mut yd = if rng.gen() {
+                rng.gen_range(-scale_y..=scale_y)
+            } else {
+                0
+            };
 
             let old_pos = board.musicians()[id].unwrap().0.to_point();
-            let new_pos = old_pos + d;
-            let new_pos = point2(
-                new_pos.x.clamp(stage.min.x, stage.max.x),
-                new_pos.y.clamp(stage.min.y, stage.max.y),
-            );
 
-            if new_pos == old_pos {
-                continue;
+            while xd != 0 || yd != 0 {
+                let d = vec2(xd as f64 * grid, yd as f64 * grid);
+
+                let new_pos = old_pos + d;
+                let new_pos = point2(
+                    new_pos.x.clamp(stage.min.x, stage.max.x),
+                    new_pos.y.clamp(stage.min.y, stage.max.y),
+                );
+
+                if new_pos == old_pos {
+                    break;
+                }
+
+                if !board.can_place(id, new_pos) {
+                    xd /= 2;
+                    yd /= 2;
+                    continue;
+                }
+
+                break 'outer Move::ChangePos {
+                    id,
+                    new_pos,
+                    old_pos,
+                };
             }
-
-            if !board.can_place(id, new_pos) {
-                continue;
-            }
-
-            break Move::ChangePos {
-                id,
-                new_pos,
-                old_pos,
-            };
         }
     }
 
@@ -118,7 +131,7 @@ impl Move {
         loop {
             let id = rng.gen_range(0..board.prob.musicians.len());
             let old_volume = board.volume(id);
-            let new_volume = (old_volume + if rng.gen() { 0.5 } else { -0.5 }).clamp(0.0, 10.0);
+            let new_volume = (old_volume + if rng.gen() { 1.0 } else { -1.0 }).clamp(0.0, 10.0);
             if old_volume != new_volume {
                 break Move::ChangeVolume {
                     id,
