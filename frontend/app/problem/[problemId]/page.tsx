@@ -158,6 +158,7 @@ export default function Home({ params }: { params: { problemId: string } }) {
               visualizer={visualizer.current}
               problem={problem}
               evalResult={evalResult}
+              solution={solution}
               option={option}
               setOption={setOption}
               rawSolution={rawSolution}

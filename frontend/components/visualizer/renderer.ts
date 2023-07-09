@@ -121,6 +121,7 @@ export class Renderer {
         );
       }
     }
+    this.drawHoveredItem();
     this.vp.drawCursorPos();
   }
 
@@ -141,6 +142,31 @@ export class Renderer {
       strokeStyle: "blue",
       lineWidth: 10,
     });
+  }
+
+  private drawHoveredItem() {
+    if (!this.currentHoveredItem) {
+      return;
+    }
+
+    if (this.currentHoveredItem.kind === "attendee") {
+      const attendee = this.problem.attendees[this.currentHoveredItem.index];
+      this.vp.drawCircle({
+        pXY: [attendee.x, attendee.y],
+        cRadius: ATTENDEE_RADIUS,
+        lineWidth: 10,
+        strokeStyle: "green",
+      });
+    } else if (this.currentHoveredItem.kind === "musician") {
+      const musician =
+        this.solution?.placements[this.currentHoveredItem.index]!;
+      this.vp.drawCircle({
+        pXY: [musician.x, musician.y],
+        pRadius: MUSICIAN_RADIUS,
+        lineWidth: 10,
+        strokeStyle: "green",
+      });
+    }
   }
 
   private drawAttendeeNormal(attendee: Attendee) {
