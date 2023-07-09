@@ -169,6 +169,9 @@ fn do_annealing<A: Annealer>(
     let mut temp = t_max;
     let mut progress_ratio = 0.0;
     let mut prev_heart_beat = timer.elapsed();
+    let mut prev_updated = timer.elapsed();
+    let mut best_valid_updated = false;
+    let mut best_updated = false;
 
     let mut iters = 0;
 
@@ -192,15 +195,30 @@ fn do_annealing<A: Annealer>(
 
             temp = t_max * (t_min / t_max).powf(progress_ratio);
 
-            if (timer.elapsed() - prev_heart_beat).as_secs_f64() >= 10.0 {
-                progress!(
-                    "best = {:>16}, best valid = {:>16}, cur = {:>16}, temp = {:>16}, progress: {:6.2}% ⛔",
-                    format!("{:.1}", best_score).separate_with_commas(),
-                    format!("{:.1}", valid_best_score).separate_with_commas(),
-                    format!("{:.1}", cur_score).separate_with_commas(),
-                    format!("{:.1}", temp).separate_with_commas(),
-                    progress_ratio * 100.0
-                );
+            if (timer.elapsed() - prev_heart_beat).as_secs_f64() >= 1.0 {
+                if best_updated
+                    || best_valid_updated
+                    || (timer.elapsed() - prev_updated).as_secs_f64() >= 10.0
+                {
+                    let mark = if best_valid_updated {
+                        "✅"
+                    } else if best_updated {
+                        "🐴"
+                    } else {
+                        "⛔"
+                    };
+                    if best_updated || best_valid_updated {
+                        prev_updated = timer.elapsed();
+                    }
+                    progress!(
+                        "best = {:>16}, best valid = {:>16}, cur = {:>16}, temp = {:>16}, progress: {:6.2}% {mark}",
+                        format!("{:.1}", best_score).separate_with_commas(),
+                        format!("{:.1}", valid_best_score).separate_with_commas(),
+                        format!("{:.1}", cur_score).separate_with_commas(),
+                        format!("{:.1}", temp).separate_with_commas(),
+                        progress_ratio * 100.0
+                    );
+                }
                 prev_heart_beat = timer.elapsed();
             }
         }
@@ -218,7 +236,6 @@ fn do_annealing<A: Annealer>(
             cur_score,
         );
 
-        let mut best_valid_updated = false;
         if let Some(new_correct_score) = new_correct_score {
             if new_correct_score < valid_best_score {
                 if valid_best_score - new_correct_score > 1e-6 {
@@ -228,8 +245,6 @@ fn do_annealing<A: Annealer>(
                 valid_best_ans = Some(state.solution());
             }
         }
-
-        let mut best_updated = false;
 
         if new_score <= cur_score
             || rng.gen::<f64>() <= ((cur_score - new_score) as f64 / temp).exp()
@@ -249,19 +264,6 @@ fn do_annealing<A: Annealer>(
             }
         } else {
             annealer.unapply(&mut state, &mov);
-        }
-
-        if best_updated || best_valid_updated {
-            progress!(
-                "best = {:>16}, best valid = {:>16}, cur = {:>16}, temp = {:>16}, progress: {:6.2}% {}",
-                format!("{:.1}", best_score).separate_with_commas(),
-                format!("{:.1}", valid_best_score).separate_with_commas(),
-                format!("{:.1}", cur_score).separate_with_commas(),
-                format!("{:.1}", temp).separate_with_commas(),
-                progress_ratio * 100.0,
-                if best_valid_updated { "✅" } else { "🐴" }
-            );
-            prev_heart_beat = timer.elapsed();
         }
     }
 
