@@ -27,7 +27,7 @@ fn main(
     for i in 0..board.prob.musicians.len() {
         let cont = board.contribution(i);
         if cont < 0. {
-            eprintln!("musician {i} is negatively contributing!!!: {}", cont);
+            eprintln!("musician {i} is negatively contributing: {}", cont);
         }
     }
 
