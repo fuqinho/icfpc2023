@@ -180,6 +180,11 @@ impl Board {
     }
 
     pub fn can_place(&self, i: usize, position: Point<f64>) -> bool {
+        let mut bb = self.prob.stage;
+        bb.max += P::new(1e-9, 1e-9);
+        if !bb.contains(position) {
+            return false;
+        }
         for (ix, p) in self.ps[0..self.prob.musicians.len()].iter().enumerate() {
             if ix == i {
                 continue;
