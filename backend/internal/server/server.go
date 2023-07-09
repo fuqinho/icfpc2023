@@ -35,6 +35,7 @@ func NewHandler(db *database.DB) *Handler {
 	r.HandleFunc("/api/problems/{id}/spec", h.handleProblemSpec).Methods(http.MethodGet)
 	r.HandleFunc("/api/problems/{id}/solutions", h.handleProblemSolutions).Methods(http.MethodGet)
 	r.HandleFunc("/api/problems/{id}/image", h.handleProblemImage).Methods(http.MethodGet)
+	r.HandleFunc("/api/problems/{id}/best-solution", h.handleProblemBestSolution).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions", h.handleSolutions).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions/{uuid}", h.handleSolution).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions/{uuid}/spec", h.handleSolutionSpec).Methods(http.MethodGet)
@@ -102,6 +103,39 @@ func (h *Handler) handleProblemSpec(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Location", h.db.ProblemURL(id))
+		w.WriteHeader(http.StatusFound)
+		return nil
+	})
+}
+
+func (h *Handler) handleProblemBestSolution(w http.ResponseWriter, r *http.Request) {
+	withResponse(w, r, func() error {
+		ctx := r.Context()
+		vars := mux.Vars(r)
+		id, err := strconv.Atoi(vars["id"])
+		if err != nil {
+			return err
+		}
+
+		solutions, err := h.db.ListSolutionsForProblem(ctx, id)
+		if err != nil {
+			return err
+		}
+		var best *database.Solution
+		for _, solution := range solutions {
+			if solution.Submission == nil {
+				continue
+			}
+			if best == nil || (solution.Submission.Score > best.Submission.Score) {
+				best = solution
+			}
+		}
+
+		if best == nil {
+			return errors.New("cannot find the best solution")
+		}
+
+		w.Header().Set("Location", h.db.SolutionURL(best.UUID))
 		w.WriteHeader(http.StatusFound)
 		return nil
 	})
