@@ -22,7 +22,7 @@ fn main(
 
     let mut solver = Solver::new(problem_id, problem.clone());
 
-    let (_score, board) = solver.solve(algo);
+    let (score, board) = solver.solve(algo);
 
     let solution: Solution = board.try_into().unwrap();
 
@@ -30,7 +30,10 @@ fn main(
 
     eprintln!("final score: {}", eval_score);
 
-    // assert_eq!(score, eval_score);
+    if score != eval_score {
+        let diff = (1. - score / eval_score).abs() * 100.;
+        eprintln!("WARNING: board and evaluate score differ by {}%", diff);
+    }
 
     if eval_score > best_score {
         cl.post_submission(problem_id, solution.clone())?;
