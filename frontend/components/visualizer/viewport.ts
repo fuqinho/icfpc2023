@@ -95,6 +95,9 @@ export class Viewport {
   }
 
   public commitVpCenterMove() {
+    if (this.cVpCenterTempMove[0] == 0 && this.cVpCenterTempMove[0] == 0) {
+      return;
+    }
     this.setState({
       pVpSize: this.state.pVpSize,
       pVpCenter: [
