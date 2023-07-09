@@ -1,6 +1,6 @@
 use anyhow::Result;
 use common::{api::Client, board::Board, Problem, RawSolution, Solution};
-use euclid::{default::*, point2, rect, size2, vec2};
+use euclid::{default::*, point2, rect, size2, vec2, Angle};
 use lyon_geom::{LineSegment, Point};
 use rand::Rng;
 use std::path::PathBuf;
@@ -432,8 +432,9 @@ impl saru::Annealer for Solver {
 struct Solver2 {
     problem_id: u32,
     problem: common::Problem,
-    initial_solution: Option<common::Solution>,
     start_temp: Option<f64>,
+    better_initial: bool,
+    initial_solution: Option<common::Solution>,
 }
 
 #[derive(Clone)]
@@ -453,7 +454,7 @@ impl saru::Annealer for Solver2 {
             for (i, p) in initial_solution.placements.iter().enumerate() {
                 board.try_place(i, p.position).unwrap();
             }
-        } else {
+        } else if self.better_initial {
             for i in 0..board.prob.musicians.len() {
                 let mut best = (f64::MIN, Point::new(0.0, 0.0));
                 for _ in 0..100 {
@@ -476,6 +477,20 @@ impl saru::Annealer for Solver2 {
                 }
 
                 board.try_place(i, best.1).unwrap();
+            }
+        } else {
+            for i in 0..board.prob.musicians.len() {
+                loop {
+                    let x: f64 = rng
+                        .gen_range(board.prob.stage.min.x..=board.prob.stage.max.x)
+                        .round();
+                    let y: f64 = rng
+                        .gen_range(board.prob.stage.min.y..=board.prob.stage.max.y)
+                        .round();
+                    if board.try_place(i, Point::new(x, y)).is_ok() {
+                        break;
+                    }
+                }
             }
         }
 
@@ -509,11 +524,13 @@ impl saru::Annealer for Solver2 {
     ) -> Self::Move {
         let stage = &state.board.prob.stage;
 
-        let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(10.0);
-        let scale_y = (stage.height() / 5.0 * (1.0 - progress_ratio)).max(10.0);
+        // let scale = 15.0;
 
         // let scale_x = 15.0;
         // let scale_y = 15.0;
+
+        let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(10.0);
+        let scale_y = (stage.height() / 5.0 * (1.0 - progress_ratio)).max(10.0);
 
         let grid = 0.25_f64;
         let scale_x = (scale_x / grid).round() as i32;
@@ -522,6 +539,11 @@ impl saru::Annealer for Solver2 {
         match rng.gen_range(0..=3) {
             0..=2 => loop {
                 let id = rng.gen_range(0..state.board.musicians().len());
+
+                // let theta = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+                // let len = rng.gen_range(0.1..=scale);
+                // let d = Vector2D::from_angle_and_length(Angle::radians(theta), len);
+
                 let d = vec2(
                     rng.gen_range(-scale_x..=scale_x) as f64 * grid,
                     rng.gen_range(-scale_y..=scale_y) as f64 * grid,
@@ -602,6 +624,9 @@ fn main(
     /// specify start temperature
     #[opt(long)]
     start_temp: Option<f64>,
+    /// better initial solution
+    #[opt(long)]
+    better_initial: bool,
     /// problem id
     problem_id: u32,
 ) -> Result<()> {
@@ -625,6 +650,7 @@ fn main(
         problem_id,
         problem,
         start_temp,
+        better_initial,
         initial_solution,
     };
 
