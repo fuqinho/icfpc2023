@@ -8,8 +8,8 @@ use std::thread;
 use thousands::Separable;
 
 const SOLVER_NAME: &str = "fuqinho-solver";
-const NUM_THREADS: usize = 16;
-const BEAM_WIDTH: usize = 32;
+const NUM_THREADS: usize = 32;
+const BEAM_WIDTH: usize = 100;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CandidatePos {
@@ -31,6 +31,7 @@ struct State {
     placed: BitSet,
     used: BitSet,
     board: Board,
+    index: usize,
 }
 
 #[allow(dead_code)]
@@ -124,14 +125,11 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
     // 1. Generate candidate grid points.
     let grid_points = generate_grid_points(problem);
 
-    // 2. Compute score for each points and filter out unimportant points.
-
-    // 3.
-
     let mut config = Config {
         locations: grid_points,
     };
     let initial_state = State {
+        index: 0,
         score: 0,
         placed: BitSet::new(problem.musicians.len()),
         used: BitSet::new(config.locations.len()),
@@ -145,48 +143,58 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
         // List up moves and their estimated scores.
         let mut next_moves = vec![];
 
-        let mut threads = vec![];
-        for b in 0..beam.len() {
-            let mut state = beam[b].clone();
-            let config = config.clone();
-            let problem = problem.clone();
-            let task = thread::spawn(move || {
-                let mut moves: Vec<Move> = vec![];
-                let mut rng = rand::thread_rng();
-                for _ in 0..5 {
-                    // Pick a musician to place.
-                    let m = state.pick_random_avail_musician(&config, &mut rng);
-                    let instrument = problem.musicians[m];
-
-                    // Pick a location to place.
-                    for i in 0..state.placements.len() {
-                        if state.placements[i] != u16::MAX {
-                            continue;
-                        }
-
-                        state.board.try_place(m, config.locations[i].pos).unwrap();
-                        let score = -state.board.score() as i64;
-                        state.board.unplace(m);
-
-                        moves.push(Move {
-                            score,
-                            musician: m,
-                            instrument,
-                            location: i,
-                            from: b,
-                        });
-                    }
+        thread::scope(|s| {
+            let mut tasks = vec![];
+            let states_per_thread = (beam.len() + NUM_THREADS - 1) / NUM_THREADS;
+            for t in 0..NUM_THREADS {
+                let mut range = t * states_per_thread..(t + 1) * states_per_thread;
+                if range.end > beam.len() {
+                    range.end = beam.len();
                 }
-                moves
-            });
-            threads.push(task);
-        }
-        for t in threads {
-            let mut moves = t.join().unwrap();
-            for m in moves {
-                next_moves.push(m);
+                let task = s.spawn(|| {
+                    let mut moves: Vec<Move> = vec![];
+                    let mut rng = rand::thread_rng();
+                    for b in range {
+                        let state = &beam[b];
+                        let mut board = state.board.clone();
+                        for _ in 0..5 {
+                            // Pick a musician to place.
+                            let m = state.pick_random_avail_musician(&config, &mut rng);
+                            let instrument = problem.musicians[m];
+
+                            // Pick a location to place.
+                            for i in 0..state.placements.len() {
+                                if state.placements[i] != u16::MAX {
+                                    continue;
+                                }
+
+                                board.try_place(m, config.locations[i].pos).unwrap();
+                                let score = -board.score() as i64;
+                                board.unplace(m);
+
+                                moves.push(Move {
+                                    score,
+                                    musician: m,
+                                    instrument,
+                                    location: i,
+                                    from: state.index,
+                                });
+                            }
+                        }
+                    }
+                    moves
+                });
+                tasks.push(task);
             }
-        }
+
+            for t in tasks {
+                let mut moves = t.join().unwrap();
+                for m in moves {
+                    next_moves.push(m);
+                }
+            }
+        });
+
         next_moves.sort_by_key(|m| m.score);
 
         let mut next_beam = vec![];
@@ -199,6 +207,7 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
             let mut board = beam[next_move.from].board.clone();
             board.try_place(next_move.musician, pos).unwrap();
             next_beam.push(State {
+                index: next_beam.len(),
                 score: -board.score() as i64,
                 used: BitSet::new(config.locations.len()),
                 placed,
