@@ -213,7 +213,15 @@ impl Board {
     }
 
     fn update_blocks(&mut self, m: usize, p: P, inc: bool) {
-        for (i, q) in self.ps.clone().into_iter().enumerate() {
+        let (prob, ps, aids, blocks, impacts) = (
+            &self.prob,
+            &self.ps,
+            &self.aids,
+            &mut self.blocks,
+            &mut self.impacts,
+        );
+
+        for (i, q) in ps.iter().enumerate() {
             if i == m {
                 continue;
             }
@@ -221,11 +229,11 @@ impl Board {
             if let Some((q, r)) = q {
                 for rev in [false, true] {
                     let (blocking, blocked, _, i, _, r) = if rev {
-                        (q, p, i, m, r, MUSICIAN_R)
+                        (*q, p, i, m, *r, MUSICIAN_R)
                     } else {
-                        (p, q, m, i, MUSICIAN_R, r)
+                        (p, *q, m, i, MUSICIAN_R, *r)
                     };
-                    if i >= self.prob.musicians.len() {
+                    if i >= prob.musicians.len() {
                         // blocked is pillar, we don't need to calculate impact
                         continue;
                     }
@@ -234,26 +242,47 @@ impl Board {
 
                     let (t1, t2) = tangent_to_circle(blocked, blocking, r);
 
-                    let r1: F64 = (t1 - blocked).angle_from_x_axis().radians.into();
-                    let r2: F64 = (t2 - blocked).angle_from_x_axis().radians.into();
+                    let mut r1: F64 = (t1 - blocked).angle_from_x_axis().radians.into();
+                    let mut r2: F64 = (t2 - blocked).angle_from_x_axis().radians.into();
 
-                    let mut rs = vec![];
-                    if r1 < r2 {
-                        rs.push((r1, r2));
+                    let eps = 1e-12;
+                    r1.0 += eps;
+                    r2.0 -= eps;
+
+                    let rs = if r1 < r2 {
+                        [Some((r1, r2)), None]
                     } else {
-                        rs.push((r1, (std::f64::consts::PI).into()));
-                        rs.push(((-std::f64::consts::PI).into(), r2));
-                    }
+                        [
+                            Some((r1, std::f64::consts::PI.into())),
+                            Some(((-std::f64::consts::PI).into(), r2)),
+                        ]
+                    };
 
-                    for (r1, r2) in rs {
-                        let j1 = self.aids[i].binary_search(&(r1, 0)).unwrap_or_else(|j| j);
-                        let j2 = self.aids[i].binary_search(&(r2, 0)).unwrap_or_else(|j| j);
+                    for angle_range in rs {
+                        if let Some((r1, r2)) = angle_range {
+                            let j1 = aids[i].binary_search(&(r1, 0)).unwrap_or_else(|j| j);
+                            let j2 = aids[i].binary_search(&(r2, 0)).unwrap_or_else(|j| j);
 
-                        for j in j1..j2 {
-                            if inc {
-                                self.inc_blocks(i, self.aids[i][j].1);
-                            } else {
-                                self.dec_blocks(i, self.aids[i][j].1);
+                            for j in j1..j2 {
+                                if inc {
+                                    Self::inc_blocks(
+                                        blocks,
+                                        impacts,
+                                        prob,
+                                        ps,
+                                        i,
+                                        self.aids[i][j].1,
+                                    );
+                                } else {
+                                    Self::dec_blocks(
+                                        blocks,
+                                        impacts,
+                                        prob,
+                                        ps,
+                                        i,
+                                        self.aids[i][j].1,
+                                    );
+                                }
                             }
                         }
                     }
@@ -262,36 +291,56 @@ impl Board {
         }
     }
 
-    fn inc_blocks(&mut self, i: usize, a: usize) {
-        let b = &mut self.blocks[i][a];
+    fn inc_blocks(
+        blocks: &mut Vec<Vec<usize>>,
+        impacts: &mut Vec<f64>,
+        prob: &Problem,
+        ps: &Vec<Option<(P, f64)>>,
+        i: usize,
+        a: usize,
+    ) {
+        let b = &mut blocks[i][a];
         *b += 1;
         if *b == 1 {
-            self.impacts[i] -= self.impact(i, a);
+            impacts[i] -= Self::impact_internal(prob, ps, prob.musicians[i], i, a);
         }
     }
 
-    fn dec_blocks(&mut self, i: usize, a: usize) {
-        let b = &mut self.blocks[i][a];
+    fn dec_blocks(
+        blocks: &mut Vec<Vec<usize>>,
+        impacts: &mut Vec<f64>,
+        prob: &Problem,
+        ps: &Vec<Option<(P, f64)>>,
+        i: usize,
+        a: usize,
+    ) {
+        let b = &mut blocks[i][a];
         *b -= 1;
         if *b == 0 {
-            self.impacts[i] += self.impact(i, a);
+            impacts[i] += Self::impact_internal(prob, ps, prob.musicians[i], i, a);
         }
+    }
+
+    fn impact_internal(
+        prob: &Problem,
+        ps: &Vec<Option<(P, f64)>>,
+        k: usize,
+        m: usize,
+        a: usize,
+    ) -> f64 {
+        let d2 = (prob.attendees[a].position - ps[m].unwrap().0)
+            .to_vector()
+            .square_length();
+        let impact = 1_000_000.0 * prob.attendees[a].tastes[k] / d2;
+        impact.ceil()
     }
 
     fn impact(&self, m: usize, a: usize) -> f64 {
-        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap().0)
-            .to_vector()
-            .square_length();
-        let impact = 1_000_000.0 * self.prob.attendees[a].tastes[self.prob.musicians[m]] / d2;
-        impact.ceil()
+        Self::impact_internal(&self.prob, &self.ps, self.prob.musicians[m], m, a)
     }
 
     fn impact_if_kind(&self, m: usize, a: usize, k: usize) -> f64 {
-        let d2 = (self.prob.attendees[a].position - self.ps[m].unwrap().0)
-            .to_vector()
-            .square_length();
-        let impact = 1_000_000.0 * self.prob.attendees[a].tastes[k] / d2;
-        impact.ceil()
+        Self::impact_internal(&self.prob, &self.ps, k, m, a)
     }
 }
 

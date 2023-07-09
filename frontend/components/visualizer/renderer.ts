@@ -57,48 +57,45 @@ export class Renderer {
     this.drawRoomAndStage();
 
     if (this.option.tasteHeatmapInstrument === undefined) {
-      let maxScore = Number.MIN_SAFE_INTEGER;
-      let minScore = Number.MAX_SAFE_INTEGER;
+      let maxScore = 0;
       this.problem.attendees.forEach((_, i) => {
         const score = this.evalResult?.attendees.at(i)?.score!;
-        maxScore = Math.max(maxScore, score);
-        minScore = Math.min(minScore, score);
+        maxScore = Math.max(maxScore, Math.abs(score));
       });
       this.problem.attendees.forEach((a, i) =>
         this.drawAttendeeWithHeat(
           a,
           this.evalResult?.attendees.at(i)?.score!,
           maxScore,
-          minScore,
         ),
       );
     } else {
-      let maxTaste = Number.MIN_SAFE_INTEGER;
-      let minTaste = Number.MAX_SAFE_INTEGER;
+      let maxTaste = 0;
       const instr = this.option.tasteHeatmapInstrument;
       this.problem.attendees.forEach((a) => {
         const taste = a.tastes[instr];
-        maxTaste = Math.max(maxTaste, taste);
-        minTaste = Math.min(minTaste, taste);
+        maxTaste = Math.max(maxTaste, Math.abs(taste));
       });
 
       this.problem.attendees.forEach((a) =>
-        this.drawAttendeeWithHeat(a, a.tastes[instr], maxTaste, minTaste),
+        this.drawAttendeeWithHeat(a, a.tastes[instr], maxTaste),
       );
     }
 
     this.problem.pillars.forEach((p) => this.drawPillar(p));
     if (this.solution) {
       if (this.option.scoreHeatmapMusicians) {
-        let maxScore = Number.MIN_SAFE_INTEGER;
-        let minScore = Number.MAX_SAFE_INTEGER;
+        let maxScore = 0;
         this.solution.placements.forEach((_, i) => {
           const score = this.evalResult?.musicians.at(i)?.score!;
-          maxScore = Math.max(maxScore, score);
-          minScore = Math.min(minScore, score);
+          maxScore = Math.max(maxScore, Math.abs(score));
         });
         this.solution.placements.forEach((m, i) =>
-          this.drawMusicianWithHeat(m, i, maxScore, minScore),
+          this.drawMusicianWithHeat(
+            m,
+            this.evalResult?.musicians.at(i)?.score!,
+            maxScore,
+          ),
         );
       } else {
         this.solution.placements.forEach((m, i) =>
@@ -132,7 +129,6 @@ export class Renderer {
     attendee: Attendee,
     value: number,
     maxValue: number,
-    minValue: number,
   ) {
     let color: tinycolor.Instance;
     if (value > 0) {
@@ -146,7 +142,7 @@ export class Renderer {
       color = tinycolor({
         // Blue
         h: 240,
-        s: (value / minValue) * 100,
+        s: (Math.abs(value) / maxValue) * 100,
         v: 100,
       });
     }
@@ -174,26 +170,24 @@ export class Renderer {
 
   private drawMusicianWithHeat(
     musician: Musician,
-    index: number,
-    maxScore: number,
-    minScore: number,
+    value: number,
+    maxValue: number,
   ) {
-    const score = this.evalResult?.musicians.at(index)?.score!;
     let color: tinycolor.Instance;
-    if (score == 0) {
+    if (value == 0) {
       color = tinycolor("#ffffff");
-    } else if (score > 0) {
+    } else if (value > 0) {
       color = tinycolor({
         // Red
         h: 0,
-        s: (score / maxScore) * 100,
+        s: (value / maxValue) * 100,
         v: 100,
       });
     } else {
       color = tinycolor({
         // Blue
         h: 240,
-        s: (score / minScore) * 100,
+        s: (Math.abs(value) / maxValue) * 100,
         v: 100,
       });
     }
