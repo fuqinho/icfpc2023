@@ -382,12 +382,8 @@ impl Board {
     fn impact_if_kind(&self, m: usize, a: usize, k: usize) -> f64 {
         Self::impact_internal(&self.prob, &self.ps, k, m, a)
     }
-}
 
-impl TryInto<Solution> for Board {
-    type Error = anyhow::Error;
-
-    fn try_into(self) -> Result<Solution, Self::Error> {
+    pub fn solution(&self) -> Option<Solution> {
         let mut placements = vec![];
         for p in self.ps[0..self.prob.musicians.len()].iter() {
             if let Some((p, _)) = p {
@@ -395,14 +391,26 @@ impl TryInto<Solution> for Board {
                     position: p.to_point(),
                 });
             } else {
-                bail!("not all musicians are placed");
+                return None;
             }
         }
-        Ok(Solution {
+        Some(Solution {
             problem_id: self.problem_id,
-            solver: self.solver,
+            solver: self.solver.clone(),
             placements,
         })
+    }
+}
+
+impl TryInto<Solution> for Board {
+    type Error = anyhow::Error;
+
+    fn try_into(self) -> Result<Solution, Self::Error> {
+        if let Some(solution) = self.solution() {
+            Ok(solution)
+        } else {
+            bail!("not all musicians are placed");
+        }
     }
 }
 
