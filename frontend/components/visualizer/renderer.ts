@@ -258,7 +258,7 @@ export class Renderer {
         v: 1,
       });
     } else {
-      color = tinycolor({
+      color = tinycolor.fromRatio({
         // Blue
         h: 240.0 / 360.0,
         s: Math.abs(value) / maxValue,
@@ -296,7 +296,7 @@ export class Renderer {
     if (value == 0) {
       color = tinycolor("#ffffff");
     } else if (value > 0) {
-      color = tinycolor({
+      color = tinycolor.fromRatio({
         // Red
         h: 0,
         s: value / maxValue,
