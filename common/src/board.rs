@@ -245,7 +245,14 @@ impl Board {
                         rs.push(((-std::f64::consts::PI).into(), r2));
                     }
 
-                    for (r1, r2) in rs {
+                    for (mut r1, mut r2) in rs {
+                        if r1.0 != -std::f64::consts::PI {
+                            r1.0 += 1e-9;
+                        }
+                        if r2.0 != std::f64::consts::PI {
+                            r2.0 -= 1e-9;
+                        }
+
                         let j1 = self.aids[i].binary_search(&(r1, 0)).unwrap_or_else(|j| j);
                         let j2 = self.aids[i].binary_search(&(r2, 0)).unwrap_or_else(|j| j);
 
