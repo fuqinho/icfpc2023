@@ -111,6 +111,17 @@ export function useBestSolutions() {
   return { data: bestSolutions, error, isLoading };
 }
 
+export function useSolutions() {
+  const { data, error, isLoading } = useSWR<AxiosResponse<SolutionMetadata[]>>(
+    {
+      method: "get",
+      url: `/api/solutions`,
+    },
+    client,
+  );
+  return { data: data?.data, error, isLoading };
+}
+
 export function useKnownSolutions(problemID: number | undefined) {
   const { data, error, isLoading } = useSWR<AxiosResponse<SolutionMetadata[]>>(
     problemID
