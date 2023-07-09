@@ -6,7 +6,7 @@ use common::{
     api::Client, board::Board, create_q_vector, evaluate, evaluate_musician, Placement, Problem,
     RawSolution,
 };
-use euclid::default::Point2D;
+use euclid::{default::Point2D, point2, Box2D, Vector2D};
 use indexmap::IndexMap;
 use log::{debug, info};
 use lyon_geom::point;
@@ -30,6 +30,8 @@ struct Args {
     step: f64,
     #[arg(long)]
     from_current_best: bool,
+    #[arg(long)]
+    potential_move: bool,
 }
 
 #[derive(Debug)]
@@ -317,12 +319,27 @@ fn particle(
     pid: u32,
     initial_board: Option<common::Solution>,
 ) -> Result<common::Solution> {
-    let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
+    let mut cur =
+        initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
 
-    const MAX_LOOP: usize = 100;
-    const UNIT_LEN: f64 = 0.1;
+    let mut board = Board::new(pid, prob.clone(), "particle");
+    for (m, placement) in cur.placements.iter().enumerate() {
+        board.try_place(m, placement.position)?;
+        board.set_volume(m, cur.volumes[m]);
+    }
+
+    let stage = Box2D::new(
+        prob.stage.min + Vector2D::new(10., 10.),
+        prob.stage.max - Vector2D::new(-10., -10.),
+    );
+    const MAX_LOOP: usize = 10000;
+    let mut unit_len = 1.0;
     let mut cnt = 0;
+
+    info!("initial score = {}", board.score());
+
     loop {
+        let current_score = board.score();
         let qs = create_q_vector(&prob.musicians, &cur);
         let mut scores = vec![];
         for (m, _) in cur.placements.iter().enumerate() {
@@ -334,19 +351,79 @@ fn particle(
         scores.reverse();
 
         for (cur_s, m) in scores {
+            debug!("processing {}", m);
             let p = cur.placements[m].position;
+            // Count touches
+            let mut touches = 0;
+            let mut touch_point = None;
+            if p.x == stage.min.x {
+                touches += 1;
+                touch_point = Some(point2(stage.min.x - 10., p.y));
+            }
+            if p.x == stage.max.x {
+                touches += 1;
+                touch_point = Some(point2(stage.max.x + 10., p.y));
+            }
+            if p.y == stage.min.y {
+                touches += 1;
+                touch_point = Some(point2(p.x, stage.min.y - 10.));
+            }
+            if p.y == stage.max.y {
+                touches += 1;
+                touch_point = Some(point2(p.x, stage.max.y + 10.));
+            }
+            for placement in cur.placements.iter() {
+                if (placement.position - p).square_length() == 100. {
+                    touches += 1;
+                    touch_point = Some(placement.position);
+                }
+            }
+            if touches >= 2 {
+                // Locked. skip
+                continue;
+            }
+
+            let mut movement = Vector2D::new(0., 0.);
             for attendee in prob.attendees.iter() {
                 let v = attendee.position - p;
                 let d = v.square_length();
                 let s =
                     (qs[m] * (1_000_000f64 * attendee.tastes[prob.musicians[m]] / d).ceil()).ceil();
-                // let v = ((scores / (cur_s as f64)) * UNIT_LEN) * v.normalize();
+                movement += v * (s / (cur_s as f64));
+            }
+            movement = movement.normalize() * unit_len;
+            if touches == 1 {
+                movement = movement - (touch_point.unwrap() - p);
+            }
+            let np = p + movement;
+            let prev_score = board.score();
+            board.unplace(m);
+            if board.can_place(m, np) {
+                board.try_place(m, np)?;
+                if prev_score > board.score() {
+                    board.unplace(m);
+                    board.try_place(m, p)?;
+                } else {
+                    debug!("Found good move");
+                }
+            } else {
+                board.try_place(m, p)?;
             }
         }
 
+        cur = board.clone().try_into()?;
+
+        info!("score updated {} -> {}", current_score, board.score());
         cnt += 1;
         if cnt >= MAX_LOOP {
             break;
+        }
+        if current_score == board.score() {
+            if unit_len < 0.001 {
+                info!("Finished");
+                break;
+            }
+            unit_len = unit_len / 2.;
         }
     }
 
@@ -390,8 +467,18 @@ fn main() -> Result<()> {
     }
 
     if args.pick_and_move {
-        sol = pick_and_move(&problem, args.problem_id, initial_solution, args.step)?;
+        sol = pick_and_move(
+            &problem,
+            args.problem_id,
+            initial_solution.clone(),
+            args.step,
+        )?;
         sol.solver = "pick-and-move-tuner".to_string();
+    }
+
+    if args.potential_move {
+        sol = particle(&problem, args.problem_id, initial_solution.clone())?;
+        sol.solver = "potential-move-tuner".to_string();
     }
 
     let score = evaluate(&problem, &sol);
@@ -405,11 +492,16 @@ fn main() -> Result<()> {
         common::Solution::write_to_file(output, sol.clone())?;
     }
 
-    if args.submit && score > initial_score {
-        let c = Client::new();
-        c.post_submission(args.problem_id, sol)?;
-    } else {
-        info!("Skip submitting because of no improvement");
+    if args.submit {
+        if score > initial_score {
+            let c = Client::new();
+            c.post_submission(args.problem_id, sol)?;
+        } else {
+            info!(
+                "Skip submitting because of no improvement {} {} {}",
+                score, initial_score, args.submit
+            );
+        }
     }
 
     Ok(())
