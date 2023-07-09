@@ -41,11 +41,14 @@ export default function VisualizerAnnealer({
 }: VisualizerAnnealerProps) {
   const [temp, setTemp] = useState("1.0");
 
-  const maybeSetTemp = useCallback((newTemp: string) => {
-    if (newTemp !== "" && !Number.isNaN(Number(newTemp))) {
-      setTemp(newTemp);
-    }
-  }, [setTemp]);
+  const maybeSetTemp = useCallback(
+    (newTemp: string) => {
+      if (newTemp !== "" && !Number.isNaN(Number(newTemp))) {
+        setTemp(newTemp);
+      }
+    },
+    [setTemp],
+  );
 
   const onClick = useCallback(async () => {
     await doAnnealing(problem, solution, setRawSolution, Number(temp));
@@ -58,7 +61,12 @@ export default function VisualizerAnnealer({
         <label className="label">
           <span className="label-text">温度</span>
         </label>
-        <input type="text" className="input input-bordered w-full max-w-xs" value={temp} onChange={(e) => maybeSetTemp(e.target.value)} />
+        <input
+          type="text"
+          className="input input-bordered w-full max-w-xs"
+          value={temp}
+          onChange={(e) => maybeSetTemp(e.target.value)}
+        />
       </div>
       <button
         className={clsx("btn", "btn-sm", "btn-primary")}
