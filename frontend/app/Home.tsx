@@ -163,7 +163,10 @@ function ProblemList() {
 function createScript(problems: ProblemMetadata[], problemKeys: number[]) {
   let lines: string[] = problemKeys.map((i) => {
     const problem = problems[i];
-    return `cargo run --release -- --time-limit=600 --threads=8 ${problem.id} --initial-solution $JSON_FILE --start-temp=1e5`;
+    return (
+      "cargo run --release --time-limit=${TIME_LIMIT:-600} --threads=${THREADS:-8} --from-current-best --start-temp=${START_TEMP:-1e5} " +
+      `${problem.id}`
+    );
   });
   return lines.join("\n");
 }
