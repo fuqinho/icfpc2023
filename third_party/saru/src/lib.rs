@@ -215,6 +215,8 @@ fn do_annealing<A: Annealer>(
                         format!("{:.1}", temp).separate_with_commas(),
                         progress_ratio * 100.0
                     );
+                    best_updated = false;
+                    best_valid_updated = false;
                     prev_updated = timer.elapsed();
                 }
                 prev_heart_beat = timer.elapsed();
