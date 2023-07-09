@@ -8,6 +8,25 @@ import (
 	"net/http"
 )
 
+func Get(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", url, err)
+	}
+
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", url, err)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("%s: HTTP status %d", url, res.StatusCode)
+	}
+
+	return io.ReadAll(res.Body)
+}
+
 func GetJSON(ctx context.Context, url string, out interface{}) error {
 	return GetJSONWithAuth(ctx, url, "", out)
 }
