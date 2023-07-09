@@ -11,10 +11,6 @@ pub fn tangent_to_circle(p: P, c: P, r: f64) -> (P, P) {
     cross_points_cc2(p, a2, c, r * r)
 }
 
-fn cross_points_cc(c1: P, r1: f64, c2: P, r2: f64) -> (P, P) {
-    cross_points_cc2(c1, r1 * r1, c2, r2 * r2)
-}
-
 // Taking two circles, one whose center is |c1| and whose radius is
 // r1 (where r1 = sqrt(r1_2)), and the other whose center is |c2|
 // and whose radius is r2 (where r2 = sqrt(r2_2)),
