@@ -8,6 +8,8 @@ use crate::problem::Placement;
 use crate::problem::Problem;
 use crate::problem::Solution;
 
+const EPS: f64 = 1e-9;
+
 pub fn is_blocked(attendee: &Attendee, placement: &Placement, placements: &[Placement]) -> bool {
     let segment = LineSegment {
         from: attendee.position,
@@ -34,7 +36,7 @@ fn is_blocked_internal(
         if i == current_index {
             continue;
         }
-        if seg.distance_to_point(blocker.position) < 5. {
+        if seg.distance_to_point(blocker.position) < 5. - EPS {
             return true;
         }
     }
@@ -70,6 +72,7 @@ fn create_q_vector(musicians: &[usize], solution: &Solution) -> Vec<f64> {
 }
 
 fn evaluate_attendee(
+    _ai: usize,
     attendee: &Attendee,
     musicians: &[usize],
     pillars: &[Pillar],
@@ -118,7 +121,10 @@ pub fn evaluate(problem: &Problem, solution: &Solution) -> f64 {
     problem
         .attendees
         .iter()
-        .map(|attendee| evaluate_attendee(attendee, &problem.musicians, &problem.pillars, solution))
+        .enumerate()
+        .map(|(ai, attendee)| {
+            evaluate_attendee(ai, attendee, &problem.musicians, &problem.pillars, solution)
+        })
         .sum()
 }
 
