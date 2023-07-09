@@ -141,6 +141,21 @@ func (db *DB) ListAllSolutions(ctx context.Context) ([]*Solution, error) {
 	return scanSolutions(rows)
 }
 
+func (db *DB) ListMismatchedSolutions(ctx context.Context) ([]*Solution, error) {
+	rows, err := db.raw.QueryContext(ctx, querySolutions+`
+	WHERE
+	submissions.accepted AND
+	evaluations.accepted AND
+	submissions.score != evaluations.score
+	ORDER BY solutions.created DESC`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanSolutions(rows)
+}
+
 func (db *DB) SubmitSolution(ctx context.Context, problemID int, solutionSpec string) (string, error) {
 	// Ensure the problem exists.
 	if _, err := db.GetProblem(ctx, problemID); err != nil {

@@ -40,6 +40,7 @@ func NewHandler(db *database.DB) *Handler {
 	r.HandleFunc("/api/solutions/{uuid}", h.handleSolution).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions/{uuid}/spec", h.handleSolutionSpec).Methods(http.MethodGet)
 	r.HandleFunc("/api/solutions/{uuid}/image", h.handleSolutionImage).Methods(http.MethodGet)
+	r.HandleFunc("/api/solutions-mismatched", h.handleSolutionsMismatched).Methods(http.MethodGet)
 	r.HandleFunc("/api/submit", h.handleSubmit).Methods(http.MethodPost)
 	r.HandleFunc("/batch/update-problems", h.handleUpdateProblems).Methods(http.MethodPost)
 
@@ -270,6 +271,20 @@ func (h *Handler) handleSolutionImage(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Location", h.db.SolutionImageURL(solution.UUID))
 		w.WriteHeader(http.StatusFound)
 		return nil
+	})
+}
+
+func (h *Handler) handleSolutionsMismatched(w http.ResponseWriter, r *http.Request) {
+	withJSONResponse(w, r, func() (any, error) {
+		ctx := r.Context()
+		solutions, err := h.db.ListMismatchedSolutions(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if solutions == nil {
+			solutions = []*database.Solution{}
+		}
+		return solutions, nil
 	})
 }
 
