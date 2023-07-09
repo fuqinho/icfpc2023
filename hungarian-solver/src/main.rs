@@ -22,13 +22,13 @@ fn main(
 
     let mut solver = Solver::new(problem_id, problem.clone());
 
-    let (score, board) = solver.solve(algo);
-
-    eprintln!("final score: {}", score);
+    let (_score, board) = solver.solve(algo);
 
     let solution: Solution = board.try_into().unwrap();
 
     let eval_score = evaluate(&problem, &solution);
+
+    eprintln!("final score: {}", eval_score);
 
     // assert_eq!(score, eval_score);
 
