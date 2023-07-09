@@ -10,6 +10,7 @@ fn main(
     problem_id: u32,
     #[opt(short, long, default_value = "normal")] algo: solver::Algorithm,
     #[opt(short, long, default_value = "")] out: String,
+    #[opt(short, long, default_value = "false")] submit_must: bool,
 ) -> Result<()> {
     let cl = Client::new();
     let userboard = cl.get_userboard()?;
@@ -43,7 +44,7 @@ fn main(
         );
     }
 
-    if eval_score > best_score {
+    if eval_score > best_score || submit_must {
         cl.post_submission(problem_id, solution.clone())?;
 
         eprintln!("Submitted solution for problem {}!", problem_id);

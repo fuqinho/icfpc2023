@@ -18,8 +18,8 @@ cp target/release/$cs "${dir}/$cs" || exit 1
 for i in {1..90}; do
     echo "===== PROBLEM $i ====="
 
-    "${dir}/$hs" "$i" -o "${dir}/hs_$i.json"
-    "${dir}/$hs" "$i" -o "${dir}/hs_gap_$i.json" -a gap
+    "${dir}/$hs" "$i" -o "${dir}/hs_$i.json" -s true
+    "${dir}/$hs" "$i" -o "${dir}/hs_gap_$i.json" -a gap -s true
 
-    "${dir}/$cs" "$i" -o "${dir}/cs_$i.json"
+    "${dir}/$cs" "$i" -o "${dir}/cs_$i.json" -s true
 done
