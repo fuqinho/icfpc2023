@@ -16,6 +16,8 @@ import VisualizerControl from "@/components/VisualizerControl";
 import clsx from "clsx";
 import Link from "next/link";
 import VisualizerAnnealer from "@/components/VisualizerAnnealer";
+import HoverInfo from "@/components/HoverInfo";
+import ProblemListBar from "@/components/ProblemListBar";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -129,24 +131,8 @@ export default function Home({ params }: { params: { problemId: string } }) {
 
   return (
     <div>
-      <div className="mx-2">
-        <div className="tabs tabs-boxed">
-          {problems.map((problem) => {
-            return (
-              <Link
-                key={problem.id}
-                className={clsx(
-                  "tab tab-sm",
-                  problemID == problem.id ? "tab-active" : null,
-                )}
-                href={`/problem/${problem.id}`}
-              >
-                {problem.id}
-              </Link>
-            );
-          })}
-        </div>
-      </div>
+      <ProblemListBar problemID={problemID} problems={problems} />
+
       <div className="m-4">
         <h1 className="text-3xl">Problem {problemID}</h1>
 
@@ -161,6 +147,14 @@ export default function Home({ params }: { params: { problemId: string } }) {
                 option={option}
                 className="w-[800px] h-[800px] m-4 border border-slate-200"
               />
+              <HoverInfo
+                visualizer={visualizer.current}
+                problem={problem}
+                evalResult={evalResult}
+                solution={solution}
+                option={option}
+                setOption={setOption}
+              />
               <VisualizerAnnealer
                 problem={problem}
                 solution={solution}
@@ -168,10 +162,8 @@ export default function Home({ params }: { params: { problemId: string } }) {
               />
             </div>
             <VisualizerControl
-              visualizer={visualizer.current}
               problem={problem}
               evalResult={evalResult}
-              solution={solution}
               option={option}
               setOption={setOption}
               rawSolution={rawSolution}

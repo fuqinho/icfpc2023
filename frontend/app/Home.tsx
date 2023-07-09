@@ -16,6 +16,7 @@ import { formatNumber, formatPercentage } from "@/components/number_format";
 import { useCallback } from "react";
 import { orderBy } from "natural-orderby";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import ProblemListBar from "@/components/ProblemListBar";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -87,8 +88,7 @@ function ProblemListItem({
   );
 }
 
-function ProblemList() {
-  const { data: problems, error: errorProblems } = useProblemList();
+function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
   const { data: bestSolutions, error: errorBestSolutions } = useBestSolutions();
   const { data: scoreboard, error: errorScoreboard } = useScoreboard();
 
@@ -111,9 +111,6 @@ function ProblemList() {
 
   const winnerScore = scoreboard?.scoreboard[0]?.score ?? 999999999999;
 
-  if (errorProblems) {
-    throw errorProblems;
-  }
   if (errorBestSolutions) {
     throw errorBestSolutions;
   }
@@ -282,11 +279,24 @@ function createScript(problems: ProblemMetadata[], problemKeys: number[]) {
 }
 
 export default function Home() {
-  return (
-    <div className="m-4">
-      <h1 className="text-3xl">Problems</h1>
+  const { data: problems, error: errorProblems } = useProblemList();
 
-      <ProblemList />
+  if (errorProblems) {
+    throw errorProblems;
+  }
+  if (!problems) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <div>
+      <ProblemListBar problems={problems} />
+
+      <div className="m-4">
+        <h1 className="text-3xl">Problems</h1>
+
+        <ProblemList problems={problems} />
+      </div>
     </div>
   );
 }
