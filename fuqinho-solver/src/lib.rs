@@ -8,7 +8,8 @@ use std::thread;
 use thousands::Separable;
 
 const SOLVER_NAME: &str = "fuqinho-solver";
-const BEAM_WIDTH: usize = 10;
+const NUM_THREADS: usize = 16;
+const BEAM_WIDTH: usize = 32;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CandidatePos {
@@ -16,12 +17,14 @@ pub struct CandidatePos {
     pub score: f64,
 }
 
+#[derive(Debug, Clone)]
 struct Config {
-    rng: ThreadRng,
+    //rng: ThreadRng,
     locations: Vec<CandidatePos>,
 }
 
 #[allow(dead_code)]
+#[derive(Debug, Clone)]
 struct State {
     score: i64,
     placements: Vec<u16>,
@@ -41,18 +44,18 @@ struct Move {
 
 #[allow(dead_code)]
 impl State {
-    fn pick_random_avail_musician(&self, config: &mut Config) -> usize {
+    fn pick_random_avail_musician(&self, config: &Config, rng: &mut ThreadRng) -> usize {
         loop {
-            let musician = config.rng.gen_range(0..self.board.prob.musicians.len());
+            let musician = rng.gen_range(0..self.board.prob.musicians.len());
             if !self.placed[musician] {
                 return musician;
             }
         }
     }
 
-    fn pick_random_avail_location(&self, config: &mut Config) -> usize {
+    fn pick_random_avail_location(&self, config: &Config, rng: &mut ThreadRng) -> usize {
         loop {
-            let loc_id = config.rng.gen_range(0..config.locations.len());
+            let loc_id = rng.gen_range(0..config.locations.len());
             if self.placements[loc_id] == u16::MAX {
                 return loc_id;
             }
@@ -126,7 +129,6 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
     // 3.
 
     let mut config = Config {
-        rng: rand::thread_rng(),
         locations: grid_points,
     };
     let initial_state = State {
@@ -143,30 +145,46 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
         // List up moves and their estimated scores.
         let mut next_moves = vec![];
 
+        let mut threads = vec![];
         for b in 0..beam.len() {
-            for _ in 0..5 {
-                // Pick a musician to place.
-                let m = beam[b].pick_random_avail_musician(&mut config);
-                let instrument = problem.musicians[m];
+            let mut state = beam[b].clone();
+            let config = config.clone();
+            let problem = problem.clone();
+            let task = thread::spawn(move || {
+                let mut moves: Vec<Move> = vec![];
+                let mut rng = rand::thread_rng();
+                for _ in 0..5 {
+                    // Pick a musician to place.
+                    let m = state.pick_random_avail_musician(&config, &mut rng);
+                    let instrument = problem.musicians[m];
 
-                // Pick a location to place.
-                for i in 0..beam[b].placements.len() {
-                    if beam[b].placements[i] != u16::MAX {
-                        continue;
+                    // Pick a location to place.
+                    for i in 0..state.placements.len() {
+                        if state.placements[i] != u16::MAX {
+                            continue;
+                        }
+
+                        state.board.try_place(m, config.locations[i].pos).unwrap();
+                        let score = -state.board.score() as i64;
+                        state.board.unplace(m);
+
+                        moves.push(Move {
+                            score,
+                            musician: m,
+                            instrument,
+                            location: i,
+                            from: b,
+                        });
                     }
-
-                    beam[b].board.try_place(m, config.locations[i].pos).unwrap();
-                    let score = -beam[b].board.score() as i64;
-                    beam[b].board.unplace(m);
-
-                    next_moves.push(Move {
-                        score,
-                        musician: m,
-                        instrument,
-                        location: i,
-                        from: b,
-                    });
                 }
+                moves
+            });
+            threads.push(task);
+        }
+        for t in threads {
+            let mut moves = t.join().unwrap();
+            for m in moves {
+                next_moves.push(m);
             }
         }
         next_moves.sort_by_key(|m| m.score);
