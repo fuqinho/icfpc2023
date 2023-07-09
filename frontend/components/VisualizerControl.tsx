@@ -282,19 +282,21 @@ function ProblemInfo({
 }) {
   return (
     <div className="overflow-x-auto space-y-4">
-      <div className="stats">
-        <div className="stat">
-          <div className="stat-title">観客</div>
-          <div className="stat-value">
-            {formatNumber(problem.attendees.length)}
-          </div>
-        </div>
-        {evalResult ? (
+      <div className="flex">
+        <div className="stats">
           <div className="stat">
-            <div className="stat-title">スコア</div>
-            <div className="stat-value">{formatNumber(evalResult.score)}</div>
+            <div className="stat-title">観客</div>
+            <div className="stat-value">
+              {formatNumber(problem.attendees.length)}
+            </div>
           </div>
-        ) : null}
+          {evalResult ? (
+            <div className="stat">
+              <div className="stat-title">スコア</div>
+              <div className="stat-value">{formatNumber(evalResult.score)}</div>
+            </div>
+          ) : null}
+        </div>
       </div>
       <div className="flex">
         <div className="w-1/2">

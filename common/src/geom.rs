@@ -25,6 +25,23 @@ pub fn rotate90(p: P) -> P {
     P::new(-p.y, p.x)
 }
 
+// Returns the center of a circle with radius r tangenting two circles c1 and c2.
+// This function assumes that c1 and c2 have the same radius (which can be different from r)
+// The circle returned is on the left hand side of the line c1c2.
+pub fn tangent_circle(c1: P, c2: P, r: f64) -> Option<P> {
+    let rc = (c1 - c2).length() / 2.;
+    let d2 = (r + rc) * (r + rc) - (rc * rc);
+    if d2 < 0. {
+        return None;
+    }
+    let d = d2.sqrt();
+
+    let mid = (c1 + c2) / 2.0;
+    let n = rotate90(c2 - c1).normalize();
+
+    Some(mid + n * d)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{tangent_to_circle, P};

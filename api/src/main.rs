@@ -9,7 +9,14 @@ fn main() -> Result<()> {
     let client = api::Client::new();
     let args: Vec<String> = std::env::args().collect();
     match &*args[1] {
-        "submission" => println!("{:?}", client.get_submission(&args[2])),
+        "submission" => {
+            let submission = client.get_submission(&args[2])?;
+            eprintln!("{:?}", submission.submission);
+            println!(
+                "{}",
+                serde_json::to_string(&RawSolution::from(submission.contents))?
+            );
+        }
         "submissions" => {
             let problem_id = if args.len() >= 5 {
                 Some(args[4].parse::<u32>()?)
