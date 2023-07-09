@@ -51,9 +51,7 @@ function SolutionListRow({ solution, onClickSolution }: SolutionListRowProps) {
           {evaluation ? formatNumber(evaluation.score) : "?"}
         </span>
       </td>
-      <td className="font-mono">
-        {solution.solver || "???"}
-      </td>
+      <td className="font-mono">{solution.solver || "???"}</td>
       <td className="font-mono">
         <span title={solution.uuid}>
           {created.toFormat("ccc HH:mm:ss ZZZ")} ({created.toRelative()})
