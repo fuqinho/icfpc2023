@@ -211,7 +211,7 @@ fn do_annealing<A: Annealer>(
                         "⛔"
                     };
                     progress!(
-                        "best = {:>16}, best valid = {:>16}, cur = {:>16}, temp = {:>16}, progress: {:6.2}% {mark}",
+                        "best = {:>17}, best valid = {:>17}, cur = {:>17}, temp = {:>16}, progress: {:6.2}% {mark}",
                         format!("{:.1}", best_score).separate_with_commas(),
                         format!("{:.1}", valid_best_score).separate_with_commas(),
                         format!("{:.1}", cur_score).separate_with_commas(),
