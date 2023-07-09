@@ -41,9 +41,7 @@ pub struct Board {
     // m -> closeness factor
     qs: Vec<f64>,
     // m -> I
-    impacts: Vec<Option<f64>>,
-
-    score: f64,
+    impacts: Vec<f64>,
 }
 
 impl Board {
@@ -59,7 +57,7 @@ impl Board {
         let aids = vec![vec![]; n];
         let blocks = vec![vec![0; m]; n];
         let qs = vec![1.; n];
-        let impacts = vec![None; n];
+        let impacts = vec![0.; n];
 
         prob.stage = Box2D::new(
             prob.stage.min + P::new(10., 10.),
@@ -74,12 +72,15 @@ impl Board {
             blocks,
             qs,
             impacts,
-            score: 0.,
         }
     }
 
     pub fn score(&self) -> f64 {
-        self.score
+        let mut res = 0.;
+        for m in 0..self.musicians().len() {
+            res += self.qs[m] * self.impacts[m];
+        }
+        res
     }
 
     pub fn musicians(&self) -> &[Option<(P, f64)>] {
@@ -130,30 +131,19 @@ impl Board {
     }
 
     fn place(&mut self, m: usize, p: P) {
-        // Update ps
+        // Update ps and impacts
         self.ps[m] = Some((p, MUSICIAN_R));
+        self.impacts[m] = 0.0;
+        for i in 0..self.prob.attendees.len() {
+            self.impacts[m] += self.impact(m, i);
+        }
 
         assert!(self.aids[m].is_empty());
 
         // Update qs
-        if self.prob.is_v2() {
-            let mut qm = 1.;
-            for i in 0..self.prob.musicians.len() {
-                if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
-                    continue;
-                }
-                if let Some((q, _)) = self.ps[i] {
-                    let d = 1. / (p - q).length();
-                    qm += d;
-                    self.qs[i] += d;
-                    self.score += (d * self.impacts[i].unwrap()).ceil();
-                }
-            }
-            self.qs[m] = qm;
-        }
+        self.update_qs(m, true);
 
-        // Update aids and score
-        let mut new_impacts = 0.;
+        // Update aids
         for (i, a) in self.prob.attendees.iter().enumerate() {
             let r: F64 = (a.position - p)
                 .to_vector()
@@ -161,12 +151,8 @@ impl Board {
                 .radians
                 .into();
             self.aids[m].push((r, i));
-
-            new_impacts += self.impact(m, i);
         }
         self.aids[m].sort_unstable();
-        self.impacts[m] = Some(new_impacts);
-        self.score += (self.qs[m] * new_impacts).ceil();
 
         // Update blocks
         self.update_blocks(m, p, true);
@@ -192,29 +178,38 @@ impl Board {
         // Update blocks
         self.update_blocks(m, p, false);
 
-        // Update aids and score
+        // Update aids
         self.aids[m].clear();
-        self.score -= (self.qs[m] * self.impacts[m].unwrap()).ceil();
-        self.impacts[m] = None;
 
         // Update qs
-        if self.prob.is_v2() {
-            self.qs[m] = 1.;
-            let p = self.ps[m].unwrap().0;
-            for i in 0..self.prob.musicians.len() {
-                if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
-                    continue;
-                }
-                if let Some((q, _)) = self.ps[i] {
-                    let d = 1. / (p - q).length();
-                    self.score -= (d * self.impacts[i].unwrap()).ceil();
-                    self.qs[i] -= d;
-                }
-            }
+        self.update_qs(m, false);
+
+        // Update ps and impacts.
+        self.ps[m] = None;
+        self.impacts[m] = 0.;
+    }
+
+    fn update_qs(&mut self, m: usize, inc: bool) {
+        if !self.prob.is_v2() {
+            return;
         }
 
-        // Update ps
-        self.ps[m] = None;
+        let sig = if inc { 1. } else { -1. };
+
+        let p = self.musicians()[m].unwrap().0;
+
+        for i in 0..self.prob.musicians.len() {
+            if i == m || self.prob.musicians[i] != self.prob.musicians[m] {
+                continue;
+            }
+
+            if let Some((q, _)) = self.ps[i] {
+                let d = sig / (p - q).length();
+
+                self.qs[m] += d;
+                self.qs[i] += d;
+            }
+        }
     }
 
     fn update_blocks(&mut self, m: usize, p: P, inc: bool) {
@@ -271,12 +266,7 @@ impl Board {
         let b = &mut self.blocks[i][a];
         *b += 1;
         if *b == 1 {
-            // Is it okay to "ceiled" value here? probably not.
-            let d_impact = self.impact(i, a);
-            self.impacts[i].as_mut().map(|im| {
-                *im -= d_impact;
-            });
-            self.score -= (self.qs[i] * d_impact).ceil();
+            self.impacts[i] -= self.impact(i, a);
         }
     }
 
@@ -284,12 +274,7 @@ impl Board {
         let b = &mut self.blocks[i][a];
         *b -= 1;
         if *b == 0 {
-            // Is it okay to "ceiled" value here? probably not.
-            let d_impact = self.impact(i, a);
-            self.impacts[i].as_mut().map(|im| {
-                *im += d_impact;
-            });
-            self.score += (self.qs[i] * d_impact).ceil();
+            self.impacts[i] += self.impact(i, a);
         }
     }
 

@@ -32,7 +32,15 @@ fn main(
 
     if score != eval_score {
         let diff = (1. - score / eval_score).abs() * 100.;
-        eprintln!("WARNING: board and evaluate score differ by {}%", diff);
+        eprintln!(
+            "WARNING: board and evaluate score differ by {}% {}",
+            diff,
+            if score < eval_score {
+                "board score is smaller"
+            } else {
+                "board score is larger"
+            }
+        );
     }
 
     if eval_score > best_score {
