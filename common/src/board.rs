@@ -146,7 +146,7 @@ impl Board {
                     let d = 1. / (p - q).length();
                     qm += d;
                     self.qs[i] += d;
-                    self.score += d * self.impacts[i].unwrap();
+                    self.score += (d * self.impacts[i].unwrap()).ceil();
                 }
             }
             self.qs[m] = qm;
@@ -207,7 +207,7 @@ impl Board {
                 }
                 if let Some((q, _)) = self.ps[i] {
                     let d = 1. / (p - q).length();
-                    self.score -= d * self.impacts[i].unwrap();
+                    self.score -= (d * self.impacts[i].unwrap()).ceil();
                     self.qs[i] -= d;
                 }
             }
