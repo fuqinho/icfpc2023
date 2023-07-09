@@ -92,6 +92,28 @@ fn evaluate_attendee(
     score
 }
 
+pub fn evaluate_musician(
+    m: usize,
+    attendees: &Vec<Attendee>,
+    musicians: &[usize],
+    pillars: &[Pillar],
+    solution: &Solution,
+) -> f64 {
+    let q = create_q_vector(musicians, solution);
+    let mut score = 0.;
+    let pm = solution.placements[m].position;
+    for attendee in attendees.iter() {
+        let pa = attendee.position;
+        let d = (pm - pa).square_length();
+        let seg = LineSegment { from: pa, to: pm };
+        if is_blocked_internal(&seg, m, &solution.placements, pillars) {
+            continue;
+        }
+        score += (q[m] * (1000000f64 * attendee.tastes[musicians[m]] / d).ceil()).ceil();
+    }
+    score
+}
+
 pub fn evaluate(problem: &Problem, solution: &Solution) -> f64 {
     problem
         .attendees

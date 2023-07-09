@@ -60,7 +60,7 @@ pub trait Annealer {
     }
 }
 
-pub fn annealing<A: 'static + Annealer + Sync>(
+pub fn annealing<A: Annealer + Sync>(
     annealer: &A,
     opt: &AnnealingOptions,
     seed: u64,
