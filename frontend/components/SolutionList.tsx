@@ -41,7 +41,9 @@ function SolutionListRow({ solution, onClickSolution }: SolutionListRowProps) {
         {formatNumber(submission?.score)}
       </td>
       <td className="font-mono text-right">
-        {evaluation ? formatNumber(evaluation.score) : "?"}
+        <span className={submission && evaluation && submission.score !== evaluation.score ? "text-error" : ""}>
+          {evaluation ? formatNumber(evaluation.score) : "?"}
+        </span>
       </td>
       <td className="font-mono">
         <span title={solution.uuid}>
