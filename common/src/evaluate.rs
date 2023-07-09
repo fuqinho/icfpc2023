@@ -39,7 +39,7 @@ fn is_blocked_internal(
         }
     }
     for pillar in pillars {
-        if seg.distance_to_point(pillar.center) <= pillar.radius {
+        if seg.distance_to_point(pillar.center) < pillar.radius {
             return true;
         }
     }
