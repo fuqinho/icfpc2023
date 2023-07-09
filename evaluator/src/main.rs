@@ -34,6 +34,9 @@ fn main() -> Result<()> {
     for (i, placement) in solution.placements.iter().enumerate() {
         board.try_place(i, placement.position)?;
     }
+    for (i, volume) in solution.volumes.iter().enumerate() {
+        board.set_volume(i, *volume);
+    }
     println!("score by board = {}", board.score());
 
     Ok(())
