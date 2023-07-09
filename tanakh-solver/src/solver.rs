@@ -105,7 +105,7 @@ impl Move {
         loop {
             let id = rng.gen_range(0..board.prob.musicians.len());
             let old_volume = board.volume(id);
-            let new_volume = (old_volume + if rng.gen() { 0.5 } else { -0.5 }).clamp(0.0, 1.0);
+            let new_volume = (old_volume + if rng.gen() { 0.5 } else { -0.5 }).clamp(0.0, 10.0);
             if old_volume != new_volume {
                 break Move::ChangeVolume {
                     id,
