@@ -77,16 +77,8 @@ impl Move {
             // let len = rng.gen_range(0.1..=scale);
             // let d = Vector2D::from_angle_and_length(Angle::radians(theta), len);
 
-            let mut xd = if rng.gen() {
-                rng.gen_range(-scale_x..=scale_x)
-            } else {
-                0
-            };
-            let mut yd = if rng.gen() {
-                rng.gen_range(-scale_y..=scale_y)
-            } else {
-                0
-            };
+            let mut xd = rng.gen_range(-scale_x..=scale_x);
+            let mut yd = rng.gen_range(-scale_y..=scale_y);
 
             let old_pos = board.musicians()[id].unwrap().0.to_point();
 
@@ -161,11 +153,25 @@ impl saru::Annealer for Solver2<'_> {
                 board.try_place(i, p.position).unwrap();
             }
         } else if self.better_initial {
-            for i in 0..board.prob.musicians.len() {
+            let g = board.prob.stage.center();
+            let mut ix = (0..board.prob.musicians.len())
+                .map(|i| {
+                    let taste = board.prob.musicians[i];
+                    let mut exp = 0.0_f64;
+                    for att in &board.prob.attendees {
+                        let d2 = (att.position - g).square_length();
+                        exp += att.tastes[taste] / d2;
+                    }
+                    (i, exp)
+                })
+                .collect::<Vec<_>>();
+            ix.sort_by(|(_, e1), (_, e2)| e2.total_cmp(e1));
+
+            for (i, _) in ix {
                 board.set_volume(i, 5.5);
 
                 let mut best = (f64::MIN, Point::new(0.0, 0.0));
-                for _ in 0..100 {
+                for _ in 0..200 {
                     loop {
                         let x: f64 = rng
                             .gen_range(board.prob.stage.min.x..=board.prob.stage.max.x)

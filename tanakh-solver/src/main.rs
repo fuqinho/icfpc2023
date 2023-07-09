@@ -89,6 +89,19 @@ fn main(
 
     pre_process(&mut problem, prune_far);
 
+    let param = format!(
+        "{}sec,{}ths{}",
+        time_limit,
+        threads,
+        if initial_solution.is_some() {
+            ",w/init"
+        } else if from_current_best {
+            "/cont"
+        } else {
+            ""
+        }
+    );
+
     let initial_solution: Option<Solution> = if let Some(path) = initial_solution {
         let s = std::fs::read_to_string(path)?;
         let raw_solution: RawSolution = serde_json::from_str(&s)?;
@@ -112,18 +125,7 @@ fn main(
         better_initial,
         initial_solution: initial_solution.as_ref(),
         taste,
-        param: format!(
-            "{}sec,{}ths{}",
-            time_limit,
-            threads,
-            if initial_solution.is_some() {
-                ",w/init"
-            } else if from_current_best {
-                "/cont"
-            } else {
-                ""
-            }
-        ),
+        param,
     };
 
     let solution = saru::annealing(
