@@ -225,7 +225,7 @@ impl Board {
 
             if let Some((q, r)) = q {
                 for rev in [false, true] {
-                    let (blocking, blocked, _, i, r, _) = if rev {
+                    let (blocking, blocked, _, i, _, r) = if rev {
                         (q, p, i, m, r, MUSICIAN_R)
                     } else {
                         (p, q, m, i, MUSICIAN_R, r)
