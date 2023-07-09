@@ -2,7 +2,7 @@ use std::{fs::read_to_string, path::PathBuf};
 
 use anyhow::{anyhow, Result};
 use clap::Parser;
-use common::{api::Client, evaluate, Problem, RawProblem, RawSolution};
+use common::{api::Client, evaluate, fixup_volumes, Problem, RawProblem, RawSolution};
 use fuqinho_solver::solve;
 use thousands::Separable;
 
@@ -28,7 +28,7 @@ fn main() -> Result<()> {
     let problem = Problem::from(raw_problem);
 
     // Solve the problem.
-    let solution = solve(&problem, problem_id);
+    let solution = fixup_volumes(&problem, &solve(&problem, problem_id));
     let score = evaluate(&problem, &solution);
     eprintln!("best score: {}", score.separate_with_commas());
 
