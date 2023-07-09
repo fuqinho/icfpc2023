@@ -12,6 +12,7 @@ pub struct Solver2<'a> {
     pub better_initial: bool,
     pub initial_solution: Option<&'a common::Solution>,
     pub taste: Option<usize>,
+    pub param: String,
 }
 
 pub struct State2 {
@@ -149,7 +150,8 @@ impl saru::Annealer for Solver2<'_> {
     type Move = Move;
 
     fn init_state(&self, rng: &mut impl Rng) -> Self::State {
-        let mut board = Board::new(self.problem_id, self.problem.clone(), SOLVER_NAME);
+        let solver_name = format!("{SOLVER_NAME} ({})", self.param);
+        let mut board = Board::new(self.problem_id, self.problem.clone(), &solver_name);
 
         if let Some(initial_solution) = &self.initial_solution {
             for (i, v) in initial_solution.volumes.iter().enumerate() {
