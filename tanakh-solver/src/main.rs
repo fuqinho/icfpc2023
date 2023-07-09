@@ -1,5 +1,5 @@
 use anyhow::Result;
-use common::{api::Client, board::Board, RawSolution, Solution};
+use common::{api::Client, board::Board, Attendee, Pillar, Problem, RawSolution, Solution};
 use euclid::{default::*, point2, vec2};
 use lyon_geom::{LineSegment, Point};
 use rand::Rng;
@@ -681,6 +681,69 @@ fn get_best_solution(problem_id: u32) -> Result<Solution> {
     Ok(raw.into())
 }
 
+fn can_view_stage(stage: &Box2D<f64>, pillars: &[Pillar], attendee: &Attendee) -> bool {
+    let v_to_stage = stage.center() - attendee.position;
+    let mut stage_angle_min = f64::MAX;
+    let mut stage_angle_max = f64::MIN;
+
+    for p in [
+        point2(stage.min.x, stage.min.y),
+        point2(stage.min.x, stage.max.y),
+        point2(stage.max.x, stage.min.y),
+        point2(stage.max.x, stage.max.y),
+    ] {
+        let p = p - attendee.position;
+        let angle = v_to_stage.angle_to(p).radians;
+        stage_angle_max = stage_angle_max.max(angle);
+        stage_angle_min = stage_angle_min.min(angle);
+    }
+
+    let mut pillar_angle = vec![];
+
+    for pillar in pillars {
+        let pos = pillar.center - attendee.position;
+        let angle = v_to_stage.angle_to(pos).radians;
+        let d = pos.length();
+        let t = (d.powi(2) - pillar.radius.powi(2)).sqrt();
+        let theta = pillar.radius.atan2(t);
+        assert!(theta > 0.0);
+        pillar_angle.push((angle - theta, angle + theta));
+    }
+
+    pillar_angle.sort_by(|a, b| a.0.total_cmp(&b.0));
+
+    for (l, r) in pillar_angle {
+        if l > stage_angle_min {
+            break;
+        }
+        stage_angle_min = stage_angle_min.max(r);
+    }
+
+    stage_angle_max > stage_angle_min
+}
+
+fn remove_invisible_atendees(p: &mut Problem) {
+    if p.pillars.is_empty() {
+        return;
+    }
+
+    let mut new_attendees = vec![];
+
+    for attendee in p.attendees.iter() {
+        if can_view_stage(&p.stage, &p.pillars, attendee) {
+            new_attendees.push(attendee.clone());
+        }
+    }
+
+    eprintln!(
+        "Pruned invisible attendees: {} -> {}",
+        p.attendees.len(),
+        new_attendees.len()
+    );
+
+    p.attendees = new_attendees;
+}
+
 #[argopt::cmd]
 fn main(
     /// time limit in seconds
@@ -734,6 +797,8 @@ fn main(
     eprintln!("Atendees:  {}", problem.attendees.len());
 
     let orig_problem = problem.clone();
+
+    remove_invisible_atendees(&mut problem);
 
     if let Some(prune_dist) = prune_far {
         let p00 = Point::new(problem.stage.min.x, problem.stage.min.y);
@@ -843,7 +908,7 @@ fn main(
 
     if !no_submit {
         let resp = client.post_submission(problem_id, solution)?;
-        eprintln!("Submitted: {:}", resp.0);
+        eprintln!("Submitted: {}", resp.0);
     }
 
     Ok(())
