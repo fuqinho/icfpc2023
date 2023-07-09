@@ -11,6 +11,7 @@ interface SolutionListRowProps {
 
 function SolutionListRow({ solution, onClickSolution }: SolutionListRowProps) {
   const submission = solution.submission;
+  const evaluation = solution.evaluation;
 
   const [badgeType, badgeCaption] =
     submission?.state === "FINISHED"
@@ -38,6 +39,9 @@ function SolutionListRow({ solution, onClickSolution }: SolutionListRowProps) {
       </td>
       <td className="font-mono text-right">
         {formatNumber(submission?.score)}
+      </td>
+      <td className="font-mono text-right">
+        {evaluation ? formatNumber(evaluation.score) : "?"}
       </td>
       <td className="font-mono">
         <span title={solution.uuid}>
@@ -76,6 +80,7 @@ export default function SolutionList({
           <tr>
             <th className="text-center">Status</th>
             <th className="text-center">Score (公式)</th>
+            <th className="text-center">Score (俺俺)</th>
             <th className="text-center">Created</th>
             <th></th>
           </tr>

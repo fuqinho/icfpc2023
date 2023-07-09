@@ -18,6 +18,7 @@ export interface SolutionMetadata {
   problem_id: number;
   created: string;
   submission: SubmissionMetadata | null;
+  evaluation: EvaluationMetadata | null;
 }
 
 export interface SubmissionMetadata {
@@ -29,6 +30,14 @@ export interface SubmissionMetadata {
   error: string;
   created: string;
   updated: string;
+}
+
+export interface EvaluationMetadata {
+  solution_uuid: string;
+  accepted: boolean;
+  score: number;
+  error: string;
+  created: string;
 }
 
 export function problemImage(problemID: number) {
