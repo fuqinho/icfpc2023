@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{bail, Result};
 use clap::Parser;
-use common::{evaluate, Problem, RawSolution, Solution};
+use common::{board::Board, evaluate, Problem, RawSolution, Solution};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -27,6 +27,12 @@ fn main() -> Result<()> {
     let solution = Solution::from(solution_raw);
 
     println!("score = {}", evaluate(&problem, &solution));
+    // Evaluate by board
+    let mut board = Board::new(args.problem_id, problem);
+    for (i, placement) in solution.placements.iter().enumerate() {
+        board.try_place(i, placement.position)?;
+    }
+    println!("score by board = {}", board.score());
 
     Ok(())
 }
