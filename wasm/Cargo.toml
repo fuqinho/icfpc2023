@@ -9,6 +9,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
+anyhow = "*"
 common = { path = "../common" }
 euclid = "0.22.9"
 lyon_geom = "1.0.4"
@@ -16,4 +17,5 @@ rand = { version = "0.8.5", default-features = false, features = ["std_rng", "sm
 saru = { path = "../third_party/saru" }
 serde = { version = "*", features = ["derive"] }
 serde_json = "*"
+thiserror = "*"
 wasm-bindgen = "0.2"

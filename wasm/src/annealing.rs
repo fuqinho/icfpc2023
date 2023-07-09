@@ -1,6 +1,5 @@
-use common::{board::Board, Problem, RawSolution, Solution};
+use common::{board::Board, Problem, Solution};
 use euclid::{default::*, point2, vec2};
-use lyon_geom::Point;
 use rand::Rng;
 
 const SOLVER_NAME: &str = "manual-annealer";
@@ -12,9 +11,16 @@ struct Solver2<'a> {
     initial_solution: &'a common::Solution,
 }
 
-#[derive(Clone)]
 struct State2 {
     board: Board,
+}
+
+impl saru::State for State2 {
+    type Solution = common::Solution;
+
+    fn solution(&self) -> Self::Solution {
+        self.board.solution().unwrap()
+    }
 }
 
 enum Move {
@@ -125,7 +131,7 @@ impl saru::Annealer for Solver2<'_> {
         rng: &mut impl Rng,
         progress_ratio: f64,
     ) -> Self::Move {
-        match rng.gen_range(0..=4) {
+        match rng.gen_range(0..=5) {
             0..=2 => Move::gen_change(rng, &state.board, progress_ratio),
 
             3 => loop {
@@ -161,6 +167,15 @@ impl saru::Annealer for Solver2<'_> {
             },
 
             4 => Move::gen_swap(rng, &state.board),
+
+            5 => {
+                let s1 = Move::gen_swap(rng, &state.board);
+                let s2 = Move::gen_swap(rng, &state.board);
+                Move::Multiple {
+                    moves: vec![s1, s2],
+                }
+            }
+
             _ => unreachable!(),
         }
     }
@@ -219,7 +234,7 @@ pub fn perform_annealing(
         initial_solution,
     };
 
-    let solution = saru::annealing(
+    let result = saru::annealing(
         &solver,
         &saru::AnnealingOptions {
             time_limit,
@@ -232,8 +247,5 @@ pub fn perform_annealing(
         seed,
     );
 
-    let state = solution.state.expect("Valid solution not found");
-    let solution: Solution = state.board.try_into().expect("Failed to finalize Board");
-
-    solution
+    result.solution.expect("Valid solution not found")
 }
