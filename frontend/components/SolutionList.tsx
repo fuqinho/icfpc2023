@@ -52,6 +52,9 @@ function SolutionListRow({ solution, onClickSolution }: SolutionListRowProps) {
         </span>
       </td>
       <td className="font-mono">
+        {solution.solver || "???"}
+      </td>
+      <td className="font-mono">
         <span title={solution.uuid}>
           {created.toFormat("ccc HH:mm:ss ZZZ")} ({created.toRelative()})
         </span>
@@ -89,6 +92,7 @@ export default function SolutionList({
             <th className="text-center">Status</th>
             <th className="text-center">Score (公式)</th>
             <th className="text-center">Score (俺俺)</th>
+            <th className="text-center">Solver</th>
             <th className="text-center">Created</th>
             <th></th>
           </tr>
