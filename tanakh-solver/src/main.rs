@@ -13,6 +13,12 @@ fn get_best_solution(problem_id: u32) -> Result<Solution> {
     Ok(raw.into())
 }
 
+fn get_recent_solution() -> Result<Solution> {
+    let s = std::fs::read_to_string("results/recent.json")?;
+    let raw: RawSolution = serde_json::from_str(&s)?;
+    Ok(raw.into())
+}
+
 #[argopt::cmd]
 fn main(
     /// time limit in seconds
@@ -34,13 +40,23 @@ fn main(
     #[opt(
         long,
         conflicts_with = "better-initial",
+        conflicts_with = "from-recent",
         conflicts_with = "initial-solution"
     )]
     from_current_best: bool,
+    /// start from recent solution
+    #[opt(
+        long,
+        conflicts_with = "from-current-best",
+        conflicts_with = "better-initial",
+        conflicts_with = "initial-solution"
+    )]
+    from_recent: bool,
     /// from better initial solution
     #[opt(
         long,
         conflicts_with = "from-current-best",
+        conflicts_with = "from-recent",
         conflicts_with = "initial-solution"
     )]
     better_initial: bool,
@@ -48,7 +64,8 @@ fn main(
     #[opt(
         long,
         conflicts_with = "from-current-best",
-        conflicts_with = "better-initial"
+        conflicts_with = "better-initial",
+        conflicts_with = "from-recent"
     )]
     initial_solution: Option<PathBuf>,
     /// annealing specify taste
@@ -78,6 +95,9 @@ fn main(
         Some(raw_solution.into())
     } else if from_current_best {
         let solution = get_best_solution(problem_id)?;
+        Some(solution)
+    } else if from_recent {
+        let solution = get_recent_solution()?;
         Some(solution)
     } else {
         None
@@ -131,7 +151,9 @@ fn main(
             std::fs::create_dir_all("results")?;
         }
         let file_name = format!("results/sol-{problem_id:03}-{}.json", acc_score);
-        std::fs::write(file_name, format!("{}", serde_json::json!(raw_solution)))?;
+        let s = format!("{}", serde_json::json!(raw_solution));
+        std::fs::write(file_name, &s)?;
+        std::fs::write("results/recent.json", s)?;
     }
 
     if acc_score <= 0.0 {
