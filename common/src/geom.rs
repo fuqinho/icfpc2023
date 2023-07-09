@@ -1,4 +1,5 @@
 use euclid::Vector2D;
+use lyon_geom::{Line, LineSegment};
 
 type P = Vector2D<f64, euclid::UnknownUnit>;
 
@@ -77,6 +78,64 @@ pub fn tangent_circle(c1: P, c2: P, r: f64) -> Option<P> {
     Some(mid + n * d)
 }
 
+// Returns all the circles tangenting the given two lines.
+// Returns an empty vector if the two lines are parallel.
+pub fn circles_tangenting_lines(p1: P, p2: P, q1: P, q2: P, r: f64) -> Vec<P> {
+    let np = rotate90(p2 - p1).normalize() * r;
+    let nq = rotate90(q2 - q1).normalize() * r;
+
+    let mut res = vec![];
+    for dp in [-1., 1.] {
+        for dq in [-1., 1.] {
+            let line_p = new_line(p1 + np * dp, p2 + np * dp);
+            let line_q = new_line(q1 + nq * dq, q2 + nq * dq);
+
+            line_p
+                .intersection(&line_q)
+                .map(|p| res.push(p.to_vector()));
+        }
+    }
+    res
+}
+
+pub fn circles_tangenting_line_and_circle(p1: P, p2: P, c: P, cr: f64, r: f64) -> Vec<P> {
+    let line = new_line(p1, p2);
+
+    let q = line.equation().project_point(&c.to_point());
+
+    let dir = (c - q.to_vector()).normalize() * r;
+
+    line_circle_intersections(p1 + dir, p2 + dir, c, r + cr)
+}
+
+pub fn line_circle_intersections(p1: P, p2: P, c: P, cr: f64) -> Vec<P> {
+    let line = new_line(p1, p2);
+
+    let p = line.equation().project_point(&c.to_point());
+
+    let d2 = (p.to_vector() - c).square_length();
+
+    let cr2 = cr * cr;
+
+    let l2 = cr2 - d2;
+
+    if l2 < 0. {
+        return vec![];
+    }
+
+    let n = rotate90((c - p.to_vector()).normalize() * l2);
+
+    vec![(p + n).to_vector(), (p - n).to_vector()]
+}
+
+pub fn new_line(p1: P, p2: P) -> Line<f64> {
+    LineSegment {
+        from: p1.to_point(),
+        to: p2.to_point(),
+    }
+    .to_line()
+}
+
 #[cfg(test)]
 mod tests {
     use super::{tangent_to_circle, P};
@@ -102,5 +161,27 @@ mod tests {
 
         assert!((q1 - P::new(2., 4.)).length() < 1e-9, "{:?}", q1);
         assert!((q2 - P::new(4., 2.)).length() < 1e-9, "{:?}", q1);
+    }
+
+    #[test]
+    fn test_circles_tangenting_lines() {
+        let p1 = P::new(0., 0.);
+        let p2 = P::new(1., 0.);
+        let q1 = P::new(0., 0.);
+        let q2 = P::new(0., 1.);
+
+        let res = super::circles_tangenting_lines(p1, p2, q1, q2, 1.);
+
+        assert_eq!(res.len(), 4);
+
+        for i in 0..4 {
+            for j in 0..i {
+                assert!((res[i] - res[j]).length() > 1e-9);
+            }
+            let dx = (res[i].x.abs() - 1.0).abs();
+            let dy = (res[i].y.abs() - 1.0).abs();
+
+            assert!(dx < 1e-9 || dy < 1e-9);
+        }
     }
 }
