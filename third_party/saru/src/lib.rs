@@ -14,11 +14,16 @@ pub struct AnnealingOptions {
 pub struct AnnealingResult<A: Annealer> {
     pub score: f64,
     pub iterations: usize,
-    pub state: Option<A::State>,
+    pub solution: Option<<A::State as State>::Solution>,
+}
+
+pub trait State: Send + Sync {
+    type Solution: Clone + Send + Sync;
+    fn solution(&self) -> Self::Solution;
 }
 
 pub trait Annealer {
-    type State: Clone + Send + Sync;
+    type State: State;
     type Move;
 
     fn init_state(&self, rng: &mut impl Rng) -> Self::State;
@@ -99,16 +104,16 @@ pub fn annealing<A: Annealer + Sync>(
         let mut ret = AnnealingResult {
             iterations: 0,
             score: f64::INFINITY,
-            state: None,
+            solution: None,
         };
 
         for r in res {
             ret.iterations += r.iterations;
 
-            if let Some(s) = r.state {
+            if let Some(s) = r.solution {
                 if r.score < ret.score {
                     ret.score = r.score;
-                    ret.state = Some(s);
+                    ret.solution = Some(s);
                 }
             }
         }
@@ -134,7 +139,7 @@ fn do_annealing<A: Annealer>(
     let mut valid_best_score = f64::INFINITY;
     let mut valid_best_ans = if let Some(score) = init_correct_score {
         valid_best_score = score;
-        Some(state.clone())
+        Some(state.solution())
     } else {
         None
     };
@@ -220,7 +225,7 @@ fn do_annealing<A: Annealer>(
                     best_valid_updated = true;
                 }
                 valid_best_score = new_correct_score;
-                valid_best_ans = Some(state.clone());
+                valid_best_ans = Some(state.solution());
             }
         }
 
@@ -263,7 +268,7 @@ fn do_annealing<A: Annealer>(
     AnnealingResult {
         iterations: iters,
         score: valid_best_score,
-        state: valid_best_ans,
+        solution: valid_best_ans,
     }
 }
 

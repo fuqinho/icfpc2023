@@ -427,9 +427,16 @@ struct Solver2 {
     initial_solution: Option<common::Solution>,
 }
 
-#[derive(Clone)]
 struct State2 {
     board: Board,
+}
+
+impl saru::State for State2 {
+    type Solution = common::Solution;
+
+    fn solution(&self) -> Self::Solution {
+        self.board.solution().unwrap()
+    }
 }
 
 enum Move {
@@ -873,13 +880,12 @@ fn main(
     //     lx * ly / solver.0.musicians.len() as f64
     // );
 
-    let Some(state) = solution.state else {
+    let score = -solution.score;
+
+    let Some(mut solution) = solution.solution else {
         anyhow::bail!("Valid solution not found")
     };
 
-    let score = -solution.score;
-
-    let mut solution: Solution = state.board.try_into()?;
     solution.problem_id = problem_id;
 
     let acc_score = common::evaluate(&orig_problem, &solution);
