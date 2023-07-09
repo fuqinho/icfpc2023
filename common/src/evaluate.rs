@@ -90,7 +90,10 @@ fn evaluate_attendee(
             continue;
         }
         let d = seg.length();
-        score += (solution.volumes[index] * q[index] * (1000000f64 * attendee.tastes[*inst] / (d * d)).ceil()).ceil();
+        score += (solution.volumes[index]
+            * q[index]
+            * (1000000f64 * attendee.tastes[*inst] / (d * d)).ceil())
+        .ceil();
     }
     score
 }
@@ -112,7 +115,9 @@ pub fn evaluate_musician(
         if is_blocked_internal(&seg, m, &solution.placements, pillars) {
             continue;
         }
-        score += (solution.volumes[m] * q[m] * (1000000f64 * attendee.tastes[musicians[m]] / d).ceil()).ceil();
+        score +=
+            (solution.volumes[m] * q[m] * (1000000f64 * attendee.tastes[musicians[m]] / d).ceil())
+                .ceil();
     }
     score
 }
@@ -199,8 +204,12 @@ impl EvaluationResult {
                     continue;
                 }
                 let d = seg.length();
-                let attendee_musician_score =
-                    (solution.volumes[musician] * q[musician] * 1000000f64 * attendee.tastes[*inst] / (d * d)).ceil();
+                let attendee_musician_score = (solution.volumes[musician]
+                    * q[musician]
+                    * 1000000f64
+                    * attendee.tastes[*inst]
+                    / (d * d))
+                    .ceil();
                 total_score += attendee_musician_score;
                 musician_stats[musician].score += attendee_musician_score;
                 instrument_stats[*inst].score += attendee_musician_score;
