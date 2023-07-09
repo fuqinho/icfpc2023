@@ -8,29 +8,6 @@ type P = Vector2D<f64, euclid::UnknownUnit>;
 
 const MUSICIAN_R: f64 = 5.;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct F64(pub f64);
-
-impl Eq for F64 {}
-
-impl PartialOrd for F64 {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.0.partial_cmp(&other.0)
-    }
-}
-
-impl Ord for F64 {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.partial_cmp(other).expect("F64 Ord failed to compare")
-    }
-}
-
-impl From<f64> for F64 {
-    fn from(f: f64) -> Self {
-        Self(f)
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct Board {
     problem_id: u32,
@@ -41,7 +18,7 @@ pub struct Board {
     // musicians + pillars
     ps: Vec<Option<(P, f64)>>,
     // m -> audience ids sorted by args
-    aids: Vec<Vec<(F64, usize)>>,
+    aids: Vec<Vec<(f64, usize)>>,
     // m -> a -> block count
     blocks: Vec<Vec<usize>>,
     // m -> closeness factor
@@ -151,14 +128,10 @@ impl Board {
 
         // Update aids
         for (i, a) in self.prob.attendees.iter().enumerate() {
-            let r: F64 = (a.position - p)
-                .to_vector()
-                .angle_from_x_axis()
-                .radians
-                .into();
+            let r: f64 = (a.position - p).to_vector().angle_from_x_axis().radians;
             self.aids[m].push((r, i));
         }
-        self.aids[m].sort_unstable();
+        self.aids[m].sort_unstable_by(|a, b| a.0.total_cmp(&b.0));
 
         // Update blocks
         self.update_blocks(m, p, true);
@@ -248,50 +221,39 @@ impl Board {
 
                     let (t1, t2) = tangent_to_circle(blocked, blocking, r);
 
-                    let mut r1: F64 = (t1 - blocked).angle_from_x_axis().radians.into();
-                    let mut r2: F64 = (t2 - blocked).angle_from_x_axis().radians.into();
+                    let mut r1: f64 = (t1 - blocked).angle_from_x_axis().radians;
+                    let mut r2: f64 = (t2 - blocked).angle_from_x_axis().radians;
 
                     let eps = 1e-12;
-                    r1.0 += eps;
-                    r2.0 -= eps;
+                    r1 += eps;
+                    r2 -= eps;
 
-                    let rs = if r1 < r2 {
-                        [Some((r1, r2)), None]
-                    } else {
-                        [
-                            Some((r1, (std::f64::consts::PI + eps).into())),
-                            Some(((-std::f64::consts::PI - eps).into(), r2)),
-                        ]
+                    let mut update = |j: usize| {
+                        if inc {
+                            Self::inc_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                        } else {
+                            Self::dec_blocks(blocks, impacts, prob, ps, i, self.aids[i][j].1);
+                        }
                     };
 
-                    for angle_range in rs {
-                        if let Some((r1, r2)) = angle_range {
-                            let j1 = aids[i].binary_search(&(r1, 0)).unwrap_or_else(|j| j);
-                            let j2 = aids[i].binary_search(&(r2, 0)).unwrap_or_else(|j| j);
+                    if r1 < r2 {
+                        let j1 = aids[i].partition_point(|r| r.0 < r1);
+                        let j2 = aids[i][j1..].partition_point(|r| r.0 < r2) + j1;
 
-                            for j in j1..j2 {
-                                if inc {
-                                    Self::inc_blocks(
-                                        blocks,
-                                        impacts,
-                                        prob,
-                                        ps,
-                                        i,
-                                        self.aids[i][j].1,
-                                    );
-                                } else {
-                                    Self::dec_blocks(
-                                        blocks,
-                                        impacts,
-                                        prob,
-                                        ps,
-                                        i,
-                                        self.aids[i][j].1,
-                                    );
-                                }
-                            }
+                        for j in j1..j2 {
+                            update(j);
                         }
-                    }
+                    } else {
+                        let j2 = aids[i].partition_point(|r| r.0 < r2);
+                        let j1 = aids[i][j2..].partition_point(|r| r.0 < r1) + j2;
+
+                        for j in 0..j2 {
+                            update(j);
+                        }
+                        for j in j1..aids[i].len() {
+                            update(j);
+                        }
+                    };
                 }
             }
         }
@@ -327,6 +289,7 @@ impl Board {
         }
     }
 
+    #[inline]
     fn impact_internal(
         prob: &Problem,
         ps: &Vec<Option<(P, f64)>>,
