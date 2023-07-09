@@ -116,15 +116,25 @@ function ProblemList() {
 
   return (
     <div className="overflow-x-auto">
-      <select
-        className="select select-bordered select-sm m-2"
-        onChange={(e) => setOrder(e.target.value)}
-        value={order}
-      >
-        <option value="by-id">ID順</option>
-        <option value="by-score-desc">スコアの高い順</option>
-        <option value="by-score-asc">スコアの低い順</option>
-      </select>
+      <div className="flex">
+        <select
+          className="select select-bordered select-sm m-2"
+          onChange={(e) => setOrder(e.target.value)}
+          value={order}
+        >
+          <option value="by-id">ID順</option>
+          <option value="by-score-desc">スコアの高い順</option>
+          <option value="by-score-asc">スコアの低い順</option>
+        </select>
+        <button
+          className="btn btn-sm"
+          onClick={() =>
+            navigator.clipboard.writeText(createScript(problems, problemKeys))
+          }
+        >
+          この順番で雑ローラースクリプトをコピー
+        </button>
+      </div>
       <table className="table">
         <thead>
           <tr>
@@ -148,6 +158,14 @@ function ProblemList() {
       </table>
     </div>
   );
+}
+
+function createScript(problems: ProblemMetadata[], problemKeys: number[]) {
+  let lines: string[] = problemKeys.map((i) => {
+    const problem = problems[i];
+    return `cargo run --release -- --time-limit=600 --threads=8 ${problem.id} --initial-solution $JSON_FILE --start-temp=1e5`;
+  });
+  return lines.join("\n");
 }
 
 export default function Home() {
