@@ -152,6 +152,7 @@ impl saru::Annealer for Solver2 {
                 }
 
                 board.try_place(i, best.1).unwrap();
+                board.set_volume(i, 5.0);
             }
         } else {
             for i in 0..board.prob.musicians.len() {
@@ -166,6 +167,7 @@ impl saru::Annealer for Solver2 {
                         break;
                     }
                 }
+                board.set_volume(i, 5.0);
             }
         }
 
