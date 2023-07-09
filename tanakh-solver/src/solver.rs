@@ -134,7 +134,7 @@ impl saru::Annealer for Solver2<'_> {
             }
         } else if self.better_initial {
             for i in 0..board.prob.musicians.len() {
-                board.set_volume(i, 5.0);
+                board.set_volume(i, 5.5);
 
                 let mut best = (f64::MIN, Point::new(0.0, 0.0));
                 for _ in 0..100 {
@@ -160,7 +160,7 @@ impl saru::Annealer for Solver2<'_> {
             }
         } else {
             for i in 0..board.prob.musicians.len() {
-                board.set_volume(i, 5.0);
+                board.set_volume(i, 5.5);
                 loop {
                     let x: f64 = rng
                         .gen_range(board.prob.stage.min.x..=board.prob.stage.max.x)
