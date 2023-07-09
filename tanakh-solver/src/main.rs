@@ -25,7 +25,7 @@ fn main(
     #[opt(long)]
     start_temp: Option<f64>,
     /// specify limit temerature
-    #[opt(long, default_value = "0.1")]
+    #[opt(long, default_value = "1.0")]
     limit_temp: f64,
     /// prune far atendees
     #[opt(long)]
