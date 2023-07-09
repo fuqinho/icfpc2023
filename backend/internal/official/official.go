@@ -1,10 +1,13 @@
 package official
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"icfpc2023/backend/internal/httputil"
+	"net/http"
 	"net/url"
 )
 
@@ -117,4 +120,41 @@ func (c *Client) GetSubmissionSpec(ctx context.Context, id string) (string, erro
 		return "", errors.New(response.Failure)
 	}
 	return response.Success.Contents, nil
+}
+
+func (c *Client) Submit(ctx context.Context, spec string) error {
+	var partial struct {
+		ProblemID int `json:"problem_id"`
+	}
+	if err := json.Unmarshal([]byte(spec), &partial); err != nil {
+		return err
+	}
+
+	problemID := partial.ProblemID
+	if problemID == 0 {
+		return errors.New("problem ID missing")
+	}
+
+	req, err := json.Marshal(struct {
+		ProblemID int    `json:"problem_id"`
+		Contents  string `json:"contents"`
+	}{
+		ProblemID: problemID,
+		Contents:  spec,
+	})
+	if err != nil {
+		return err
+	}
+
+	res, err := http.Post("https://api.icfpcontest.com/submission", "application/json", bytes.NewBuffer(req))
+	if err != nil {
+		return err
+	}
+	res.Body.Close()
+
+	if res.StatusCode/100 != 2 {
+		return fmt.Errorf("HTTP status %d", res.StatusCode)
+	}
+
+	return nil
 }

@@ -43,6 +43,7 @@ var cmdServer = &cli.Command{
 		flagPort,
 		flagDB,
 		flagBucket,
+		flagAPIKey,
 	},
 	Action: func(c *cli.Context) error {
 		ctx := c.Context
@@ -50,6 +51,7 @@ var cmdServer = &cli.Command{
 		port := c.Int(flagPort.Name)
 		dbURL := c.String(flagDB.Name)
 		bucketName := c.String(flagBucket.Name)
+		apiKey := c.String(flagAPIKey.Name)
 
 		rawDB, err := sql.Open("mysql", dbURL)
 		if err != nil {
@@ -64,8 +66,9 @@ var cmdServer = &cli.Command{
 		bucket := store.Bucket(bucketName)
 
 		db := database.New(rawDB, bucket)
+		client := official.NewClient(apiKey)
 
-		handler := server.NewHandler(db)
+		handler := server.NewHandler(db, client)
 		log.Printf("Listening at :%d ...", port)
 		return http.ListenAndServe(fmt.Sprintf(":%d", port), handler)
 	},
