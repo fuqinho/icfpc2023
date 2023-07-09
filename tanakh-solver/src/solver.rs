@@ -3,7 +3,7 @@ use euclid::{default::*, point2, vec2};
 use lyon_geom::{LineSegment, Point};
 use rand::Rng;
 
-const SOLVER_NAME: &str = "(((´･_･`)))";
+const SOLVER_NAME: &str = "| 柱 |´･_･`)";
 
 pub struct Solver2<'a> {
     pub problem_id: u32,
