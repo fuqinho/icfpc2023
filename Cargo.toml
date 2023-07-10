@@ -8,6 +8,7 @@ members = [
   "greedy-solver",
   "fuqinho-solver",
   "hungarian-solver",
+  "nya-manual-annealer",
   "sandbox/hello",
   "sandbox/lifegame",
   "sandbox/lifegame-wasm",
