@@ -1,0 +1,7 @@
+.git
+target
+Cargo.lock
+**/*.rs.bk
+files
+*.db
+
