@@ -119,6 +119,7 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
   const showV2 = searchParams.get("showV2") !== "false";
 
   const winnerScore = scoreboard?.scoreboard[0]?.score ?? 999999999999;
+  const secondScore = scoreboard?.scoreboard[1]?.score ?? 999999999999;
 
   if (errorBestSolutions) {
     throw errorBestSolutions;
@@ -279,6 +280,10 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
             <p>
               1位まであと: {formatNumber(winnerScore - totalScore)} (+
               {formatPercentage(winnerScore / totalScore - 1)})
+            </p>
+            <p>
+              2位まであと: {formatNumber(secondScore - totalScore)} (+
+              {formatPercentage(secondScore / totalScore - 1)})
             </p>
           </div>
         </div>
