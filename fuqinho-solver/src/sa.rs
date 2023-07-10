@@ -92,7 +92,7 @@ fn move_at_gradient_direction(board: &mut Board, m: usize, rng: &mut ThreadRng) 
 fn collide_at_random_direction(board: &mut Board, m: usize, rng: &mut ThreadRng) -> bool {
     let pos = board.musicians()[m].unwrap().0;
 
-    let angle = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+    let angle = rng.gen_range(0.0..2.0) * std::f64::consts::PI;
     let dx = angle.cos();
     let dy = angle.sin();
     let mut lo = 0.;
@@ -117,7 +117,7 @@ fn move_at_random_direction(board: &mut Board, m: usize, rng: &mut ThreadRng) ->
 
     board.unplace(m);
     let dist = 40.0 * (rng.gen_range(0.0..1.0) as f64).powf(2.);
-    let angle = rng.gen_range(0.0..2.0 * std::f64::consts::PI);
+    let angle = rng.gen_range(0.0..2.0) * std::f64::consts::PI;
 
     let new_pos = Point2D::new(pos.x + dist * angle.cos(), pos.y + dist * angle.sin());
     if board.can_place(m, new_pos) {
@@ -196,7 +196,7 @@ pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
             let solution_json =
                 serde_json::to_string(&RawSolution::from(solution_to_write.clone())).unwrap();
             let output = PathBuf::from(format!(
-                "{}-{}-{}.json",
+                "results/{}-{}M-{}.json",
                 solution_to_write.problem_id,
                 iteration / 1000000,
                 best_score
