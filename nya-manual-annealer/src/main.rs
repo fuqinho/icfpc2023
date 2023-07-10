@@ -151,7 +151,8 @@ fn main(
             String::new()
         };
         eprintln!(
-            "score = {} / best = {} / temp = {}{}",
+            "[{}] score = {} / best = {} / temp = {}{}",
+            problem_id,
             estimated_score.separate_with_commas(),
             submitted_score.separate_with_commas(),
             current_temp,
