@@ -12,7 +12,7 @@ const MUSICIAN_R: f64 = 5.;
 
 #[derive(Clone, Debug)]
 pub struct Board {
-    problem_id: u32,
+    pub problem_id: u32,
     solver: String,
     // NB: stage is modified
     pub prob: Problem,
@@ -36,7 +36,7 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn new(problem_id: u32, mut prob: Problem, solver: &str) -> Self {
+    pub fn new<T: AsRef<str>>(problem_id: u32, mut prob: Problem, solver: T) -> Self {
         let n = prob.musicians.len();
         let m = prob.attendees.len();
         let p = prob.pillars.len();
@@ -62,7 +62,7 @@ impl Board {
 
         Self {
             problem_id,
-            solver: solver.to_owned(),
+            solver: solver.as_ref().to_owned(),
             prob,
             ps,
             aids,
