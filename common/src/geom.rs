@@ -62,11 +62,21 @@ pub fn rotate90(p: P) -> P {
 }
 
 // Returns the center of a circle with radius r tangenting two circles c1 and c2.
-// This function assumes that c1 and c2 have the same radius (which can be different from r)
+// This function assumes that c1 and c2 are tangent and have the same radius (which can be different from r)
 // The circle returned is on the left hand side of the line c1c2.
 pub fn tangent_circle(c1: P, c2: P, r: f64) -> Option<P> {
     let rc = (c1 - c2).length() / 2.;
-    let d2 = (r + rc) * (r + rc) - (rc * rc);
+
+    tangent_circle2(c1, c2, rc, r)
+}
+
+// Returns the center of a circle with radius r tangenting two circles c1 and c2.
+// This function assumes that c1 and c2 have the same radius cr.
+// The circle returned is on the left hand side of the line c1c2.
+pub fn tangent_circle2(c1: P, c2: P, cr: f64, r: f64) -> Option<P> {
+    let s = (c1 - c2).length() / 2.;
+
+    let d2 = (r + cr) * (r + cr) - (s * s);
     if d2 < 0. {
         return None;
     }

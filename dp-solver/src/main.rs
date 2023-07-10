@@ -3,7 +3,7 @@ mod solver;
 use anyhow::Result;
 use common::{api::Client, evaluate, Solution};
 
-use crate::solver::Dp;
+use crate::solver::solve;
 
 #[argopt::cmd]
 fn main(
@@ -20,9 +20,7 @@ fn main(
 
     let problem = cl.get_problem(problem_id)?;
 
-    let mut solver = Dp::new(problem_id, problem.clone());
-
-    let (_score, board) = solver.solve();
+    let (_score, board) = solve(problem_id, problem.clone());
 
     let solution: Solution = board.solution_with_optimized_volume().unwrap();
 
