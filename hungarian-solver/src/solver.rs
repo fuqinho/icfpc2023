@@ -1,17 +1,25 @@
 use std::{
     cmp::Ordering,
     collections::{BTreeSet, HashSet},
+    fmt::Display,
     str::FromStr,
 };
 
 use anyhow::{bail, Context};
-use common::{board::Board, geom::tangent_circle, Problem};
+use common::{
+    api::{get_best_solution, Client},
+    board::Board,
+    geom::tangent_circle,
+    Problem, Solution,
+};
 use lyon_geom::{Point, Vector};
 use pathfinding::prelude::{kuhn_munkres, Matrix};
 
 const SOLVER_NAME: &str = "hungarian-solver";
 
 pub struct Solver {
+    algo: Algorithm,
+
     orig_problem: Problem,
     board: Board,
 }
@@ -21,6 +29,8 @@ pub enum Algorithm {
     Normal,
     ZigZag,
     Gap,
+    Stdin,
+    FetchBest,
 }
 
 impl FromStr for Algorithm {
@@ -31,7 +41,21 @@ impl FromStr for Algorithm {
             "normal" => Ok(Self::Normal),
             "zigzag" => Ok(Self::ZigZag),
             "gap" => Ok(Self::Gap),
+            "stdin" => Ok(Self::Stdin),
+            "fetch" => Ok(Self::FetchBest),
             _ => bail!("unknown algorithm name {}", s),
+        }
+    }
+}
+
+impl Display for Algorithm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Normal => write!(f, "normal"),
+            Self::ZigZag => write!(f, "zigzag"),
+            Self::Gap => write!(f, "gap"),
+            Self::Stdin => write!(f, "stdin"),
+            Self::FetchBest => write!(f, "fetch"),
         }
     }
 }
@@ -41,21 +65,26 @@ type P = Point<f64>;
 const D: usize = 10;
 
 impl Solver {
-    pub fn new(problem_id: u32, problem: Problem) -> Self {
-        let board = Board::new(problem_id, problem.clone(), SOLVER_NAME);
+    pub fn new(problem_id: u32, problem: Problem, algo: Algorithm) -> Self {
+        let board = Board::new(
+            problem_id,
+            problem.clone(),
+            format!("{}-{}", SOLVER_NAME, algo.to_string()),
+        );
 
         Self {
+            algo,
             orig_problem: problem,
             board,
         }
     }
 
-    pub fn solve(&mut self, algo: Algorithm) -> (f64, Board) {
-        let mut outer = self.compute_outer(algo);
-        self.solve_with_positions(algo, &outer)
+    pub fn solve(&mut self) -> (f64, Board) {
+        let outer: Vec<euclid::Point2D<f64, euclid::UnknownUnit>> = self.compute_outer(self.algo);
+        self.solve_with_positions(&outer)
     }
 
-    pub fn solve_with_positions(&mut self, algo: Algorithm, positions: &Vec<P>) -> (f64, Board) {
+    pub fn solve_with_positions(&mut self, positions: &Vec<P>) -> (f64, Board) {
         let mut outer = positions.clone();
 
         let mut max_x: f64 = 0.;
@@ -92,7 +121,7 @@ impl Solver {
             for _ in 0..outer.len() {
                 prob2.musicians.push(0);
             }
-            let mut board2 = Board::new(0, prob2, SOLVER_NAME);
+            let mut board2 = Board::new(0, prob2, "none");
 
             for (i, o) in outer.iter().enumerate() {
                 board2.try_place(num_instruments + i, o.clone()).unwrap();
@@ -115,7 +144,12 @@ impl Solver {
         let mut weights = vec![vec![]; outer.len()];
         for i in 0..outer.len() {
             for j in self.board.prob.musicians.iter() {
-                weights[i].push(scores[i][*j] as i64);
+                let mut s = scores[i][*j] as i64;
+                if s < 0 {
+                    s = 0;
+                }
+
+                weights[i].push(s);
             }
         }
 
@@ -186,138 +220,161 @@ impl Solver {
         return (self.board.score() as f64, self.board.clone());
     }
 
-    fn compute_outer(&self, algo: Algorithm) -> Vec<P> {
+    fn compute_outer(&mut self, algo: Algorithm) -> Vec<P> {
         let mut outer = vec![];
 
         let bb = self.board.prob.stage;
 
-        if algo == Algorithm::Normal {
-            for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize)).step_by(D) {
-                if bb.min.y > D as f64 {
-                    outer.push(Point::new(x as f64, bb.min.y));
+        match algo {
+            Algorithm::Normal => {
+                for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize)).step_by(D) {
+                    if bb.min.y > D as f64 {
+                        outer.push(Point::new(x as f64, bb.min.y));
+                    }
+                    outer.push(Point::new(x as f64, bb.max.y));
                 }
-                outer.push(Point::new(x as f64, bb.max.y));
-            }
 
-            for y in ((bb.min.y).ceil() as usize + D..bb.max.y.floor() as usize - D).step_by(D) {
-                if bb.min.x > D as f64 {
-                    outer.push(Point::new(bb.min.x, y as f64));
+                for y in ((bb.min.y).ceil() as usize + D..bb.max.y.floor() as usize - D).step_by(D)
+                {
+                    if bb.min.x > D as f64 {
+                        outer.push(Point::new(bb.min.x, y as f64));
+                    }
+                    outer.push(Point::new(bb.max.x, y as f64));
                 }
-                outer.push(Point::new(bb.max.x, y as f64));
             }
-        } else if algo == Algorithm::ZigZag {
-            let mut queue = vec![];
-            let mut visited = HashSet::<Point<i64>>::new();
+            Algorithm::ZigZag => {
+                let mut queue = vec![];
+                let mut visited = HashSet::<Point<i64>>::new();
 
-            let mul = 1_000_000i64;
-            let sqrt2_5 = 7_071_068i64;
+                let mul = 1_000_000i64;
+                let sqrt2_5 = 7_071_068i64;
 
-            let init = Point::new(bb.min.x.ceil() as i64 * mul, bb.min.y.ceil() as i64 * mul);
-            queue.push(init);
-            visited.insert(init);
+                let init = Point::new(bb.min.x.ceil() as i64 * mul, bb.min.y.ceil() as i64 * mul);
+                queue.push(init);
+                visited.insert(init);
 
-            let eps = Vector::new(1e-9, 1e-9);
-            let mut bb_outer = bb;
-            bb_outer.max += eps;
+                let eps = Vector::new(1e-9, 1e-9);
+                let mut bb_outer = bb;
+                bb_outer.max += eps;
 
-            let mut bb_inner = bb;
-            bb_inner.min +=
-                Vector::new(sqrt2_5 as f64 / mul as f64, sqrt2_5 as f64 / mul as f64) + eps;
-            bb_inner.max -=
-                Vector::new(sqrt2_5 as f64 / mul as f64, sqrt2_5 as f64 / mul as f64) * 2. + eps;
+                let mut bb_inner = bb;
+                bb_inner.min +=
+                    Vector::new(sqrt2_5 as f64 / mul as f64, sqrt2_5 as f64 / mul as f64) + eps;
+                bb_inner.max -=
+                    Vector::new(sqrt2_5 as f64 / mul as f64, sqrt2_5 as f64 / mul as f64) * 2.
+                        + eps;
 
-            while let Some(p) = queue.pop() {
-                for dx in [-1, 1] {
-                    for dy in [-1, 1] {
-                        let np = p + Vector::new(dx * sqrt2_5, dy * sqrt2_5);
+                while let Some(p) = queue.pop() {
+                    for dx in [-1, 1] {
+                        for dy in [-1, 1] {
+                            let np = p + Vector::new(dx * sqrt2_5, dy * sqrt2_5);
 
-                        if visited.contains(&np) {
+                            if visited.contains(&np) {
+                                continue;
+                            }
+
+                            let real_np = np.to_f64() / mul as f64;
+
+                            if bb_outer.contains(real_np) && !bb_inner.contains(real_np) {
+                                queue.push(np);
+                                visited.insert(np);
+                            }
+                        }
+                    }
+                }
+
+                outer = visited
+                    .into_iter()
+                    .map(|p| p.to_f64() / mul as f64)
+                    .collect();
+
+                outer.sort_by(|x, y| {
+                    let o = x.x.partial_cmp(&y.x).unwrap();
+                    if o == Ordering::Equal {
+                        x.y.partial_cmp(&y.y).unwrap()
+                    } else {
+                        o
+                    }
+                });
+            }
+            Algorithm::Gap => {
+                for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize)).step_by(D) {
+                    if bb.min.y > D as f64 {
+                        outer.push(Point::new(x as f64, bb.min.y));
+                    }
+                    outer.push(Point::new(x as f64, bb.max.y));
+                }
+
+                for y in ((bb.min.y).ceil() as usize + D..bb.max.y.floor() as usize - D).step_by(D)
+                {
+                    if bb.min.x > D as f64 {
+                        outer.push(Point::new(bb.min.x, y as f64));
+                    }
+                    outer.push(Point::new(bb.max.x, y as f64));
+                }
+
+                let mut min_x: f64 = 1e9;
+                let mut min_y: f64 = 1e9;
+                let mut max_x: f64 = -1e9;
+                let mut max_y: f64 = -1e9;
+
+                for p in outer.iter() {
+                    min_x = min_x.min(p.x);
+                    min_y = min_y.min(p.y);
+                    max_x = max_x.max(p.x);
+                    max_y = max_y.max(p.y);
+                }
+
+                let outmost = outer.clone();
+
+                for o1 in outmost.iter() {
+                    for o2 in outmost.iter() {
+                        if o1 == o2 {
                             continue;
                         }
 
-                        let real_np = np.to_f64() / mul as f64;
-
-                        if bb_outer.contains(real_np) && !bb_inner.contains(real_np) {
-                            queue.push(np);
-                            visited.insert(np);
+                        if o1.x != o2.x && o1.y != o2.y {
+                            continue;
                         }
-                    }
-                }
-            }
 
-            outer = visited
-                .into_iter()
-                .map(|p| p.to_f64() / mul as f64)
-                .collect();
+                        if (*o1 - o2.to_vector()).to_vector().square_length() <= (D * D) as f64 {
+                            let c = tangent_circle(
+                                o1.to_vector(),
+                                o2.to_vector(),
+                                D as f64 / 2. + 1e-9,
+                            )
+                            .unwrap();
 
-            outer.sort_by(|x, y| {
-                let o = x.x.partial_cmp(&y.x).unwrap();
-                if o == Ordering::Equal {
-                    x.y.partial_cmp(&y.y).unwrap()
-                } else {
-                    o
-                }
-            });
-        } else if algo == Algorithm::Gap {
-            for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize)).step_by(D) {
-                if bb.min.y > D as f64 {
-                    outer.push(Point::new(x as f64, bb.min.y));
-                }
-                outer.push(Point::new(x as f64, bb.max.y));
-            }
+                            if self.board.prob.stage.contains(c.to_point()) {
+                                // check collision
+                                let mut ok = true;
+                                for p in outer.iter() {
+                                    if (*p - c).to_vector().square_length() < (D * D) as f64 {
+                                        ok = false;
+                                        break;
+                                    }
+                                }
 
-            for y in ((bb.min.y).ceil() as usize + D..bb.max.y.floor() as usize - D).step_by(D) {
-                if bb.min.x > D as f64 {
-                    outer.push(Point::new(bb.min.x, y as f64));
-                }
-                outer.push(Point::new(bb.max.x, y as f64));
-            }
-
-            let mut min_x: f64 = 1e9;
-            let mut min_y: f64 = 1e9;
-            let mut max_x: f64 = -1e9;
-            let mut max_y: f64 = -1e9;
-
-            for p in outer.iter() {
-                min_x = min_x.min(p.x);
-                min_y = min_y.min(p.y);
-                max_x = max_x.max(p.x);
-                max_y = max_y.max(p.y);
-            }
-
-            let outmost = outer.clone();
-
-            for o1 in outmost.iter() {
-                for o2 in outmost.iter() {
-                    if o1 == o2 {
-                        continue;
-                    }
-
-                    if o1.x != o2.x && o1.y != o2.y {
-                        continue;
-                    }
-
-                    if (*o1 - o2.to_vector()).to_vector().square_length() <= (D * D) as f64 {
-                        let c =
-                            tangent_circle(o1.to_vector(), o2.to_vector(), D as f64 / 2. + 1e-9)
-                                .unwrap();
-
-                        if self.board.prob.stage.contains(c.to_point()) {
-                            // check collision
-                            let mut ok = true;
-                            for p in outer.iter() {
-                                if (*p - c).to_vector().square_length() < (D * D) as f64 {
-                                    ok = false;
-                                    break;
+                                if ok {
+                                    outer.push(c.to_point());
                                 }
                             }
-
-                            if ok {
-                                outer.push(c.to_point());
-                            }
                         }
                     }
                 }
+            }
+            Algorithm::Stdin => {
+                let solution = Solution::read_from_file("/dev/stdin").unwrap();
+                outer = solution.placements.iter().map(|p| p.position).collect();
+            }
+            Algorithm::FetchBest => {
+                let solution = get_best_solution(self.board.problem_id).unwrap();
+
+                self.board
+                    .solver
+                    .push_str(format!("-{}", solution.solver).as_str());
+
+                outer = solution.placements.iter().map(|p| p.position).collect();
             }
         }
 

@@ -10,7 +10,7 @@ fn main(
     problem_id: u32,
     #[opt(short, long, default_value = "normal")] algo: solver::Algorithm,
     #[opt(short, long, default_value = "")] out: String,
-    #[opt(short, long, default_value = "false")] submit_must: bool,
+    #[opt(short, long)] submit_must: bool,
 ) -> Result<()> {
     let cl = Client::new();
     let userboard = cl.get_userboard()?;
@@ -21,30 +21,24 @@ fn main(
 
     let problem = cl.get_problem(problem_id)?;
 
-    let mut solver = Solver::new(problem_id, problem.clone());
+    let mut solver = Solver::new(problem_id, problem.clone(), algo);
 
-    let (score, board) = solver.solve(algo);
+    let (_score, board) = solver.solve();
 
-    let solution: Solution = board.try_into().unwrap();
+    let solution: Solution = board.solution_with_optimized_volume().unwrap();
 
     let eval_score = evaluate(&problem, &solution);
 
     eprintln!("final score: {}", eval_score);
 
-    if score != eval_score {
-        let diff = (1. - score / eval_score).abs() * 100.;
-        eprintln!(
-            "WARNING: board and evaluate score differ by {}% {}",
-            diff,
-            if score < eval_score {
-                "board score is smaller"
-            } else {
-                "board score is larger"
-            }
-        );
-    }
+    if eval_score as i64 > best_score as i64 || submit_must {
+        if eval_score as i64 > best_score as i64 {
+            eprintln!(
+                "score improved by {:.2}%",
+                eval_score as f64 / best_score * 100.0 - 100.0
+            );
+        }
 
-    if eval_score > best_score || submit_must {
         cl.post_submission(problem_id, solution.clone())?;
 
         eprintln!("Submitted solution for problem {}!", problem_id);

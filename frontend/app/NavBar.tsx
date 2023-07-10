@@ -49,6 +49,14 @@ export default function NavBar() {
               Mismatched solutions
             </Link>
           </li>
+          <li>
+            <Link
+              className="hover:text-white hover:underline focus:text-white"
+              href="/matrix"
+            >
+              点数マトリックス
+            </Link>
+          </li>
         </ul>
       </div>
 
