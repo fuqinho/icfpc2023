@@ -99,7 +99,7 @@ impl Solver {
         let mut weights = vec![vec![]; outer.len()];
         for i in 0..outer.len() {
             for j in self.board.prob.musicians.iter() {
-                weights[i].push(scores[i][*j] as i64);
+                weights[i].push(scores[i][*j].max(0.) as i64);
             }
         }
 
