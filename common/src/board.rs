@@ -13,7 +13,7 @@ const MUSICIAN_R: f64 = 5.;
 #[derive(Clone, Debug)]
 pub struct Board {
     pub problem_id: u32,
-    solver: String,
+    pub solver: String,
     // NB: stage is modified
     pub prob: Problem,
 

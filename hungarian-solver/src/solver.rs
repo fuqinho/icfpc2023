@@ -220,7 +220,7 @@ impl Solver {
         return (self.board.score() as f64, self.board.clone());
     }
 
-    fn compute_outer(&self, algo: Algorithm) -> Vec<P> {
+    fn compute_outer(&mut self, algo: Algorithm) -> Vec<P> {
         let mut outer = vec![];
 
         let bb = self.board.prob.stage;
@@ -369,6 +369,11 @@ impl Solver {
             }
             Algorithm::FetchBest => {
                 let solution = get_best_solution(self.board.problem_id).unwrap();
+
+                self.board
+                    .solver
+                    .push_str(format!("-{}", solution.solver).as_str());
+
                 outer = solution.placements.iter().map(|p| p.position).collect();
             }
         }
