@@ -153,7 +153,7 @@ pub fn solve_one(problem: &Problem, problem_id: usize) -> Solution {
         placed: BitSet::new(problem.musicians.len()),
         used: BitSet::new(config.locations.len()),
         placements: vec![u16::MAX; config.locations.len()],
-        board: Board::new(problem_id as u32, problem.clone(), SOLVER_NAME),
+        board: Board::new(problem_id as u32, problem.clone(), SOLVER_NAME, false),
     };
     let mut beam = vec![initial_state];
 

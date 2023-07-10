@@ -130,7 +130,7 @@ type P = Vector<f64>;
 
 impl Dp {
     pub fn new(problem_id: u32, problem: Problem) -> Self {
-        let board = Board::new(problem_id, problem, SOLVER_NAME);
+        let board = Board::new(problem_id, problem, SOLVER_NAME, false);
 
         let h = board.prob.stage.max.y as usize;
         let w = board.prob.stage.max.x;

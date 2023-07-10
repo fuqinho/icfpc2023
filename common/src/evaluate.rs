@@ -297,7 +297,12 @@ impl EvaluationResult {
         let is_detailed_attendee = detailed_item == "attendee";
         let is_detailed_musician = detailed_item == "musician";
 
-        let mut board = Board::new(solution.problem_id, problem.clone(), &solution.solver);
+        let mut board = Board::new(
+            solution.problem_id,
+            problem.clone(),
+            &solution.solver,
+            false,
+        );
         for (i, placement) in solution.placements.iter().enumerate() {
             board.try_place(i, placement.position).unwrap();
         }

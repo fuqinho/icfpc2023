@@ -123,7 +123,7 @@ fn hill_climb_swap(
 ) -> Result<common::Solution> {
     let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
 
-    let mut board = Board::new(pid, prob.clone(), SOLVER_NAME);
+    let mut board = Board::new(pid, prob.clone(), SOLVER_NAME, false);
     for (i, placement) in cur.placements.iter().enumerate() {
         board.try_place(i, placement.position)?;
     }
@@ -196,7 +196,7 @@ fn pick_and_move(
     step: f64,
 ) -> Result<common::Solution> {
     let cur = initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
-    let mut board = Board::new(pid, prob.clone(), SOLVER_NAME);
+    let mut board = Board::new(pid, prob.clone(), SOLVER_NAME, false);
     for i in 0..cur.placements.len() {
         board
             .try_place(i, cur.placements[i].position)
@@ -345,7 +345,7 @@ fn particle(
     let mut cur =
         initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
 
-    let mut board = Board::new(pid, prob.clone(), "particle");
+    let mut board = Board::new(pid, prob.clone(), "particle", false);
     for (m, placement) in cur.placements.iter().enumerate() {
         board.try_place(m, placement.position)?;
         board.set_volume(m, cur.volumes[m]);
