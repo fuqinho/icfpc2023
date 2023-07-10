@@ -77,7 +77,7 @@ fn main(
     /// problem id
     problem_id: u32,
     // Use blur
-    #[opt(long, default_value = "false")] use_visibility: bool,
+    #[opt(long)] use_visibility: bool,
 ) -> Result<()> {
     let client = Client::new();
 

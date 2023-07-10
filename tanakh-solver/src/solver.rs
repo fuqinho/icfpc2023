@@ -167,7 +167,12 @@ impl saru::StateInitializer for Solver2 {
             );
         }
 
-        let mut board = Board::new(self.problem_id, self.problem.clone(), &solver_name, false);
+        let mut board = Board::new(
+            self.problem_id,
+            self.problem.clone(),
+            &solver_name,
+            self.use_visibility,
+        );
 
         if self.better_initial {
             let g = board.prob.stage.center();

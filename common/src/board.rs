@@ -276,7 +276,7 @@ impl Board {
     }
 
     fn vis_f(ratio: f64) -> f64 {
-        const THREASHOLD: f64 = 0.7;
+        const THREASHOLD: f64 = 0.0;
         if ratio < THREASHOLD {
             1e-6
         } else {
@@ -502,7 +502,7 @@ impl Board {
         let impact = Self::impact_internal(prob, ps, prob.musicians[i], i, a);
         if use_visibility {
             let prev_vis = visibility[i][a];
-            visibility[i][a] *= prev_vis;
+            visibility[i][a] *= vis;
             impacts[i] += (visibility[i][a] - prev_vis) * impact;
         } else {
             if *b == 1 {
