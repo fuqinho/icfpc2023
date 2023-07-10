@@ -147,7 +147,9 @@ impl Client {
     }
 
     pub fn get_problem(&self, problem_id: u32) -> Result<Problem> {
-        let url = format!("https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/{problem_id}/spec");
+        let url = format!(
+            "https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/{problem_id}/spec"
+        );
         let raw_problem: RawProblem = self.client.get(&url).send()?.json()?;
         Ok(Problem::from(raw_problem))
     }
