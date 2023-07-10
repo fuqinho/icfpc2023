@@ -1,6 +1,7 @@
 import clsx from "clsx";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Problem, Solution } from "./problems";
+import type * as wasm from "wasm";
 
 interface VisualizerAnnealerProps {
   problem: Problem;
@@ -8,30 +9,68 @@ interface VisualizerAnnealerProps {
   setRawSolution: (s: string) => void;
 }
 
-async function doAnnealing(
+function useFloatState(defaultValue: string): [string, (s: string) => void] {
+  const [value, setValue] = useState(defaultValue);
+
+  const maybeSetValue = useCallback(
+    (newValue: string) => {
+      if (newValue !== "" && !Number.isNaN(Number(newValue))) {
+        setValue(newValue);
+      }
+    },
+    [setValue],
+  );
+  return [value, maybeSetValue];
+}
+
+function useWasm(): typeof wasm | null {
+  const [wasmModule, setWasmModule] = useState<typeof wasm | null>(null);
+  useEffect(() => {
+    (async () => {
+      const wasmModule = await import("wasm");
+      setWasmModule(wasmModule);
+    })();
+  }, [setWasmModule]);
+  return wasmModule;
+}
+
+function useSolverHandle(
   problem: Problem,
   solution: Solution | null,
-  setRawSolution: (s: string) => void,
-  temp: number,
-): Promise<void> {
-  if (!solution) {
-    return;
-  }
+  wasmModule: typeof wasm | null,
+): wasm.SolverHandle | null {
+  const [solverHandle, setSolverHandle] = useState<wasm.SolverHandle | null>(
+    null,
+  );
 
-  const wasm = await import("wasm");
-  wasm.init_panic_hook();
-  const problemHandle = wasm.ProblemHandle.from_json(JSON.stringify(problem));
-  const solutionHandle = wasm.SolutionHandle.from_json(
-    JSON.stringify(solution),
-  );
-  const newSolutionHandle = wasm.perform_annealing(
-    problemHandle,
-    solutionHandle,
-    temp,
-    0.2,
-    BigInt(Math.floor(Math.random() * 1000000000000)),
-  );
-  setRawSolution(newSolutionHandle.as_json());
+  useEffect(() => {
+    if (!wasmModule || !solution) {
+      setSolverHandle(null);
+      return;
+    }
+
+    const problemHandle = wasmModule.ProblemHandle.from_json(
+      JSON.stringify(problem),
+    );
+    const solutionHandle = wasmModule.SolutionHandle.from_json(
+      JSON.stringify(solution),
+    );
+    const solverHandle = wasmModule.SolverHandle.new(
+      problemHandle,
+      solutionHandle,
+    );
+
+    problemHandle.free();
+    solutionHandle.free();
+
+    setSolverHandle(solverHandle);
+
+    return () => {
+      solverHandle.free();
+    };
+  }, [wasmModule, problem, solution]);
+
+  return solverHandle;
 }
 
 export default function VisualizerAnnealer({
@@ -39,20 +78,23 @@ export default function VisualizerAnnealer({
   solution,
   setRawSolution,
 }: VisualizerAnnealerProps) {
-  const [temp, setTemp] = useState("1.0");
+  const [temp, setTempString] = useFloatState("1.0");
+  const wasmModule = useWasm();
+  const solverHandle = useSolverHandle(problem, solution, wasmModule);
 
-  const maybeSetTemp = useCallback(
-    (newTemp: string) => {
-      if (newTemp !== "" && !Number.isNaN(Number(newTemp))) {
-        setTemp(newTemp);
-      }
-    },
-    [setTemp],
-  );
-
-  const onClick = useCallback(async () => {
-    await doAnnealing(problem, solution, setRawSolution, Number(temp));
-  }, [problem, solution, setRawSolution, temp]);
+  const onClick = useCallback(() => {
+    if (!solverHandle) {
+      return;
+    }
+    solverHandle.run(
+      Number(temp),
+      1.0,
+      BigInt(Math.floor(Math.random() * 1000000000000)),
+    );
+    const solutionHandle = solverHandle.solution();
+    setRawSolution(solutionHandle.as_json());
+    solutionHandle.free();
+  }, [solverHandle, temp, setRawSolution]);
 
   return (
     <div className="m-4">
@@ -65,7 +107,7 @@ export default function VisualizerAnnealer({
           type="text"
           className="input input-bordered w-full max-w-xs"
           value={temp}
-          onChange={(e) => maybeSetTemp(e.target.value)}
+          onChange={(e) => setTempString(e.target.value)}
         />
       </div>
       <button

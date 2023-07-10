@@ -5,18 +5,33 @@ use rand::Rng;
 
 const SOLVER_NAME: &str = "(´･_･`)v3";
 
-pub struct Solver2<'a> {
+pub struct Solver2 {
     pub problem_id: u32,
-    pub problem: &'a common::Problem,
+    pub problem: common::Problem,
     pub start_temp: Option<f64>,
     pub better_initial: bool,
-    pub initial_solution: Option<&'a common::Solution>,
+    pub initial_solution: Option<common::Solution>,
     pub taste: Option<usize>,
     pub param: String,
 }
 
 pub struct State2 {
     board: Board,
+}
+
+impl State2 {
+    pub fn new(solution: &Solution, problem: &Problem, solver: &str) -> Self {
+        let mut board = Board::new(solution.problem_id, problem.clone(), solver);
+
+        for (i, v) in solution.volumes.iter().enumerate() {
+            board.set_volume(i, *v);
+        }
+        for (i, p) in solution.placements.iter().enumerate() {
+            board.try_place(i, p.position).unwrap();
+        }
+
+        Self { board }
+    }
 }
 
 impl saru::State for State2 {
@@ -136,23 +151,19 @@ impl Move {
     }
 }
 
-impl saru::Annealer for Solver2<'_> {
+impl saru::StateInitializer for Solver2 {
     type State = State2;
-
-    type Move = Move;
 
     fn init_state(&self, rng: &mut impl Rng) -> Self::State {
         let solver_name = format!("{SOLVER_NAME} ({})", self.param);
-        let mut board = Board::new(self.problem_id, self.problem.clone(), &solver_name);
 
         if let Some(initial_solution) = &self.initial_solution {
-            for (i, v) in initial_solution.volumes.iter().enumerate() {
-                board.set_volume(i, *v);
-            }
-            for (i, p) in initial_solution.placements.iter().enumerate() {
-                board.try_place(i, p.position).unwrap();
-            }
-        } else if self.better_initial {
+            return State2::new(initial_solution, &self.problem, &solver_name);
+        }
+
+        let mut board = Board::new(self.problem_id, self.problem.clone(), &solver_name);
+
+        if self.better_initial {
             let g = board.prob.stage.center();
             let mut ix = (0..board.prob.musicians.len())
                 .map(|i| {
@@ -211,6 +222,12 @@ impl saru::Annealer for Solver2<'_> {
 
         State2 { board }
     }
+}
+
+impl saru::Annealer for Solver2 {
+    type State = State2;
+
+    type Move = Move;
 
     fn start_temp(&self, init_score: f64) -> f64 {
         if let Some(start_temp) = self.start_temp {

@@ -9,7 +9,6 @@ pub struct AnnealingOptions {
     pub time_limit: f64,
     pub limit_temp: f64,
     pub restart: usize,
-    pub threads: usize,
     pub silent: bool,
     pub header: String,
 }
@@ -18,6 +17,7 @@ pub struct AnnealingResult<A: Annealer> {
     pub score: f64,
     pub iterations: usize,
     pub solution: Option<<A::State as State>::Solution>,
+    pub state: A::State,
 }
 
 pub trait State: Send + Sync {
@@ -25,11 +25,16 @@ pub trait State: Send + Sync {
     fn solution(&self) -> Self::Solution;
 }
 
+pub trait StateInitializer {
+    type State: State;
+
+    fn init_state(&self, rng: &mut impl Rng) -> Self::State;
+}
+
 pub trait Annealer {
     type State: State;
     type Move;
 
-    fn init_state(&self, rng: &mut impl Rng) -> Self::State;
     fn start_temp(&self, init_score: f64) -> f64;
 
     fn is_done(&self, _score: f64) -> bool {
@@ -68,24 +73,35 @@ pub trait Annealer {
     }
 }
 
-pub fn annealing<A: Annealer + Sync>(
+pub fn annealing<S, A>(
     annealer: &A,
     opt: &AnnealingOptions,
     seed: u64,
-) -> AnnealingResult<A> {
-    assert!(opt.threads > 0);
+    threads: usize,
+) -> AnnealingResult<A>
+where
+    S: State,
+    A: Annealer<State = S> + StateInitializer<State = S> + Sync,
+{
+    assert!(threads > 0);
 
-    if opt.threads == 1 {
-        do_annealing(None, annealer, opt, seed)
+    if threads == 1 {
+        let mut rng = SmallRng::seed_from_u64(seed);
+        let state = annealer.init_state(&mut rng);
+        annealing_single_thread(None, annealer, opt, seed, state)
     } else {
         let mut rng = StdRng::seed_from_u64(seed);
 
         let res = thread::scope(|s| {
             let mut ths = vec![];
 
-            for i in 0..opt.threads {
+            for i in 0..threads {
                 let tl_seed = rng.gen();
-                ths.push(s.spawn(move || do_annealing(Some(i), annealer, opt, tl_seed)));
+                ths.push(s.spawn(move || {
+                    let mut rng = SmallRng::seed_from_u64(tl_seed);
+                    let state = annealer.init_state(&mut rng);
+                    annealing_single_thread(Some(i), annealer, opt, tl_seed, state)
+                }));
             }
 
             ths.into_iter()
@@ -104,38 +120,44 @@ pub fn annealing<A: Annealer + Sync>(
         //     .filter_map(|th| th)
         //     .min_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
 
-        let mut ret = AnnealingResult {
-            iterations: 0,
-            score: f64::INFINITY,
-            solution: None,
-        };
+        let mut iterations = 0;
+        let mut best_score = f64::INFINITY;
+        let mut best_solution = None;
+        let mut best_state = None;
 
         for r in res {
-            ret.iterations += r.iterations;
+            iterations += r.iterations;
 
             if let Some(s) = r.solution {
-                if r.score < ret.score {
-                    ret.score = r.score;
-                    ret.solution = Some(s);
+                if r.score < best_score {
+                    best_score = r.score;
+                    best_solution = Some(s);
+                    best_state = Some(r.state);
                 }
+            } else if best_state.is_none() {
+                best_state = Some(r.state);
             }
         }
-
-        ret
+        AnnealingResult {
+            iterations,
+            score: best_score,
+            solution: best_solution,
+            state: best_state.unwrap(),
+        }
     }
 }
 
-fn do_annealing<A: Annealer>(
+pub fn annealing_single_thread<A: Annealer>(
     thread_id: Option<usize>,
     annealer: &A,
     opt: &AnnealingOptions,
     seed: u64,
+    mut state: A::State,
 ) -> AnnealingResult<A> {
     let mut rng = SmallRng::seed_from_u64(seed);
 
-    let mut state = annealer.init_state(&mut rng);
     let (mut cur_score, init_correct_score) =
-        annealer.eval(&mut state, 0.0, f64::INFINITY, f64::INFINITY);
+        annealer.eval(&state, 0.0, f64::INFINITY, f64::INFINITY);
 
     let mut best_score = cur_score;
 
@@ -274,6 +296,7 @@ fn do_annealing<A: Annealer>(
         iterations: iters,
         score: valid_best_score,
         solution: valid_best_ans,
+        state,
     }
 }
 
