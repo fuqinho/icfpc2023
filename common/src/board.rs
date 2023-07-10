@@ -32,6 +32,7 @@ pub struct Board {
     impacts: Vec<f64>,
     // m -> a -> visibility [0., 1.] (0. == completely invisible)
     visibility: Vec<Vec<f64>>,
+    use_visibility: bool,
 
     // ins -> an available musician
     available_musician: Vec<Option<usize>>,
@@ -40,7 +41,12 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn new<T: AsRef<str>>(problem_id: u32, mut prob: Problem, solver: T) -> Self {
+    pub fn new<T: AsRef<str>>(
+        problem_id: u32,
+        mut prob: Problem,
+        solver: T,
+        use_visibility: bool,
+    ) -> Self {
         let n = prob.musicians.len();
         let m = prob.attendees.len();
         let p = prob.pillars.len();
@@ -75,6 +81,7 @@ impl Board {
             qs,
             impacts,
             visibility,
+            use_visibility,
             available_musician,
             volumes: vec![1.; n],
         }
@@ -268,8 +275,13 @@ impl Board {
         }
     }
 
-    fn visibility() -> f64 {
-        1.
+    fn vis_f(ratio: f64) -> f64 {
+        const THREASHOLD: f64 = 0.7;
+        if ratio < THREASHOLD {
+            1e-6
+        } else {
+            (ratio - THREASHOLD) / (1. - THREASHOLD)
+        }
     }
 
     fn update_blocks(&mut self, m: usize, p: P, inc: bool) {
@@ -326,6 +338,7 @@ impl Board {
                         .square_length();
 
                         let vis = 1. - (r2 - r).min(r - r1) / ((r2 - r1) / 2.) + 1e-6;
+                        let vis = Self::vis_f(vis);
 
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
@@ -338,6 +351,7 @@ impl Board {
                                     i,
                                     *a,
                                     vis,
+                                    self.use_visibility,
                                 );
                             } else {
                                 Self::dec_blocks(
@@ -349,6 +363,7 @@ impl Board {
                                     i,
                                     *a,
                                     vis,
+                                    self.use_visibility,
                                 );
                             }
                         }
@@ -366,6 +381,7 @@ impl Board {
 
                         let r11 = r1 - 2. * PI;
                         let vis = 1. - (r2 - r).min(r - r11) / ((r2 - r11) / 2.) + 1e-6;
+                        let vis = Self::vis_f(vis);
 
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
@@ -378,6 +394,7 @@ impl Board {
                                     i,
                                     *a,
                                     vis,
+                                    self.use_visibility,
                                 );
                             } else {
                                 Self::dec_blocks(
@@ -389,6 +406,7 @@ impl Board {
                                     i,
                                     *a,
                                     vis,
+                                    self.use_visibility,
                                 );
                             }
                         }
@@ -403,8 +421,8 @@ impl Board {
                         }
                         .square_length();
 
-                        let r22 = r2 + 2. * PI;
-                        let vis = 1. - (r22 - r).min(r - r1) / ((r22 - r1) / 2.) + 1e-6;
+                        let vis = 1. - (r - r2).min(r1 - r) / ((r1 - r2) / 2.) + 1e-6;
+                        let vis = Self::vis_f(vis);
 
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
@@ -417,6 +435,7 @@ impl Board {
                                     i,
                                     *a,
                                     vis,
+                                    self.use_visibility,
                                 );
                             } else {
                                 Self::dec_blocks(
@@ -428,6 +447,7 @@ impl Board {
                                     i,
                                     *a,
                                     vis,
+                                    self.use_visibility,
                                 );
                             }
                         }
@@ -475,14 +495,20 @@ impl Board {
         i: usize,
         a: usize,
         vis: f64, // (0. -> 1.]
+        use_visibility: bool,
     ) {
         let b = &mut blocks[i][a];
         *b += 1;
-        let cur = visibility[i][a];
-        visibility[i][a] *= vis;
         let impact = Self::impact_internal(prob, ps, prob.musicians[i], i, a);
-        impacts[i] -= cur * impact;
-        impacts[i] += visibility[i][a] * impact;
+        if use_visibility {
+            let prev_vis = visibility[i][a];
+            visibility[i][a] *= prev_vis;
+            impacts[i] += (visibility[i][a] - prev_vis) * impact;
+        } else {
+            if *b == 1 {
+                impacts[i] -= impact;
+            }
+        }
     }
 
     #[inline]
@@ -495,15 +521,22 @@ impl Board {
         i: usize,
         a: usize,
         vis: f64,
+        use_visibility: bool,
     ) {
         let b = &mut blocks[i][a];
         *b -= 1;
 
-        let prev_vis = visibility[i][a];
-        visibility[i][a] /= vis;
         let impact = Self::impact_internal(prob, ps, prob.musicians[i], i, a);
-        impacts[i] += prev_vis * impact;
-        impacts[i] -= visibility[i][a] * impact;
+        if use_visibility {
+            let prev_vis = visibility[i][a];
+            visibility[i][a] /= vis;
+
+            impacts[i] += (visibility[i][a] - prev_vis) * impact;
+        } else {
+            if *b == 0 {
+                impacts[i] += impact;
+            }
+        }
     }
 
     fn update_available_musician(&mut self, m: usize) {
@@ -612,7 +645,7 @@ mod tests {
 
         let problem = Problem::read_from_file(format!("../problems/{}.json", 42)).unwrap();
 
-        let mut board = Board::new(problem_id, problem.clone(), "test_solver");
+        let mut board = Board::new(problem_id, problem.clone(), "test_solver", false);
 
         for i in 0..board.prob.musicians.len() {
             loop {
@@ -659,7 +692,7 @@ mod tests {
                 pillars: vec![],
             };
 
-            let mut board = Board::new(0, problem.clone(), "test_solver");
+            let mut board = Board::new(0, problem.clone(), "test_solver", false);
 
             board.try_place(0, pnt(20.0, 10.0)).unwrap();
             board.try_place(1, pnt(20.0, 20.0)).unwrap();

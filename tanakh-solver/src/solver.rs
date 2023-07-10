@@ -21,7 +21,7 @@ pub struct State2 {
 
 impl State2 {
     pub fn new(solution: &Solution, problem: &Problem, solver: &str) -> Self {
-        let mut board = Board::new(solution.problem_id, problem.clone(), solver);
+        let mut board = Board::new(solution.problem_id, problem.clone(), solver, false);
 
         for (i, v) in solution.volumes.iter().enumerate() {
             board.set_volume(i, *v);
@@ -161,7 +161,7 @@ impl saru::StateInitializer for Solver2 {
             return State2::new(initial_solution, &self.problem, &solver_name);
         }
 
-        let mut board = Board::new(self.problem_id, self.problem.clone(), &solver_name);
+        let mut board = Board::new(self.problem_id, self.problem.clone(), &solver_name, false);
 
         if self.better_initial {
             let g = board.prob.stage.center();
@@ -458,7 +458,7 @@ pub fn pre_process(p: &mut Problem, prune_far: Option<f64>) {
 }
 
 pub fn post_process(problem_id: u32, p: &Problem, s: &mut Solution) {
-    let mut board = Board::new(problem_id, p.clone(), SOLVER_NAME);
+    let mut board = Board::new(problem_id, p.clone(), SOLVER_NAME, false);
 
     eprintln!("Post processing...");
 

@@ -27,7 +27,7 @@ const D: f64 = 10.;
 
 impl Solver {
     pub fn new(problem_id: u32, problem: Problem, seed: u64) -> Self {
-        let board = Board::new(problem_id, problem.clone(), SOLVER_NAME);
+        let board = Board::new(problem_id, problem.clone(), SOLVER_NAME, false);
 
         let k = board.prob.attendees[0].tastes.len();
 
@@ -76,7 +76,7 @@ impl Solver {
             for _ in 0..outer.len() {
                 prob2.musicians.push(0);
             }
-            let mut board2 = Board::new(0, prob2, SOLVER_NAME);
+            let mut board2 = Board::new(0, prob2, SOLVER_NAME, false);
 
             for (i, o) in outer.iter().enumerate() {
                 board2.try_place(num_instruments + i, o.clone()).unwrap();

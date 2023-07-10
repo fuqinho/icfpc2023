@@ -19,7 +19,7 @@ pub struct Solver {
 
 impl Solver {
     pub fn new(problem_id: u32, problem: Problem, timeout_secs: u64, rng_seed: u64) -> Self {
-        let board = Board::new(problem_id, problem, SOLVER_NAME);
+        let board = Board::new(problem_id, problem, SOLVER_NAME, false);
 
         let rng = StdRng::seed_from_u64(rng_seed);
 

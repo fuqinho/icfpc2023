@@ -65,6 +65,7 @@ impl Solver {
             problem_id,
             problem.clone(),
             format!("{}-{}", SOLVER_NAME, algo.to_string()),
+            false,
         );
 
         Self {
@@ -95,7 +96,7 @@ impl Solver {
             for _ in 0..outer.len() {
                 prob2.musicians.push(0);
             }
-            let mut board2 = Board::new(0, prob2, "none");
+            let mut board2 = Board::new(0, prob2, "none", false);
 
             for (i, o) in outer.iter().enumerate() {
                 board2.try_place(num_instruments + i, o.clone()).unwrap();
