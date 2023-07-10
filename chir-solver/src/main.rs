@@ -32,6 +32,8 @@ struct Args {
     from_current_best: bool,
     #[arg(long)]
     potential_move: bool,
+    #[arg(long)]
+    more_direction: bool,
 }
 
 #[derive(Debug)]
@@ -164,8 +166,7 @@ fn hill_climb_swap(
     board.try_into()
 }
 
-fn calc_neighbor(i: usize, p: Point2D<f64>) -> Point2D<f64> {
-    const MULT: f64 = 1.0;
+fn calc_neighbor(i: usize, p: Point2D<f64>, len: f64) -> Point2D<f64> {
     let d: [Point2D<f64>; 8] = [
         point(0., 1.),
         point(0.5, 0.5),
@@ -176,7 +177,7 @@ fn calc_neighbor(i: usize, p: Point2D<f64>) -> Point2D<f64> {
         point(-1., 0.),
         point(-0.5, 0.5),
     ];
-    point(p.x + MULT * d[i].x, p.y + MULT * d[i].y)
+    point(p.x + len * d[i].x, p.y + len * d[i].y)
 }
 
 fn output_to_results(pid: u32, score: f64, sol: common::Solution) -> Result<()> {
@@ -229,7 +230,7 @@ fn pick_and_move(
                 let p = board.musicians()[m].expect("Should not null");
                 let neighbor = rng.gen_range(0..8);
                 let cur_s = board.score();
-                let np = calc_neighbor(neighbor, p.0.to_point());
+                let np = calc_neighbor(neighbor, p.0.to_point(), 1.);
                 board.unplace(m);
                 if board
                     .try_place(rng.gen_range(0..cur.placements.len()), np)
@@ -339,6 +340,7 @@ fn particle(
     prob: &Problem,
     pid: u32,
     initial_board: Option<common::Solution>,
+    exhaustive: bool,
 ) -> Result<common::Solution> {
     let mut cur =
         initial_board.unwrap_or(convert_solution(prob, &generate_random_solution(prob), pid));
@@ -421,15 +423,26 @@ fn particle(
                 }
                 movement += v * (s / (cur_s as f64));
             }
+
+            let mut cands = vec![];
             movement = movement.normalize() * unit_len;
+            cands.push(p + movement);
             if touches == 1 {
-                movement = movement - (touch_point.unwrap() - p);
+                cands.push(p + (movement - (touch_point.unwrap() - p)));
             }
-            let np = p + movement;
+            if let Some(strongest) = strongest {
+                cands.push(strongest.to_point());
+            }
+            if exhaustive {
+                for i in 0..8 {
+                    cands.push(calc_neighbor(i, p, unit_len));
+                }
+            }
+
             let prev_score = board.score();
-            if !try_move(&mut board, m, prev_score, p, np)? {
-                if let Some(strongest) = strongest {
-                    try_move(&mut board, m, prev_score, p, strongest.to_point())?;
+            for np in cands.into_iter() {
+                if try_move(&mut board, m, prev_score, p, np)? {
+                    break;
                 }
             }
         }
@@ -473,6 +486,12 @@ fn main() -> Result<()> {
         None
     };
 
+    let original_solver = if let Some(ref sol) = initial_solution {
+        sol.solver.to_string()
+    } else {
+        "".to_string()
+    };
+
     let initial_score = if let Some(ref sol) = initial_solution {
         evaluate(&problem, &sol)
     } else {
@@ -486,7 +505,7 @@ fn main() -> Result<()> {
     );
     if args.swap_colors {
         sol = hill_climb_swap(args.problem_id, &problem, initial_solution.clone())?;
-        sol.solver = "color-swap-tuner".to_string();
+        sol.solver = original_solver.clone() + "-color-tuner";
     }
 
     if args.pick_and_move {
@@ -496,16 +515,26 @@ fn main() -> Result<()> {
             initial_solution.clone(),
             args.step,
         )?;
-        sol.solver = "pick-and-move-tuner".to_string();
+        sol.solver = original_solver.clone() + "-random-move";
     }
 
     if args.potential_move {
-        sol = particle(&problem, args.problem_id, initial_solution.clone())?;
-        sol.solver = "potential-move-tuner".to_string();
+        sol = particle(
+            &problem,
+            args.problem_id,
+            initial_solution.clone(),
+            args.more_direction,
+        )?;
+        sol.solver = original_solver.clone() + "-move-tuned";
     }
 
     let score = evaluate(&problem, &sol);
-    info!("score = {:?}", score);
+    info!(
+        "new score = {:?} (diff = {}/{:.5}%)",
+        score,
+        score - initial_score,
+        ((score - initial_score) / initial_score) * 100.,
+    );
 
     {
         if !std::path::Path::new("results").is_dir() {
