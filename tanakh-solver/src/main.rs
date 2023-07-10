@@ -123,7 +123,7 @@ fn main(
         problem: problem.clone(),
         start_temp,
         better_initial,
-        initial_solution,
+        initial_solution: initial_solution.clone(),
         taste,
         param,
     };
