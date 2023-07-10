@@ -2,6 +2,7 @@
 
 import { SolutionMetadata, useSolutions } from "@/components/api";
 import { formatNumber, formatPercentage } from "@/components/number_format";
+import { num_attendees, num_musicians } from "@/components/static_metadata";
 import clsx from "clsx";
 import { DateTime } from "luxon";
 import { orderBy } from "natural-orderby";
@@ -41,6 +42,8 @@ export default function Page() {
           <thead>
             <tr>
               <th>#</th>
+              <th>奏者</th>
+              <th>観客</th>
               <th className="text-right">No.1</th>
               <th className="text-right">No.2</th>
               <th className="text-right">No.3</th>
@@ -73,6 +76,8 @@ function Ranking({
   return (
     <tr>
       <th>{problemID}</th>
+      <th>{num_musicians.get(problemID)}</th>
+      <th>{num_attendees.get(problemID)}</th>
       <td>
         {solutions.length <= 0 ? null : (
           <RankSolution
