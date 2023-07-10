@@ -18,31 +18,82 @@ pub fn solve(problem_id: u32, problem: Problem) -> (f64, Board) {
     let mut ps = p1;
     ps.append(&mut p2);
 
-    loop {
-        let mut conf = None;
+    let mut conflicts = vec![];
 
-        'outer: for i in 0..ps.len() {
-            for j in 0..i {
-                if (ps[i] - ps[j]).square_length() < 100. {
-                    conf = i.into();
-                    break 'outer;
-                }
+    for i in 0..ps.len() {
+        for j in 0..ps.len() {
+            if i == j {
+                continue;
             }
-        }
-        if let Some(conf) = conf {
-            ps.remove(conf);
-        } else {
-            break;
+            if (ps[i] - ps[j]).square_length() < 100. {
+                conflicts.push(i);
+                break;
+            }
         }
     }
 
-    let mut hs = hungarian_solver::solver::Solver::new(
-        problem_id,
-        problem.clone(),
-        hungarian_solver::solver::Algorithm::Normal,
-    );
-    let (score, mut board) =
-        hs.solve_with_positions(&ps.into_iter().map(|p| p.to_point()).collect());
+    let mut masks = vec![];
+    for mask in 0..1 << conflicts.len() {
+        let mut ok = true;
+        for i in 0..conflicts.len() {
+            for j in 0..i {
+                if mask & 1 << i == 0 && mask & 1 << j == 0 {
+                    if (ps[conflicts[i]] - ps[conflicts[j]]).square_length() < 100. {
+                        ok = false;
+                    }
+                }
+            }
+        }
+        if ok {
+            masks.push(mask);
+        }
+    }
+
+    let mut minimal_masks = vec![];
+    for m1 in masks.iter() {
+        let mut is_min = true;
+        for m2 in masks.iter() {
+            if m1 != m2 && m1 & m2 == *m2 {
+                is_min = false;
+                break;
+            }
+        }
+        if is_min {
+            minimal_masks.push(m1);
+        }
+    }
+
+    let mut best: Option<(f64, Board)> = None;
+
+    for mask in minimal_masks {
+        let mut outer = vec![];
+
+        for (i, p) in ps.iter().enumerate() {
+            let mut masked = false;
+            for j in 0..conflicts.len() {
+                if mask & 1 << j != 0 && i == conflicts[j] {
+                    masked = true;
+                }
+            }
+            if !masked {
+                outer.push(*p);
+            }
+        }
+
+        let mut hs = hungarian_solver::solver::Solver::new(
+            problem_id,
+            problem.clone(),
+            hungarian_solver::solver::Algorithm::Normal,
+        );
+        let (score, board) =
+            hs.solve_with_positions(&outer.into_iter().map(|p| p.to_point()).collect());
+
+        if best.is_none() || score > best.as_ref().unwrap().0 {
+            best = Some((score, board));
+        }
+    }
+
+    let (score, mut board) = best.unwrap();
 
     board.solver = SOLVER_NAME.to_string();
 
