@@ -18,55 +18,31 @@ pub fn solve(problem_id: u32, problem: Problem) -> (f64, Board) {
     let mut ps = p1;
     ps.append(&mut p2);
 
-    let mut conflicts = vec![];
-    for i in 0..ps.len() {
-        let mut conf = false;
-        for j in 0..ps.len() {
-            if i == j {
-                continue;
-            }
-            if (ps[i] - ps[j]).square_length() < 100. {
-                conf = true;
-                break;
+    loop {
+        let mut conf = None;
+
+        'outer: for i in 0..ps.len() {
+            for j in 0..i {
+                if (ps[i] - ps[j]).square_length() < 100. {
+                    conf = i.into();
+                    break 'outer;
+                }
             }
         }
-        if conf {
-            conflicts.push(i);
+        if let Some(conf) = conf {
+            ps.remove(conf);
+        } else {
+            break;
         }
     }
 
-    for i in conflicts.iter() {
-        println!("conflict: {:?}", ps[*i]);
-    }
-
-    assert!(
-        conflicts.len() == 0 || conflicts.len() == 2,
-        "{:?}",
-        conflicts
+    let mut hs = hungarian_solver::solver::Solver::new(
+        problem_id,
+        problem.clone(),
+        hungarian_solver::solver::Algorithm::Normal,
     );
-
-    let mut best = (f64::NEG_INFINITY, None);
-    for i in 0..=conflicts.len() / 2 {
-        let mut outer = ps.clone();
-        if conflicts.len() == 2 {
-            outer.remove(conflicts[i]);
-        }
-
-        let mut hs = hungarian_solver::solver::Solver::new(
-            problem_id,
-            problem.clone(),
-            hungarian_solver::solver::Algorithm::Normal,
-        );
-        let (score, board) =
-            hs.solve_with_positions(&outer.into_iter().map(|p| p.to_point()).collect());
-
-        if best.0 < score {
-            best = (score, Some(board));
-        }
-    }
-
-    let score = best.0;
-    let mut board = best.1.unwrap();
+    let (score, mut board) =
+        hs.solve_with_positions(&ps.into_iter().map(|p| p.to_point()).collect());
 
     board.solver = SOLVER_NAME.to_string();
 
@@ -292,9 +268,6 @@ impl Dp {
                 panic!("prev state not found: {} {}", y, i);
             }
         }
-
-        inner.remove(0);
-        outer.remove(0);
 
         [outer, inner].concat()
     }
