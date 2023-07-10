@@ -6,6 +6,7 @@ import { num_attendees, num_musicians } from "@/components/static_metadata";
 import clsx from "clsx";
 import { DateTime } from "luxon";
 import { orderBy } from "natural-orderby";
+import Link from "next/link";
 
 export default function Page() {
   const { data: solutions, error: errorSolutions } = useSolutions();
@@ -75,7 +76,11 @@ function Ranking({
 }) {
   return (
     <tr>
-      <th>{problemID}</th>
+      <th>
+        <Link className="underline" href={`/problem/${problemID}`}>
+          {problemID}
+        </Link>
+      </th>
       <th>{num_musicians.get(problemID)}</th>
       <th>{num_attendees.get(problemID)}</th>
       <td>
