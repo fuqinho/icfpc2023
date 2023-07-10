@@ -3,20 +3,29 @@ use lyon_geom::{LineSegment, Vector};
 
 const SOLVER_NAME: &str = "dp-solver";
 
+const D: usize = 2;
+
 pub fn solve(problem_id: u32, problem: Problem) -> (f64, Board) {
     if problem.stage.min.x > 0. || problem.stage.min.y > 0. {
         panic!("stage.min should be (0, 0)");
     }
 
-    let flipped = problem.flipped();
+    let mul_problem = problem.multiplied(D as f64);
 
-    let p1 = Dp::new(problem_id, problem.clone()).solve();
-    let mut p2 = Dp::new(problem_id, flipped).solve();
+    let mul_problem_flipped = mul_problem.flipped();
+
+    let p1 = Dp::new(mul_problem).solve();
+    let mut p2 = Dp::new(mul_problem_flipped).solve();
 
     p2.iter_mut().for_each(|p| *p = P::new(p.y, p.x));
 
     let mut ps = p1;
     ps.append(&mut p2);
+
+    ps.iter_mut().for_each(|p| {
+        p.x /= D as f64;
+        p.y /= D as f64;
+    });
 
     let mut conflicts = vec![];
 
@@ -108,6 +117,9 @@ pub struct Dp {
     // num instruments (i)
     k: usize,
 
+    d: usize,
+    r: f64,
+
     // num attendees (a)
     attendees: Vec<Attendee>,
 
@@ -129,24 +141,22 @@ pub struct Dp {
 type P = Vector<f64>;
 
 impl Dp {
-    pub fn new(problem_id: u32, problem: Problem) -> Self {
-        let board = Board::new(problem_id, problem, SOLVER_NAME, false);
+    pub fn new(problem: Problem) -> Self {
+        let h = problem.stage.max.y as usize - 10 * D;
+        let w = problem.stage.max.x - 10. * D as f64;
+        let k = problem.attendees[0].tastes.len();
+        let d = 10 * D;
 
-        let h = board.prob.stage.max.y as usize;
-        let w = board.prob.stage.max.x;
-        let k = board.prob.attendees[0].tastes.len();
-
-        let attendees = board
-            .prob
+        let attendees = problem
             .attendees
             .clone()
             .into_iter()
             .filter(|a| a.position.x >= w)
             .collect();
 
-        let blk_pos = vec![vec![vec![0; 10]; k]; h + 1];
-        let blk_neg = vec![vec![vec![0; 10]; k]; h + 1];
-        let add = vec![vec![0; 10]; h + 1];
+        let blk_pos = vec![vec![vec![0; d]; k]; h + 1];
+        let blk_neg = vec![vec![vec![0; d]; k]; h + 1];
+        let add = vec![vec![0; d]; h + 1];
         let all = vec![vec![0; k]; h + 1];
 
         let dp = vec![vec![i64::MIN / 2; k]; h + 1];
@@ -155,6 +165,8 @@ impl Dp {
             h,
             w,
             k,
+            d,
+            r: d as f64 / 2.,
             attendees,
             blk_pos,
             blk_neg,
@@ -179,19 +191,19 @@ impl Dp {
             let p = self.point(y);
 
             for i in 0..self.k {
-                for d in 0..10 {
-                    if y + 10 + d > self.h {
+                for d in 0..self.d {
+                    if y + self.d + d > self.h {
                         break;
                     }
 
-                    let q = self.point(y + 10 + d);
+                    let q = self.point(y + self.d + d);
 
                     for a in self.attendees.iter() {
                         if y > 0 && !is_visible(a, p, q) {
                             self.blk_pos[y][i][d] += impact(a, i, p);
                         }
                         if !is_visible(a, q, p) {
-                            self.blk_neg[y + 10 + d][i][d] += impact(a, i, q);
+                            self.blk_neg[y + self.d + d][i][d] += impact(a, i, q);
                         }
                     }
                 }
@@ -199,18 +211,18 @@ impl Dp {
         }
         // add
         for y in 1..=self.h {
-            for d in 0..10 {
+            for d in 0..self.d {
                 let mut best = 0;
 
                 for ins in 0..self.k {
                     let p = self.point(y);
-                    let q = self.point(y + 10 + d);
+                    let q = self.point(y + self.d + d);
 
-                    let r = 5. + 1e-6;
+                    let r = self.r + 1e-6;
 
-                    let tc = tangent_circle2(p, q, 5., r).unwrap();
+                    let tc = tangent_circle2(p, q, self.r, r).unwrap();
 
-                    if tc.y < 10. {
+                    if tc.y < self.d as f64 {
                         continue;
                     }
 
@@ -252,11 +264,11 @@ impl Dp {
 
         for y in 0..=self.h {
             for i in 0..self.k {
-                for d in 0..10 {
-                    if y < d + 10 {
+                for d in 0..self.d {
+                    if y < d + self.d {
                         continue;
                     }
-                    let y0 = y - d - 10;
+                    let y0 = y - d - self.d;
                     for j in 0..self.k {
                         let v = self.dp[y0][j] - self.blk_pos[y0][j][d] + self.all[y][i]
                             - self.blk_neg[y][i][d]
@@ -288,22 +300,22 @@ impl Dp {
 
             let mut found = false;
 
-            'outer: for d in 0..10 {
-                if y < d + 10 {
+            'outer: for d in 0..self.d {
+                if y < d + self.d {
                     continue;
                 }
-                let y0 = y - d - 10;
+                let y0 = y - d - self.d;
                 for j in 0..self.k {
                     let v = self.dp[y0][j] - self.blk_pos[y0][j][d] + self.all[y][i]
                         - self.blk_neg[y][i][d]
                         + self.add[y0][d];
 
                     if self.dp[y][i] == v {
-                        let r = 5. + 1e-6;
+                        let r = self.r + 1e-6;
 
-                        let tc = tangent_circle2(self.point(y0), self.point(y), 5., r).unwrap();
+                        let tc = tangent_circle2(self.point(y0), self.point(y), self.r, r).unwrap();
 
-                        if tc.y >= 10. {
+                        if tc.y >= self.d as f64 {
                             inner.push(tc);
                         }
 
@@ -330,14 +342,14 @@ fn is_visible(a: &Attendee, from: P, blocker: P) -> bool {
         to: blocker.to_point(),
     }
     .square_distance_to_point(a.position)
-        >= 25.
+        >= 25. * D as f64 * D as f64
 }
 
 fn impact(a: &Attendee, ins: usize, p: P) -> i64 {
     let ap = a.position.to_vector();
     let taste = a.tastes[ins];
 
-    let impact = 1e6 * taste / (ap - p).square_length();
+    let impact = 1e6 * D as f64 * D as f64 * taste / (ap - p).square_length();
 
     impact.ceil() as i64
 }

@@ -32,6 +32,13 @@ impl Pillar {
             radius: self.radius,
         }
     }
+
+    fn multiplied(&self, d: f64) -> Pillar {
+        Pillar {
+            center: self.center * d,
+            radius: self.radius * d,
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -124,6 +131,23 @@ impl Problem {
                 })
                 .collect::<Vec<_>>(),
             pillars: self.pillars.iter().map(|p| p.flipped()).collect(),
+        }
+    }
+
+    pub fn multiplied(&self, d: f64) -> Problem {
+        Problem {
+            room: self.room * d,
+            stage: self.stage * d,
+            musicians: self.musicians.clone(),
+            attendees: self
+                .attendees
+                .iter()
+                .map(|a| Attendee {
+                    position: Point2D::new(a.position.x * d, a.position.y * d),
+                    tastes: a.tastes.clone(),
+                })
+                .collect(),
+            pillars: self.pillars.iter().map(|p| p.multiplied(d)).collect(),
         }
     }
 }

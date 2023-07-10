@@ -172,7 +172,7 @@ impl Board {
         let mut bb = self.prob.stage;
         bb.max += P::new(1e-9, 1e-9);
         if !bb.contains(position) {
-            bail!("not on stage");
+            bail!("not on stage {:?} {:?}", position, self.prob.stage);
         }
         for p in self.ps[0..self.prob.musicians.len()].iter() {
             if let Some((p, _)) = p {
