@@ -80,28 +80,7 @@ impl Solver {
     }
 
     pub fn solve_with_positions(&mut self, positions: &Vec<P>) -> (f64, Board) {
-        let mut outer = positions.clone();
-
-        let mut max_x: f64 = 0.;
-        let mut max_y: f64 = 0.;
-        for p in outer.iter() {
-            max_x = max_x.max(p.x);
-            max_y = max_y.max(p.y);
-        }
-
-        let bb = self.board.prob.stage;
-
-        for p in outer.iter_mut() {
-            p.x += bb.max.x - max_x;
-            p.y += bb.max.y - max_y;
-
-            if p.x > bb.max.x {
-                p.x = bb.max.x
-            }
-            if p.y > bb.max.y {
-                p.y = bb.max.y
-            }
-        }
+        let outer = positions.clone();
 
         // Compute scores for outer points
         let mut scores = vec![vec![]; outer.len()];
@@ -175,6 +154,8 @@ impl Solver {
                 to_place.remove(&j);
             }
         }
+
+        let bb = self.board.prob.stage;
 
         for x in ((bb.min.x.ceil() as usize)..(bb.max.x.floor() as usize - D)).step_by(D) {
             if to_place.is_empty() {
@@ -363,6 +344,29 @@ impl Solver {
                     .push_str(format!("-{}", solution.solver).as_str());
 
                 outer = solution.placements.iter().map(|p| p.position).collect();
+            }
+        }
+
+        if algo == Algorithm::Gap || algo == Algorithm::Normal || algo == Algorithm::ZigZag {
+            let mut max_x: f64 = 0.;
+            let mut max_y: f64 = 0.;
+            for p in outer.iter() {
+                max_x = max_x.max(p.x);
+                max_y = max_y.max(p.y);
+            }
+
+            let bb = self.board.prob.stage;
+
+            for p in outer.iter_mut() {
+                p.x += bb.max.x - max_x;
+                p.y += bb.max.y - max_y;
+
+                if p.x > bb.max.x {
+                    p.x = bb.max.x
+                }
+                if p.y > bb.max.y {
+                    p.y = bb.max.y
+                }
             }
         }
 
