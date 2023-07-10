@@ -25,6 +25,21 @@ pub struct Pillar {
     pub center: Point2D<f64>,
     pub radius: f64,
 }
+impl Pillar {
+    fn flipped(&self) -> Pillar {
+        Pillar {
+            center: Point2D::new(self.center.y, self.center.x),
+            radius: self.radius,
+        }
+    }
+
+    fn multiplied(&self, d: f64) -> Pillar {
+        Pillar {
+            center: self.center * d,
+            radius: self.radius * d,
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct Solution {
@@ -101,6 +116,47 @@ impl Problem {
     pub fn is_v2(&self) -> bool {
         self.pillars.len() > 0
     }
+
+    pub fn flipped(&self) -> Problem {
+        Problem {
+            room: box_flipped(self.room),
+            stage: box_flipped(self.stage),
+            musicians: self.musicians.clone(),
+            attendees: self
+                .attendees
+                .iter()
+                .map(|a| Attendee {
+                    position: Point2D::new(a.position.y, a.position.x),
+                    tastes: a.tastes.clone(),
+                })
+                .collect::<Vec<_>>(),
+            pillars: self.pillars.iter().map(|p| p.flipped()).collect(),
+        }
+    }
+
+    pub fn multiplied(&self, d: f64) -> Problem {
+        Problem {
+            room: self.room * d,
+            stage: self.stage * d,
+            musicians: self.musicians.clone(),
+            attendees: self
+                .attendees
+                .iter()
+                .map(|a| Attendee {
+                    position: Point2D::new(a.position.x * d, a.position.y * d),
+                    tastes: a.tastes.clone(),
+                })
+                .collect(),
+            pillars: self.pillars.iter().map(|p| p.multiplied(d)).collect(),
+        }
+    }
+}
+
+fn box_flipped(b: Box2D<f64>) -> Box2D<f64> {
+    Box2D::new(
+        Point2D::new(b.min.y, b.min.x),
+        Point2D::new(b.max.y, b.max.x),
+    )
 }
 
 impl Solution {

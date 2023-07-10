@@ -18,6 +18,7 @@ import { orderBy } from "natural-orderby";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import ProblemListBar from "@/components/ProblemListBar";
 import { DateTime } from "luxon";
+import { num_attendees, num_musicians } from "@/components/static_metadata";
 
 // Tailwind (https://tailwindcss.com/docs/installation)
 // を使っているので、クラス名などはそちらを参照。
@@ -93,6 +94,8 @@ function ProblemListItem({
       <td className="text-mono">
         {created?.toFormat("ccc HH:mm:ss ZZZ")} ({created?.toRelative()})
       </td>
+      <td className="text-mono">{num_musicians.get(problem.id)}</td>
+      <td className="text-mono">{num_attendees.get(problem.id)}</td>
     </tr>
   );
 }
@@ -120,6 +123,7 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
 
   const winnerScore = scoreboard?.scoreboard[0]?.score ?? 999999999999;
   const secondScore = scoreboard?.scoreboard[1]?.score ?? 999999999999;
+  const thirdScore = scoreboard?.scoreboard[2]?.score ?? 999999999999;
 
   if (errorBestSolutions) {
     throw errorBestSolutions;
@@ -206,6 +210,50 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
         ["asc", "asc"],
       );
       break;
+    case "by-musicians-desc":
+      problemKeys = orderBy(
+        problemKeys,
+        [
+          (i) => num_musicians.get(problems[i].id),
+          (i) => num_attendees.get(problems[i].id),
+          (i) => problems[i].id,
+        ],
+        ["desc", "desc", "asc"],
+      );
+      break;
+    case "by-musicians-asc":
+      problemKeys = orderBy(
+        problemKeys,
+        [
+          (i) => num_musicians.get(problems[i].id),
+          (i) => num_attendees.get(problems[i].id),
+          (i) => problems[i].id,
+        ],
+        ["asc", "asc", "asc"],
+      );
+      break;
+    case "by-attendees-desc":
+      problemKeys = orderBy(
+        problemKeys,
+        [
+          (i) => num_attendees.get(problems[i].id),
+          (i) => num_musicians.get(problems[i].id),
+          (i) => problems[i].id,
+        ],
+        ["desc", "desc", "asc"],
+      );
+      break;
+    case "by-attendees-asc":
+      problemKeys = orderBy(
+        problemKeys,
+        [
+          (i) => num_attendees.get(problems[i].id),
+          (i) => num_musicians.get(problems[i].id),
+          (i) => problems[i].id,
+        ],
+        ["asc", "asc", "asc"],
+      );
+      break;
   }
 
   return (
@@ -226,6 +274,10 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
             <option value="by-score-asc">スコアの低い順</option>
             <option value="by-created-at-desc">更新日時が新しい順</option>
             <option value="by-created-at-asc">更新日時が古い順</option>
+            <option value="by-musicians-desc">奏者の多い順</option>
+            <option value="by-musicians-asc">奏者の少ない順</option>
+            <option value="by-attendees-desc">観客の多い順</option>
+            <option value="by-attendees-asc">観客の少ない順</option>
           </select>
           <button
             className="btn btn-sm"
@@ -285,6 +337,10 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
               2位まであと: {formatNumber(secondScore - totalScore)} (+
               {formatPercentage(secondScore / totalScore - 1)})
             </p>
+            <p>
+              3位まであと: {formatNumber(thirdScore - totalScore)} (+
+              {formatPercentage(thirdScore / totalScore - 1)})
+            </p>
           </div>
         </div>
       </div>
@@ -297,6 +353,8 @@ function ProblemList({ problems }: { problems: ProblemMetadata[] }) {
             <th>スコア寄与率</th>
             <th>ソルバ</th>
             <th>日時</th>
+            <th>奏者の数</th>
+            <th>観客の数</th>
           </tr>
         </thead>
         <tbody>

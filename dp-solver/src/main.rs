@@ -1,33 +1,26 @@
 mod solver;
 
 use anyhow::Result;
-use common::{
-    api::{get_best_solution, Client},
-    evaluate, Solution,
-};
+use common::{api::Client, evaluate, Solution};
 
-use crate::solver::Solver;
+use crate::solver::solve;
 
 #[argopt::cmd]
 fn main(
     problem_id: u32,
-    #[opt(short, long, default_value = "normal")] algo: solver::Algorithm,
     #[opt(short, long, default_value = "")] out: String,
     #[opt(short, long)] submit_must: bool,
 ) -> Result<()> {
     let cl = Client::new();
+    let userboard = cl.get_userboard()?;
 
-    let problem = cl.get_problem(problem_id)?;
-
-    let best_solution = get_best_solution(problem_id).unwrap();
-
-    let best_score = evaluate(&problem, &best_solution);
+    let best_score = userboard.problems[(problem_id - 1) as usize].unwrap_or(0.);
 
     eprintln!("our best score: {}", best_score);
 
-    let mut solver = Solver::new(problem_id, problem.clone(), algo);
+    let problem = cl.get_problem(problem_id)?;
 
-    let (_score, board) = solver.solve();
+    let (_score, board) = solve(problem_id, problem.clone());
 
     let solution: Solution = board.solution_with_optimized_volume().unwrap();
 
@@ -37,8 +30,8 @@ fn main(
 
     let improve_percent = eval_score as f64 / best_score * 100.0 - 100.0;
 
-    if improve_percent > 0. || submit_must {
-        if improve_percent > 0. {
+    if improve_percent > 0.1 || submit_must {
+        if improve_percent > 0.1 {
             eprintln!("score improved by {:.2}%", improve_percent);
         }
 

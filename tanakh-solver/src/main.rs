@@ -79,6 +79,8 @@ fn main(
     no_submit: bool,
     /// problem id
     problem_id: u32,
+    // Use blur
+    #[opt(long)] use_visibility: bool,
 ) -> Result<()> {
     let client = Client::new();
 
@@ -123,13 +125,14 @@ fn main(
 
     let solver = Solver2 {
         problem_id,
-        problem: &problem,
+        problem: problem.clone(),
         start_temp,
         better_initial,
-        initial_solution: initial_solution.as_ref(),
+        initial_solution: initial_solution.clone(),
         taste,
         use_contribution,
         param,
+        use_visibility,
     };
 
     let solution = saru::annealing(
@@ -138,11 +141,11 @@ fn main(
             time_limit,
             limit_temp,
             restart: 0,
-            threads,
             silent: false,
             header: format!("{problem_id}: "),
         },
         rand::thread_rng().gen(),
+        threads,
     );
 
     let Some(mut solution) = solution.solution else {

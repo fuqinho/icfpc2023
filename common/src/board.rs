@@ -1,3 +1,5 @@
+use std::f64::consts::PI;
+
 use anyhow::bail;
 use euclid::{Box2D, Vector2D};
 use lyon_geom::{LineSegment, Point};
@@ -28,6 +30,9 @@ pub struct Board {
     qs: Vec<f64>,
     // m -> I
     impacts: Vec<f64>,
+    // m -> a -> visibility [0., 1.] (0. == completely invisible)
+    visibility: Vec<Vec<f64>>,
+    use_visibility: bool,
 
     // ins -> an available musician
     available_musician: Vec<Option<usize>>,
@@ -36,7 +41,12 @@ pub struct Board {
 }
 
 impl Board {
-    pub fn new<T: AsRef<str>>(problem_id: u32, mut prob: Problem, solver: T) -> Self {
+    pub fn new<T: AsRef<str>>(
+        problem_id: u32,
+        mut prob: Problem,
+        solver: T,
+        use_visibility: bool,
+    ) -> Self {
         let n = prob.musicians.len();
         let m = prob.attendees.len();
         let p = prob.pillars.len();
@@ -49,6 +59,7 @@ impl Board {
         let blocks = vec![vec![0; m]; n];
         let qs = vec![1.; n];
         let impacts = vec![0.; n];
+        let visibility = vec![vec![1.; m]; n];
 
         let mut available_musician = vec![None; prob.attendees[0].tastes.len()];
         for (m, i) in prob.musicians.iter().enumerate() {
@@ -69,6 +80,8 @@ impl Board {
             blocks,
             qs,
             impacts,
+            visibility,
+            use_visibility,
             available_musician,
             volumes: vec![1.; n],
         }
@@ -165,7 +178,7 @@ impl Board {
         let mut bb = self.prob.stage;
         bb.max += P::new(1e-9, 1e-9);
         if !bb.contains(position) {
-            bail!("not on stage");
+            bail!("not on stage {:?} {:?}", position, self.prob.stage);
         }
         for p in self.ps[0..self.prob.musicians.len()].iter() {
             if let Some((p, _)) = p {
@@ -268,6 +281,15 @@ impl Board {
         }
     }
 
+    fn vis_f(ratio: f64) -> f64 {
+        const THREASHOLD: f64 = 0.0;
+        if ratio < THREASHOLD {
+            1e-6
+        } else {
+            (ratio - THREASHOLD) / (1. - THREASHOLD)
+        }
+    }
+
     fn update_blocks(&mut self, m: usize, p: P, inc: bool) {
         let (prob, ps, aids, blocks, impacts) = (
             &self.prob,
@@ -320,11 +342,35 @@ impl Board {
                             to: self.prob.attendees[*a].position,
                         }
                         .square_length();
+
+                        let vis = 1. - (r2 - r).min(r - r1) / ((r2 - r1) / 2.) + 1e-6;
+                        let vis = Self::vis_f(vis);
+
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
-                                Self::inc_blocks(blocks, impacts, prob, ps, i, *a);
+                                Self::inc_blocks(
+                                    blocks,
+                                    impacts,
+                                    &mut self.visibility,
+                                    prob,
+                                    ps,
+                                    i,
+                                    *a,
+                                    vis,
+                                    self.use_visibility,
+                                );
                             } else {
-                                Self::dec_blocks(blocks, impacts, prob, ps, i, *a);
+                                Self::dec_blocks(
+                                    blocks,
+                                    impacts,
+                                    &mut self.visibility,
+                                    prob,
+                                    ps,
+                                    i,
+                                    *a,
+                                    vis,
+                                    self.use_visibility,
+                                );
                             }
                         }
                     }
@@ -338,11 +384,36 @@ impl Board {
                             to: self.prob.attendees[*a].position,
                         }
                         .square_length();
+
+                        let r11 = r1 - 2. * PI;
+                        let vis = 1. - (r2 - r).min(r - r11) / ((r2 - r11) / 2.) + 1e-6;
+                        let vis = Self::vis_f(vis);
+
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
-                                Self::inc_blocks(blocks, impacts, prob, ps, i, *a);
+                                Self::inc_blocks(
+                                    blocks,
+                                    impacts,
+                                    &mut self.visibility,
+                                    prob,
+                                    ps,
+                                    i,
+                                    *a,
+                                    vis,
+                                    self.use_visibility,
+                                );
                             } else {
-                                Self::dec_blocks(blocks, impacts, prob, ps, i, *a);
+                                Self::dec_blocks(
+                                    blocks,
+                                    impacts,
+                                    &mut self.visibility,
+                                    prob,
+                                    ps,
+                                    i,
+                                    *a,
+                                    vis,
+                                    self.use_visibility,
+                                );
                             }
                         }
                     }
@@ -355,11 +426,35 @@ impl Board {
                             to: self.prob.attendees[*a].position,
                         }
                         .square_length();
+
+                        let vis = 1. - (r - r2).min(r1 - r) / ((r1 - r2) / 2.) + 1e-6;
+                        let vis = Self::vis_f(vis);
+
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
-                                Self::inc_blocks(blocks, impacts, prob, ps, i, *a);
+                                Self::inc_blocks(
+                                    blocks,
+                                    impacts,
+                                    &mut self.visibility,
+                                    prob,
+                                    ps,
+                                    i,
+                                    *a,
+                                    vis,
+                                    self.use_visibility,
+                                );
                             } else {
-                                Self::dec_blocks(blocks, impacts, prob, ps, i, *a);
+                                Self::dec_blocks(
+                                    blocks,
+                                    impacts,
+                                    &mut self.visibility,
+                                    prob,
+                                    ps,
+                                    i,
+                                    *a,
+                                    vis,
+                                    self.use_visibility,
+                                );
                             }
                         }
                     }
@@ -400,15 +495,25 @@ impl Board {
     fn inc_blocks(
         blocks: &mut Vec<Vec<usize>>,
         impacts: &mut Vec<f64>,
+        visibility: &mut Vec<Vec<f64>>,
         prob: &Problem,
         ps: &Vec<Option<(P, f64)>>,
         i: usize,
         a: usize,
+        vis: f64, // (0. -> 1.]
+        use_visibility: bool,
     ) {
         let b = &mut blocks[i][a];
         *b += 1;
-        if *b == 1 {
-            impacts[i] -= Self::impact_internal(prob, ps, prob.musicians[i], i, a);
+        let impact = Self::impact_internal(prob, ps, prob.musicians[i], i, a);
+        if use_visibility {
+            let prev_vis = visibility[i][a];
+            visibility[i][a] *= vis;
+            impacts[i] += (visibility[i][a] - prev_vis) * impact;
+        } else {
+            if *b == 1 {
+                impacts[i] -= impact;
+            }
         }
     }
 
@@ -416,15 +521,27 @@ impl Board {
     fn dec_blocks(
         blocks: &mut Vec<Vec<usize>>,
         impacts: &mut Vec<f64>,
+        visibility: &mut Vec<Vec<f64>>,
         prob: &Problem,
         ps: &Vec<Option<(P, f64)>>,
         i: usize,
         a: usize,
+        vis: f64,
+        use_visibility: bool,
     ) {
         let b = &mut blocks[i][a];
         *b -= 1;
-        if *b == 0 {
-            impacts[i] += Self::impact_internal(prob, ps, prob.musicians[i], i, a);
+
+        let impact = Self::impact_internal(prob, ps, prob.musicians[i], i, a);
+        if use_visibility {
+            let prev_vis = visibility[i][a];
+            visibility[i][a] /= vis;
+
+            impacts[i] += (visibility[i][a] - prev_vis) * impact;
+        } else {
+            if *b == 0 {
+                impacts[i] += impact;
+            }
         }
     }
 
@@ -534,7 +651,7 @@ mod tests {
 
         let problem = Problem::read_from_file(format!("../problems/{}.json", 42)).unwrap();
 
-        let mut board = Board::new(problem_id, problem.clone(), "test_solver");
+        let mut board = Board::new(problem_id, problem.clone(), "test_solver", false);
 
         for i in 0..board.prob.musicians.len() {
             loop {
@@ -581,7 +698,7 @@ mod tests {
                 pillars: vec![],
             };
 
-            let mut board = Board::new(0, problem.clone(), "test_solver");
+            let mut board = Board::new(0, problem.clone(), "test_solver", false);
 
             board.try_place(0, pnt(20.0, 10.0)).unwrap();
             board.try_place(1, pnt(20.0, 20.0)).unwrap();

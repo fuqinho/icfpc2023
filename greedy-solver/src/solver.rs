@@ -37,7 +37,7 @@ const INITIAL_SEARCH_STEP: f64 = 2.0;
 
 impl Solver {
     pub fn new(problem_id: u32, problem: Problem) -> Self {
-        let board = Board::new(problem_id, problem, "greedy-solver");
+        let board = Board::new(problem_id, problem, "greedy-solver", false);
 
         let num_musicians = board.prob.musicians.len();
         let num_attendees = board.prob.attendees.len();

@@ -128,10 +128,10 @@ func (h *Handler) handleProblemBestSolution(w http.ResponseWriter, r *http.Reque
 		}
 		var best *database.Solution
 		for _, solution := range solutions {
-			if solution.Submission == nil {
+			if solution.Evaluation == nil || !solution.Evaluation.Accepted {
 				continue
 			}
-			if best == nil || (solution.Submission.Score > best.Submission.Score) {
+			if best == nil || (solution.Evaluation.Score > best.Evaluation.Score) {
 				best = solution
 			}
 		}

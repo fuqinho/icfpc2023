@@ -2,9 +2,11 @@
 
 import { SolutionMetadata, useSolutions } from "@/components/api";
 import { formatNumber, formatPercentage } from "@/components/number_format";
+import { num_attendees, num_musicians } from "@/components/static_metadata";
 import clsx from "clsx";
 import { DateTime } from "luxon";
 import { orderBy } from "natural-orderby";
+import Link from "next/link";
 
 export default function Page() {
   const { data: solutions, error: errorSolutions } = useSolutions();
@@ -41,6 +43,8 @@ export default function Page() {
           <thead>
             <tr>
               <th>#</th>
+              <th>奏者</th>
+              <th>観客</th>
               <th className="text-right">No.1</th>
               <th className="text-right">No.2</th>
               <th className="text-right">No.3</th>
@@ -72,7 +76,13 @@ function Ranking({
 }) {
   return (
     <tr>
-      <th>{problemID}</th>
+      <th>
+        <Link className="underline" href={`/problem/${problemID}`}>
+          {problemID}
+        </Link>
+      </th>
+      <th>{num_musicians.get(problemID)}</th>
+      <th>{num_attendees.get(problemID)}</th>
       <td>
         {solutions.length <= 0 ? null : (
           <RankSolution
@@ -128,6 +138,7 @@ function RankSolution({
       <p className="text-lg">{formatNumber(solution.submission?.score)}</p>
       <p className="text-sm">+{formatNumber(diffScore)}</p>
       <p className="text-sm">+{formatPercentage(increase)}</p>
+      <p className="text-sm">{solution.solver}</p>
       <p className={clsx("text-sm", old ? "text-red-700 font-bold" : null)}>
         {created.toRelative()}
       </p>
