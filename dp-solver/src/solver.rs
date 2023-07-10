@@ -173,7 +173,7 @@ impl Dp {
         // add
         for y in 1..=self.h {
             for d in 0..10 {
-                let mut best = i64::MIN / 2;
+                let mut best = 0;
 
                 for ins in 0..self.k {
                     let p = self.point(y);
@@ -216,7 +216,10 @@ impl Dp {
 
     // Returns the points to put the musicians.
     pub fn solve(&mut self) -> Vec<P> {
+        println!("Initializing...");
         self.init();
+
+        println!("Solving dp...");
 
         self.dp[0][0] = 0;
 
@@ -256,6 +259,8 @@ impl Dp {
 
             outer.push(self.point(y));
 
+            let mut found = false;
+
             'outer: for d in 0..10 {
                 if y < d + 10 {
                     continue;
@@ -275,10 +280,16 @@ impl Dp {
                             inner.push(tc);
                         }
 
+                        found = true;
+
                         y_i = (y0, j);
                         break 'outer;
                     }
                 }
+            }
+
+            if !found {
+                panic!("prev state not found: {} {}", y, i);
             }
         }
 
