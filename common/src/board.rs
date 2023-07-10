@@ -95,6 +95,16 @@ impl Board {
         res
     }
 
+    pub fn score_ignore_negative(&self) -> f64 {
+        let mut res = 0.;
+        for m in 0..self.musicians().len() {
+            res += (self.volumes[m] * self.qs[m] * self.impacts[m])
+                .max(0.0)
+                .ceil();
+        }
+        res
+    }
+
     pub fn musicians(&self) -> &[Option<(P, f64)>] {
         &self.ps[0..self.prob.musicians.len()]
     }
@@ -105,6 +115,10 @@ impl Board {
 
     pub fn set_volume(&mut self, m: usize, volume: f64) {
         self.volumes[m] = volume;
+    }
+
+    pub fn q(&self, m: usize) -> f64 {
+        self.qs[m]
     }
 
     // The musician's contribution to the score

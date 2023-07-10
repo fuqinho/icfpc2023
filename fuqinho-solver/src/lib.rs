@@ -1,3 +1,5 @@
+pub mod sa;
+
 use bitset_fixed::BitSet;
 use common::board::Board;
 use common::{evaluate, Placement, Problem, Solution};

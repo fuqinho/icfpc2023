@@ -3,6 +3,7 @@ use std::{fs::read_to_string, path::PathBuf};
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use common::{api::Client, evaluate, fixup_volumes, Problem, RawProblem, RawSolution};
+use fuqinho_solver::sa::solve_sa;
 use fuqinho_solver::solve;
 use thousands::Separable;
 
@@ -12,6 +13,8 @@ struct Args {
     problem_id: usize,
     #[arg(long)]
     force_submit: bool,
+    #[arg(long)]
+    sa: bool,
 }
 
 fn main() -> Result<()> {
@@ -28,7 +31,12 @@ fn main() -> Result<()> {
     let problem = Problem::from(raw_problem);
 
     // Solve the problem.
-    let solution = fixup_volumes(&problem, &solve(&problem, problem_id));
+    let mut solution = if args.sa {
+        solve_sa(&problem, problem_id as u32)
+    } else {
+        solve(&problem, problem_id)
+    };
+    solution = fixup_volumes(&problem, &solution);
     let score = evaluate(&problem, &solution);
     eprintln!("best score: {}", score.separate_with_commas());
 
