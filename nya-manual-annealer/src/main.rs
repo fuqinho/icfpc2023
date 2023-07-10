@@ -1,7 +1,4 @@
-use std::{
-    io::{Read, StdinLock},
-    sync::mpsc::Receiver,
-};
+use std::sync::mpsc::Receiver;
 
 use anyhow::Result;
 use common::{api::Client, RawSolution, Solution};
@@ -51,7 +48,11 @@ fn main(
 
     let problem = client.get_problem(problem_id)?;
     let initial_solution = get_best_solution(problem_id)?;
-    let solver_name = format!("{}+nya", &initial_solution.solver);
+    let solver_name = if initial_solution.solver.ends_with("+nya") {
+        initial_solution.solver.clone()
+    } else {
+        format!("{}+nya", &initial_solution.solver)
+    };
     let mut state = State2::new(&initial_solution, &problem, &solver_name);
 
     let mut current_temp = 0.0001;
@@ -68,7 +69,21 @@ fn main(
 
     let mut best_solution = initial_solution;
     let mut best_score = common::evaluate(&problem, &best_solution);
+    let mut submitted_score = best_score;
     let mut best_updated = false;
+
+    eprint!(
+        r"
+===========================================
+職人の手のぬくもりが伝わる焼きなまし器
+操作方法:
+  w 温度を *= 10
+  s 温度を /= 10
+  r 最適解を思い出す
+  x 最適解をsubmit
+===========================================
+"
+    );
 
     loop {
         let options = saru::AnnealingOptions {
@@ -121,19 +136,24 @@ fn main(
                     client
                         .post_submission(problem_id, best_solution.clone())
                         .expect("Submit failed");
+                    submitted_score = best_score;
                     best_updated = false;
                 }
                 _ => {}
             }
         }
         let best_updated_marker = if best_updated {
-            " *** new best available! ***"
+            format!(
+                " *** new best: +{}",
+                (best_score - submitted_score).separate_with_commas()
+            )
         } else {
-            ""
+            String::new()
         };
         eprintln!(
-            "score = {} / temp = {}{}",
+            "score = {} / best = {} / temp = {}{}",
             estimated_score.separate_with_commas(),
+            submitted_score.separate_with_commas(),
             current_temp,
             best_updated_marker
         );
