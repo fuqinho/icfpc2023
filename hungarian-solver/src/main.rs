@@ -31,12 +31,11 @@ fn main(
 
     eprintln!("final score: {}", eval_score);
 
-    if eval_score as i64 > best_score as i64 || submit_must {
-        if eval_score as i64 > best_score as i64 {
-            eprintln!(
-                "score improved by {:.2}%",
-                eval_score as f64 / best_score * 100.0 - 100.0
-            );
+    let improve_percent = eval_score as f64 / best_score * 100.0 - 100.0;
+
+    if improve_percent > 0.1 || submit_must {
+        if improve_percent > 0.1 {
+            eprintln!("score improved by {:.2}%", improve_percent);
         }
 
         cl.post_submission(problem_id, solution.clone())?;

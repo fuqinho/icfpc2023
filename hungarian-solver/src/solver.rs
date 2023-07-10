@@ -6,12 +6,7 @@ use std::{
 };
 
 use anyhow::{bail, Context};
-use common::{
-    api::{get_best_solution, Client},
-    board::Board,
-    geom::tangent_circle,
-    Problem, Solution,
-};
+use common::{api::get_best_solution, board::Board, geom::tangent_circle, Problem, Solution};
 use lyon_geom::{Point, Vector};
 use pathfinding::prelude::{kuhn_munkres, Matrix};
 
@@ -126,18 +121,11 @@ impl Solver {
             for (i, o) in outer.iter().enumerate() {
                 board2.try_place(num_instruments + i, o.clone()).unwrap();
             }
-            for (i, o) in outer.iter().enumerate() {
-                board2.unplace(num_instruments + i);
 
-                for j in 0..num_instruments {
-                    board2.try_place(j, o.clone()).unwrap();
-
-                    scores[i].push(board2.contribution(j));
-
-                    board2.unplace(j);
+            for (i, _) in outer.iter().enumerate() {
+                for ins in self.board.prob.musicians.iter() {
+                    scores[i].push(board2.contribution_if_instrument(num_instruments + i, *ins));
                 }
-
-                board2.try_place(num_instruments + i, *o).unwrap();
             }
         }
 
