@@ -13,6 +13,7 @@ pub struct Solver2 {
     pub initial_solution: Option<common::Solution>,
     pub taste: Option<usize>,
     pub param: String,
+    pub use_visibility: bool,
 }
 
 pub struct State2 {
@@ -20,8 +21,8 @@ pub struct State2 {
 }
 
 impl State2 {
-    pub fn new(solution: &Solution, problem: &Problem, solver: &str) -> Self {
-        let mut board = Board::new(solution.problem_id, problem.clone(), solver, false);
+    pub fn new(solution: &Solution, problem: &Problem, solver: &str, use_visibility: bool) -> Self {
+        let mut board = Board::new(solution.problem_id, problem.clone(), solver, use_visibility);
 
         for (i, v) in solution.volumes.iter().enumerate() {
             board.set_volume(i, *v);
@@ -158,7 +159,12 @@ impl saru::StateInitializer for Solver2 {
         let solver_name = format!("{SOLVER_NAME} ({})", self.param);
 
         if let Some(initial_solution) = &self.initial_solution {
-            return State2::new(initial_solution, &self.problem, &solver_name);
+            return State2::new(
+                initial_solution,
+                &self.problem,
+                &solver_name,
+                self.use_visibility,
+            );
         }
 
         let mut board = Board::new(self.problem_id, self.problem.clone(), &solver_name, false);

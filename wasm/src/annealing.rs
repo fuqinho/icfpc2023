@@ -21,12 +21,13 @@ impl SolverHandle {
             initial_solution: None,
             taste: None,
             param: String::new(),
+            use_visibility: false,
         };
         let mut solver_name = initial_solution.real.solver.clone();
         if !solver_name.ends_with("+anneal") {
             solver_name = format!("{}+anneal", solver_name);
         };
-        let state = State2::new(&initial_solution.real, &problem.real, &solver_name);
+        let state = State2::new(&initial_solution.real, &problem.real, &solver_name, false);
         Self {
             solver,
             state: Some(state),
