@@ -106,6 +106,12 @@ impl Board {
         res
     }
 
+    pub fn contribution2(&self, m: usize) -> f64 {
+        // (self.volumes[m] * self.qs[m] * self.impacts[m]).ceil()
+
+        (self.qs[m] * self.impacts[m]).ceil()
+    }
+
     pub fn contribution_if_instrument(&self, m: usize, ins: usize) -> f64 {
         let mut res = 0.;
         for (a, b) in self.blocks[m].iter().enumerate() {

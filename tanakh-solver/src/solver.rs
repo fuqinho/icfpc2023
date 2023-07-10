@@ -12,6 +12,7 @@ pub struct Solver2<'a> {
     pub better_initial: bool,
     pub initial_solution: Option<&'a common::Solution>,
     pub taste: Option<usize>,
+    pub use_contribution: bool,
     pub param: String,
 }
 
@@ -52,12 +53,13 @@ impl Move {
         rng: &mut impl Rng,
         board: &Board,
         taste: Option<usize>,
+        use_contribution: bool,
         progress_ratio: f64,
     ) -> Self {
         let stage = &board.prob.stage;
 
-        let scale_x = (stage.width() / 5.0 * (1.0 - progress_ratio)).max(5.0);
-        let scale_y = (stage.height() / 5.0 * (1.0 - progress_ratio)).max(5.0);
+        let scale_x = (100.0 * (1.0 - progress_ratio)).max(5.0);
+        let scale_y = (100.0 * (1.0 - progress_ratio)).max(5.0);
 
         let grid_level = (progress_ratio * 8.0).floor() as i32;
         let grid = 1.0 / 2.0_f64.powi(grid_level);
@@ -77,35 +79,50 @@ impl Move {
             // let len = rng.gen_range(0.1..=scale);
             // let d = Vector2D::from_angle_and_length(Angle::radians(theta), len);
 
-            let mut xd = rng.gen_range(-scale_x..=scale_x);
-            let mut yd = rng.gen_range(-scale_y..=scale_y);
-
             let old_pos = board.musicians()[id].unwrap().0.to_point();
 
-            while xd != 0 || yd != 0 {
-                let d = vec2(xd as f64 * grid, yd as f64 * grid);
-
-                let new_pos = old_pos + d;
-                let new_pos = point2(
-                    new_pos.x.clamp(stage.min.x, stage.max.x),
-                    new_pos.y.clamp(stage.min.y, stage.max.y),
-                );
-
-                if new_pos == old_pos {
-                    break;
+            if use_contribution && board.contribution2(id).abs() < 1e-6 {
+                loop {
+                    let x = rng.gen_range(board.prob.stage.min.x..=board.prob.stage.max.x);
+                    let y = rng.gen_range(board.prob.stage.min.y..=board.prob.stage.max.y);
+                    if board.can_place(id, Point::new(x, y)) {
+                        return Move::ChangePos {
+                            id,
+                            new_pos: Point::new(x, y),
+                            old_pos,
+                        };
+                    }
                 }
+                // continue;
+            } else {
+                let mut xd = rng.gen_range(-scale_x..=scale_x);
+                let mut yd = rng.gen_range(-scale_y..=scale_y);
 
-                if !board.can_place(id, new_pos) {
-                    xd /= 2;
-                    yd /= 2;
-                    continue;
+                while xd != 0 || yd != 0 {
+                    let d = vec2(xd as f64 * grid, yd as f64 * grid);
+
+                    let new_pos = old_pos + d;
+                    let new_pos = point2(
+                        new_pos.x.clamp(stage.min.x, stage.max.x),
+                        new_pos.y.clamp(stage.min.y, stage.max.y),
+                    );
+
+                    if new_pos == old_pos {
+                        break;
+                    }
+
+                    if !board.can_place(id, new_pos) {
+                        xd /= 2;
+                        yd /= 2;
+                        continue;
+                    }
+
+                    break 'outer Move::ChangePos {
+                        id,
+                        new_pos,
+                        old_pos,
+                    };
                 }
-
-                break 'outer Move::ChangePos {
-                    id,
-                    new_pos,
-                    old_pos,
-                };
             }
         }
     }
@@ -240,12 +257,30 @@ impl saru::Annealer for Solver2<'_> {
         loop {
             match rng.gen_range(0..=5) {
                 0..=2 => {
-                    return Move::gen_change_pos(rng, &state.board, self.taste, progress_ratio)
+                    return Move::gen_change_pos(
+                        rng,
+                        &state.board,
+                        self.taste,
+                        self.use_contribution,
+                        progress_ratio,
+                    )
                 }
 
                 3 => loop {
-                    let m1 = Move::gen_change_pos(rng, &state.board, self.taste, progress_ratio);
-                    let m2 = Move::gen_change_pos(rng, &state.board, self.taste, progress_ratio);
+                    let m1 = Move::gen_change_pos(
+                        rng,
+                        &state.board,
+                        self.taste,
+                        self.use_contribution,
+                        progress_ratio,
+                    );
+                    let m2 = Move::gen_change_pos(
+                        rng,
+                        &state.board,
+                        self.taste,
+                        self.use_contribution,
+                        progress_ratio,
+                    );
 
                     match (&m1, &m2) {
                         (

@@ -71,6 +71,9 @@ fn main(
     /// annealing specify taste
     #[opt(long)]
     taste: Option<usize>,
+    /// use contribution
+    #[opt(long)]
+    use_contribution: bool,
     /// do not submit
     #[opt(long)]
     no_submit: bool,
@@ -125,6 +128,7 @@ fn main(
         better_initial,
         initial_solution: initial_solution.as_ref(),
         taste,
+        use_contribution,
         param,
     };
 
