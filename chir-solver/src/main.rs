@@ -314,6 +314,27 @@ fn get_best_solution(problem_id: u32) -> Result<common::Solution> {
     Ok(raw.into())
 }
 
+fn try_move(
+    board: &mut Board,
+    m: usize,
+    score: f64,
+    p: Point2D<f64>,
+    np: Point2D<f64>,
+) -> Result<bool> {
+    board.unplace(m);
+    if board.can_place(m, np) {
+        board.try_place(m, np)?;
+        if score > board.score() {
+            board.unplace(m);
+            board.try_place(m, p)?;
+        }
+        return Ok(true);
+    } else {
+        board.try_place(m, p)?;
+    }
+    Ok(false)
+}
+
 fn particle(
     prob: &Problem,
     pid: u32,
@@ -384,6 +405,8 @@ fn particle(
             }
 
             let mut movement = Vector2D::new(0., 0.);
+            let mut strongest = None;
+            let mut strongest_score = 0.;
             for (a, attendee) in prob.attendees.iter().enumerate() {
                 if !board.is_musician_seeing(m, a) {
                     continue;
@@ -392,6 +415,10 @@ fn particle(
                 let d = v.square_length();
                 let s =
                     (qs[m] * (1_000_000f64 * attendee.tastes[prob.musicians[m]] / d).ceil()).ceil();
+                if s > strongest_score {
+                    strongest_score = s;
+                    strongest = Some(v.normalize() * unit_len);
+                }
                 movement += v * (s / (cur_s as f64));
             }
             movement = movement.normalize() * unit_len;
@@ -400,17 +427,10 @@ fn particle(
             }
             let np = p + movement;
             let prev_score = board.score();
-            board.unplace(m);
-            if board.can_place(m, np) {
-                board.try_place(m, np)?;
-                if prev_score > board.score() {
-                    board.unplace(m);
-                    board.try_place(m, p)?;
-                } else {
-                    debug!("Found good move");
+            if !try_move(&mut board, m, prev_score, p, np)? {
+                if let Some(strongest) = strongest {
+                    try_move(&mut board, m, prev_score, p, strongest.to_point())?;
                 }
-            } else {
-                board.try_place(m, p)?;
             }
         }
 
