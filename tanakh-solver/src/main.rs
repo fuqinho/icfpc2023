@@ -154,6 +154,14 @@ fn main(
     eprintln!("Statistics:");
     eprintln!("Problem ID:       {}", problem_id);
     eprintln!("Score:            {}", acc_score);
+    if let Some(initial_solution) = &initial_solution {
+        let initial_score = common::evaluate(&orig_problem, initial_solution);
+        eprintln!(
+            "Score improvement: {} ({:.3}%)",
+            acc_score - initial_score,
+            (acc_score - initial_score) / initial_score * 100.0
+        );
+    }
     eprintln!("Musicians:        {}", solver.problem.musicians.len());
     eprintln!("Atendees:         {}", solver.problem.attendees.len());
     eprintln!("Stage area:       {}", solver.problem.stage.area());
