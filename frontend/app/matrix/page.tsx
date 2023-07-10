@@ -133,6 +133,7 @@ function RankSolution({
       <p className="text-lg">{formatNumber(solution.submission?.score)}</p>
       <p className="text-sm">+{formatNumber(diffScore)}</p>
       <p className="text-sm">+{formatPercentage(increase)}</p>
+      <p className="text-sm">{solution.solver}</p>
       <p className={clsx("text-sm", old ? "text-red-700 font-bold" : null)}>
         {created.toRelative()}
       </p>
