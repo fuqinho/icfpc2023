@@ -76,6 +76,8 @@ fn main(
     no_submit: bool,
     /// problem id
     problem_id: u32,
+    // Use blur
+    #[opt(long, default_value = "false")] use_visibility: bool,
 ) -> Result<()> {
     let client = Client::new();
 
@@ -126,6 +128,7 @@ fn main(
         initial_solution: initial_solution.clone(),
         taste,
         param,
+        use_visibility,
     };
 
     let solution = saru::annealing(

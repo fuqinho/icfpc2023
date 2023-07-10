@@ -53,7 +53,7 @@ fn main(
     } else {
         format!("{}+nya", &initial_solution.solver)
     };
-    let mut state = State2::new(&initial_solution, &problem, &solver_name);
+    let mut state = State2::new(&initial_solution, &problem, &solver_name, false);
 
     let mut current_temp = 0.0001;
 
@@ -65,6 +65,7 @@ fn main(
         initial_solution: None,
         taste: None,
         param: String::new(),
+        use_visibility: false,
     };
 
     let mut best_solution = initial_solution;
@@ -115,7 +116,7 @@ fn main(
                     current_temp /= 10.0;
                 }
                 b'r' => {
-                    state = State2::new(&best_solution, &problem, &solver_name);
+                    state = State2::new(&best_solution, &problem, &solver_name, false);
                     estimated_score = best_score;
                 }
                 b'x' => {
