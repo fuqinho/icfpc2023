@@ -12,3 +12,7 @@ argopt = "0.3.0"
 common = { path = "../common" }
 euclid = "0.22.9"
 lyon_geom = "1.0.4"
+hungarian-solver = { path = "../hungarian-solver" }
+
+[profile.dev]
+opt-level = 1
