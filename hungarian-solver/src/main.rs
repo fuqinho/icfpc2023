@@ -14,6 +14,7 @@ fn main(
     #[opt(short, long, default_value = "normal")] algo: solver::Algorithm,
     #[opt(short, long, default_value = "")] out: String,
     #[opt(short, long)] submit_must: bool,
+    #[opt(long)] no_post_process: bool,
 ) -> Result<()> {
     let cl = Client::new();
 
@@ -27,7 +28,7 @@ fn main(
 
     let mut solver = Solver::new(problem_id, problem.clone(), algo);
 
-    let (_score, board) = solver.solve();
+    let (_score, board) = solver.solve(!no_post_process);
 
     let solution: Solution = board.solution_with_optimized_volume().unwrap();
 

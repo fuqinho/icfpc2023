@@ -24,7 +24,7 @@ for i in $(seq $FROM $TO); do
 
     # "${dir}/$hs" "$i" -o "${dir}/hs_$i.json" -s true
     # "${dir}/$hs" "$i" -o "${dir}/hs_gap_$i.json" -a gap -s true
-    "${dir}/$hs" "$i" -o "${dir}/hs_fetch_$i.json" -a fetch
+    "${dir}/$hs" "$i" -o "${dir}/hs_fetch_$i.json" -a fetch --no-post-process
 
     # "${dir}/$cs" "$i" -o "${dir}/cs_$i.json" -s true
 

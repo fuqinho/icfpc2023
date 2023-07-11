@@ -6,9 +6,15 @@ use std::{
 };
 
 use anyhow::{bail, Context};
-use common::{api::get_best_solution, board::Board, geom::tangent_circle, Problem, Solution};
+use common::{
+    api::{get_best_solution, Client},
+    board::Board,
+    geom::tangent_circle,
+    Problem, Solution,
+};
 use lyon_geom::{Point, Vector};
 use pathfinding::prelude::{kuhn_munkres, Matrix};
+use rand::{thread_rng, Rng};
 
 const SOLVER_NAME: &str = "hungarian-solver";
 
@@ -75,9 +81,19 @@ impl Solver {
         }
     }
 
-    pub fn solve(&mut self) -> (f64, Board) {
+    pub fn solve(&mut self, post_process: bool) -> (f64, Board) {
         let outer: Vec<euclid::Point2D<f64, euclid::UnknownUnit>> = self.compute_outer(self.algo);
-        self.solve_with_positions(&outer)
+
+        let res1 = self.solve_with_positions(&outer);
+
+        if !post_process {
+            return res1;
+        }
+
+        if post_process {
+            self.post_process();
+        }
+        (self.board.score(), self.board.clone())
     }
 
     pub fn solve_with_positions(&mut self, positions: &Vec<P>) -> (f64, Board) {
@@ -372,5 +388,117 @@ impl Solver {
         }
 
         outer
+    }
+
+    fn post_process(&mut self) {
+        println!("post processing...");
+
+        let mut rng = thread_rng();
+
+        let mut best_score = self.board.score() as i64;
+        for iter in 0.. {
+            println!("loop {}", iter);
+            let mut improved = false;
+
+            let mut best_remove_pos = 0;
+            let mut best_assignments = vec![];
+
+            let current_positions = self
+                .board
+                .musicians()
+                .clone()
+                .into_iter()
+                .map(|x| x.unwrap())
+                .collect::<Vec<_>>();
+            let n = current_positions.len();
+
+            for pos in 0..n {
+                if self.board.contribution(pos) <= 0. {
+                    continue;
+                }
+
+                let (p, _) = self.board.musicians()[pos].unwrap();
+
+                self.board.unplace(pos);
+
+                let neg_inf = -1e9 as i64;
+                let mut weights = vec![vec![neg_inf; n]; n];
+
+                for pos2 in 0..n {
+                    if pos == pos2 {
+                        continue;
+                    }
+                    for m in 0..n {
+                        let ins = self.board.prob.musicians[m];
+
+                        let w = self.board.contribution_if_instrument(pos2, ins);
+
+                        weights[pos2][m] = (w as i64).max(0);
+                    }
+                }
+
+                let matrix = Matrix::from_rows(weights).unwrap();
+
+                // position index -> musician index
+                let (score, assignments) = kuhn_munkres(&matrix);
+                let score = score - neg_inf;
+
+                if best_score < score {
+                    println!("!!! improved score: {} -> {}", best_score, score);
+                    improved = true;
+                    best_score = score;
+                    best_remove_pos = pos;
+                    best_assignments = assignments;
+                }
+
+                self.board.try_place(pos, p.to_point()).unwrap();
+            }
+
+            if !improved {
+                break;
+            }
+
+            // Remove all
+            for i in 0..n {
+                self.board.unplace(i);
+            }
+
+            for pos in 0..n {
+                let m = best_assignments[pos];
+
+                if pos == best_remove_pos {
+                    continue;
+                }
+                self.board
+                    .try_place(m, current_positions[pos].0.to_point())
+                    .unwrap();
+            }
+
+            let m_to_place = best_assignments[best_remove_pos];
+
+            loop {
+                let x = rng.gen_range(
+                    self.board.prob.stage.min.x as usize..=self.board.prob.stage.max.x as usize,
+                );
+                let y = rng.gen_range(
+                    self.board.prob.stage.min.y as usize..=self.board.prob.stage.max.y as usize,
+                );
+
+                if self
+                    .board
+                    .try_place(m_to_place, Point::new(x as f64, y as f64))
+                    .is_ok()
+                {
+                    // TODO: check score
+                    break;
+                }
+            }
+
+            let solution = self.board.solution_with_optimized_volume().unwrap();
+
+            Client::new()
+                .post_submission(self.board.problem_id, solution)
+                .unwrap();
+        }
     }
 }
