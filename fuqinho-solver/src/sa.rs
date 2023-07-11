@@ -4,9 +4,11 @@ use euclid::default::{Point2D, Vector2D};
 use rand::rngs::ThreadRng;
 use rand::{thread_rng, Rng};
 use std::path::PathBuf;
+use thousands::Separable;
 
 const SOLVER_NAME: &str = "fuqinho-SA";
-const NUM_ITERATIONS: usize = 20000000;
+const NUM_ITERATIONS: usize = 100000000;
+const INITIAL_TEMPERATURE: f64 = 5000000.;
 
 fn place_musician_randomly(board: &mut Board, m: usize, rng: &mut ThreadRng) {
     loop {
@@ -136,14 +138,12 @@ pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
     place_musicians_randomly(&mut board, &mut rng);
     let mut best_score = board.score_ignore_negative();
 
-    let initial_temperature = 30000.;
-
     let mut iteration = 0;
     loop {
         iteration += 1;
-        let temperature = initial_temperature * (1. - iteration as f64 / NUM_ITERATIONS as f64);
+        let temperature = INITIAL_TEMPERATURE * (1. - iteration as f64 / NUM_ITERATIONS as f64);
 
-        if rng.gen_range(0..10) == 0 {
+        if rng.gen_range(0..7) == 0 {
             // 10%: swap two musicians
 
             let m1 = rng.gen_range(0..board.prob.musicians.len());
@@ -157,7 +157,7 @@ pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
                 swap_two_musicians(&mut board, m1, m2);
             }
         } else {
-            let r = rng.gen_range(0..10);
+            let r = rng.gen_range(0..7);
             let m = rng.gen_range(0..board.prob.musicians.len());
             let prev_pos = board.musicians()[m].unwrap().0.to_point();
             let moved;
@@ -167,9 +167,6 @@ pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
             } else if r == 1 {
                 // 90*10 = 9%: Move random direction for 40 units at max.
                 moved = collide_at_random_direction(&mut board, m, &mut rng);
-            } else if r == 2 {
-                // 90*10 = 9%: Move to gradient direction for 40 units at max.
-                moved = move_at_gradient_direction(&mut board, m, &mut rng);
             } else {
                 // 90*70 = 63%: Move a musician at random direction for up to 40 units.
                 moved = move_at_random_direction(&mut board, m, &mut rng);
@@ -187,8 +184,8 @@ pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
             }
         }
 
-        if iteration % 1000 == 0 {
-            eprintln!("{} {}", iteration, best_score);
+        if iteration % 10000 == 0 {
+            eprintln!("{} {}", iteration, best_score.separate_with_commas());
         }
         if iteration % 1000000 == 0 {
             // Write the solution to file.
