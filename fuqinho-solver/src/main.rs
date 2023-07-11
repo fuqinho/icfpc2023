@@ -22,7 +22,7 @@ fn main() -> Result<()> {
     let problem_id = args.problem_id;
 
     // Read the problem json.
-    let f = PathBuf::from(format!("../problems/{}.json", problem_id));
+    let f = PathBuf::from(format!("problems/{}.json", problem_id));
     if !f.is_file() {
         return Err(anyhow!("File not found: {}", f.display()));
     }

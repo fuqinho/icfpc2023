@@ -96,7 +96,7 @@ fn collide_at_random_direction(board: &mut Board, m: usize, rng: &mut ThreadRng)
     let dx = angle.cos();
     let dy = angle.sin();
     let mut lo = 0.;
-    let mut hi = 0.;
+    let mut hi = 40.;
     board.unplace(m);
     while hi - lo > 0.001 {
         let mi = (lo + hi) / 2.;
@@ -196,7 +196,7 @@ pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
             let solution_json =
                 serde_json::to_string(&RawSolution::from(solution_to_write.clone())).unwrap();
             let output = PathBuf::from(format!(
-                "results/{}-{}M-{}.json",
+                "fuqinho-solver/results/{}-{}M-{}.json",
                 solution_to_write.problem_id,
                 iteration / 1000000,
                 best_score
