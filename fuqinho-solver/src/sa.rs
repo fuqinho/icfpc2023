@@ -8,7 +8,7 @@ use thousands::Separable;
 
 const SOLVER_NAME: &str = "fuqinho-SA";
 const NUM_ITERATIONS: usize = 100000000;
-const INITIAL_TEMPERATURE: f64 = 5000000.;
+const INITIAL_TEMPERATURE: f64 = 50000000.;
 
 fn place_musician_randomly(board: &mut Board, m: usize, rng: &mut ThreadRng) {
     loop {
