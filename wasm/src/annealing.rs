@@ -22,6 +22,7 @@ impl SolverHandle {
             taste: None,
             param: String::new(),
             use_visibility: false,
+            use_contribution: false,
         };
         let mut solver_name = initial_solution.real.solver.clone();
         if !solver_name.ends_with("+anneal") {

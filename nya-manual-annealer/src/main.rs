@@ -66,6 +66,7 @@ fn main(
         taste: None,
         param: String::new(),
         use_visibility: false,
+        use_contribution: false,
     };
 
     let mut best_solution = initial_solution;
