@@ -21,9 +21,14 @@ Neighborhood selection is important in SA. Our solver employed the following nei
 
 Since the computation of scores is very computationally intensive, we performed a differential update according to the changes. This resulted in an average of about `O(M+AlogA)` for the calculation of the score for a single person's position change, which is about several thousand calculations per second.
 
-## ...
+## Optimal assignment solver
 
-## ...
+In the v1 problems, once all the musicians' positions are determined, this problem becomes an assignment problem, i.e., which position to assign to which musician to obtain the highest score, and this can be solved efficiently by the [Hungarian algorithm](https://en.wikipedia.org/wiki/ Hungarian_algorithm).
+
+We have built a solver that solves the optimal assignment for a fixed initial pattern. Since the placement of the first and second rows is important in many problems, we tried to several initial placements strategies, 1. laying the first and second rows without gaps, 2. DP (dynamic programming), which assumes an infinite number of players and places them at discrete points with possible gaps between them, and so on.
+In the end, the scores obtained by the SA solver exceeded those obtained by these solvers.
+
+The optimal assignment was also used as a post process solver to update the team's existing best solution, as written below.
 
 ## Combining solvers
 
