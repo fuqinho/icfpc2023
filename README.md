@@ -19,7 +19,7 @@ Neighborhood selection is important in SA. Our solver employed the following nei
 * Change the volume of the musicians. Ultimately, it seems best to fix it at 0.0 or 1.0 depending on the positive or negative impact on the audience, but we thought it would contribute to smoother transitions in the search to have it automatically converge there as the SA progresses.
 * Combine several operations. Since the recalculation of scores with updates was considered to be a relatively heavy process, we also considered the speed of convergence of the solution to be important. Specifically, we changed the position of two people at the same time, or exchanged two or more positions at the same time.
 
-Since the computation of scores is very computationally intensive, we performed a differential update according to the changes. This resulted in an average of about `O(M+AlogA)` for the calculation of the score for a single person's position change, which is about several thousand calculations per second.
+Since the computation of scores is very computationally intensive, we performed a differential update according to the changes. This resulted in an average of about `O((M+A)logA)` for the calculation of the score for a single person's position change, which is about several thousand calculations per second.
 
 ## Optimal assignment solver
 
