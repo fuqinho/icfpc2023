@@ -30,6 +30,11 @@ In the end, the scores obtained by the SA solver exceeded those obtained by thes
 
 The optimal assignment was also used as a post process solver to update the team's existing best solution, as written below.
 
+## Fine tuning solutions
+
+We have built a tool to fine-tune a solution by trying to move musicians slightly in
+several directions. The tool calculates the gradient of a musician and move them in the direction of the steepest increase in score if it improves the score. The tool also moves musicians towards attendees who give them the most score.
+
 ## Combining solvers
 
 It is possible to improve the solution by performing SA multiple times, but eventually it will stalemate and stop improving. By inserting another type of solver, the stalemate may be slightly improved and further improvement may be expected. For problems with relatively high-impact improvement potential, we did this many times in an effort to increase the score as much as possible within a limited time frame.
