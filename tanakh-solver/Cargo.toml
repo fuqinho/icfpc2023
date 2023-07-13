@@ -25,3 +25,4 @@ serde_json = "1.0.100"
 
 # [profile.release]
 # debug = true
+pprof = { version = "*", features = ["flamegraph"] }

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use common::{api::Client, RawSolution, Solution};
 use rand::Rng;
-use std::path::PathBuf;
+use std::{fs::File, path::PathBuf};
 
 use tanakh_solver::solver::{post_process, pre_process, Solver2};
 
@@ -81,7 +81,21 @@ fn main(
     problem_id: u32,
     // Use blur
     #[opt(long)] use_visibility: bool,
+    // Profile
+    #[opt(long)] profile: bool,
 ) -> Result<()> {
+    let guard = if profile {
+        Some(
+            pprof::ProfilerGuardBuilder::default()
+                .frequency(1000)
+                .blocklist(&["libc", "libgcc", "pthread", "vdso"])
+                .build()
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+
     let client = Client::new();
 
     // let problem = get_problem_from_file(problem_id)?;
@@ -151,6 +165,16 @@ fn main(
     let Some(mut solution) = solution.solution else {
         anyhow::bail!("Valid solution not found")
     };
+
+    if let Some(guard) = guard {
+        if let Ok(report) = guard.report().build() {
+            println!("Writing ./results/flamegraph.svg");
+            let file = File::create("results/flamegraph.svg").unwrap();
+            let mut options = pprof::flamegraph::Options::default();
+            options.image_width = Some(2500);
+            report.flamegraph_with_options(file, &mut options).unwrap();
+        };
+    }
 
     post_process(problem_id, &problem, &mut solution);
 

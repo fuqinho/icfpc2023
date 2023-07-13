@@ -4,7 +4,7 @@ use anyhow::bail;
 use euclid::{Box2D, Vector2D};
 use lyon_geom::{LineSegment, Point};
 
-use crate::{geom::tangent_to_circle, Placement, Problem, Solution};
+use crate::{f64::F64, geom::tangent_to_circle, Placement, Problem, Solution};
 
 use anyhow::Result;
 
@@ -23,13 +23,21 @@ pub struct Board {
     // musicians + pillars
     ps: Vec<Option<(P, f64)>>,
     // m -> audience ids sorted by args
-    aids: Vec<Vec<(f64, usize)>>,
-    // m -> a -> block count
-    blocks: Vec<Vec<usize>>,
+    aids: Vec<Vec<(F64, usize)>>,
+
+    // m -> a -> j s.t. aids[j].1 == a
+    aids_rev: Vec<Vec<usize>>,
+
+    // m -> j -> block count of aids[j].1
+    blocks: Vec<Vec<u8>>,
     // m -> closeness factor
     qs: Vec<f64>,
     // m -> I
     impacts: Vec<f64>,
+
+    // m -> j -> impact between m and aids[j].1.
+    individual_impacts: Vec<Vec<i64>>,
+
     // m -> a -> visibility [0., 1.] (0. == completely invisible)
     visibility: Vec<Vec<f64>>,
     use_visibility: bool,
@@ -56,9 +64,12 @@ impl Board {
             ps[i + n] = Some((prob.pillars[i].center.to_vector(), prob.pillars[i].radius));
         }
         let aids = vec![vec![]; n];
+        let aids_rev = vec![vec![0; m]; n];
+
         let blocks = vec![vec![0; m]; n];
         let qs = vec![1.; n];
         let impacts = vec![0.; n];
+        let individual_impacts = vec![vec![0; m]; n];
         let visibility = vec![vec![1.; m]; n];
 
         let mut available_musician = vec![None; prob.attendees[0].tastes.len()];
@@ -77,9 +88,11 @@ impl Board {
             prob,
             ps,
             aids,
+            aids_rev,
             blocks,
             qs,
             impacts,
+            individual_impacts,
             visibility,
             use_visibility,
             available_musician,
@@ -123,14 +136,14 @@ impl Board {
 
     // The musician's contribution to the score
     pub fn contribution(&self, m: usize) -> f64 {
-        let mut res = 0.;
-        for (a, b) in self.blocks[m].iter().enumerate() {
+        let mut res = 0;
+        for (j, b) in self.blocks[m].iter().enumerate() {
             if *b > 0 {
                 continue;
             }
-            res += self.impact(m, a);
+            res += self.individual_impacts[m][j];
         }
-        res
+        res as f64
     }
 
     pub fn contribution2(&self, m: usize) -> f64 {
@@ -141,20 +154,21 @@ impl Board {
 
     pub fn contribution_if_instrument(&self, m: usize, ins: usize) -> f64 {
         let mut res = 0.;
-        for (a, b) in self.blocks[m].iter().enumerate() {
+        for (j, b) in self.blocks[m].iter().enumerate() {
             if *b > 0 {
                 continue;
             }
-            res += self.impact_if_kind(m, a, ins);
+            res += self.impact_if_kind(m, j, ins);
         }
         res
     }
 
     pub fn contribution_for(&self, m: usize, a: usize) -> f64 {
-        if self.blocks[m][a] > 0 {
+        let j = self.aids_rev[m][a];
+        if self.blocks[m][j] > 0 {
             return 0.;
         }
-        self.impact(m, a)
+        self.individual_impacts[m][j] as f64
     }
 
     pub fn score_increase_if_put_musician_on(&mut self, m: usize, p: Point<f64>) -> Result<f64> {
@@ -185,7 +199,7 @@ impl Board {
     }
 
     pub fn is_musician_seeing(&self, m: usize, a: usize) -> bool {
-        return self.blocks[m][a] == 0;
+        return self.blocks[m][self.aids_rev[m][a]] == 0;
     }
 
     pub fn try_place(&mut self, i: usize, position: Point<f64>) -> anyhow::Result<()> {
@@ -211,10 +225,6 @@ impl Board {
     fn place(&mut self, m: usize, p: P) {
         // Update ps and impacts
         self.ps[m] = Some((p, MUSICIAN_R));
-        self.impacts[m] = 0.0;
-        for i in 0..self.prob.attendees.len() {
-            self.impacts[m] += self.impact(m, i);
-        }
 
         assert!(self.aids[m].is_empty());
 
@@ -224,9 +234,18 @@ impl Board {
         // Update aids
         for (i, a) in self.prob.attendees.iter().enumerate() {
             let r: f64 = (a.position - p).to_vector().angle_from_x_axis().radians;
-            self.aids[m].push((r, i));
+            self.aids[m].push((r.into(), i));
         }
-        self.aids[m].sort_unstable_by(|a, b| a.0.total_cmp(&b.0));
+        self.aids[m].sort_unstable();
+        for j in 0..self.aids[m].len() {
+            self.aids_rev[m][self.aids[m][j].1] = j;
+        }
+
+        self.impacts[m] = 0.0;
+        for j in 0..self.prob.attendees.len() {
+            self.individual_impacts[m][j] = self.impact(m, j) as i64;
+            self.impacts[m] += self.individual_impacts[m][j] as f64;
+        }
 
         // Update blocks
         self.update_blocks(m, p, true);
@@ -305,12 +324,13 @@ impl Board {
     }
 
     fn update_blocks(&mut self, m: usize, p: P, inc: bool) {
-        let (prob, ps, aids, blocks, impacts) = (
+        let (prob, ps, all_aids, blocks, impacts, individual_impacts) = (
             &self.prob,
             &self.ps,
             &self.aids,
             &mut self.blocks,
             &mut self.impacts,
+            &self.individual_impacts,
         );
 
         for (i, q) in ps.iter().enumerate() {
@@ -322,13 +342,13 @@ impl Board {
 
             for rev in [false, true] {
                 let (blocking, blocked, i, bi, _, r, aids) = if rev {
-                    (*q, p, m, i, MUSICIAN_R, *r, &aids[m])
+                    (*q, p, m, i, MUSICIAN_R, *r, &all_aids[m])
                 } else {
                     if i >= prob.musicians.len() {
                         // blocked is pillar, we don't need to calculate impact
                         continue;
                     }
-                    (p, *q, i, m, *r, MUSICIAN_R, &aids[i])
+                    (p, *q, i, m, *r, MUSICIAN_R, &all_aids[i])
                 };
 
                 // Update for blocked musician.
@@ -339,6 +359,8 @@ impl Board {
                 let r1: f64 = (t1 - blocked).angle_from_x_axis().radians + eps;
                 let r2: f64 = (t2 - blocked).angle_from_x_axis().radians - eps;
 
+                let (r1, r2) = (F64::new(r1), F64::new(r2));
+
                 let distance_to_blocker_sq = LineSegment {
                     from: blocked.to_point(),
                     to: blocking.to_point(),
@@ -347,41 +369,46 @@ impl Board {
 
                 if r1 < r2 {
                     let j1 = aids.partition_point(|r| r.0 < r1);
-                    for (r, a) in &aids[j1..] {
-                        if *r > r2 {
+
+                    for j in j1..aids.len() {
+                        let (r, a) = aids[j];
+                        if r > r2 {
                             break;
                         }
                         let distance_to_attendee_sq = LineSegment {
                             from: blocked.to_point(),
-                            to: self.prob.attendees[*a].position,
+                            to: self.prob.attendees[a].position,
                         }
                         .square_length();
 
-                        let vis = 1. - (r2 - r).min(r - r1) / ((r2 - r1) / 2.) + 1e-6;
+                        let vis = 1.
+                            - (r2.get() - r.get()).min(r.get() - r1.get())
+                                / ((r2.get() - r1.get()) / 2.)
+                            + 1e-6;
                         let vis = Self::vis_f(vis);
 
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
                                 Self::inc_blocks(
+                                    individual_impacts,
+                                    all_aids,
                                     blocks,
                                     impacts,
                                     &mut self.visibility,
-                                    prob,
-                                    ps,
                                     i,
-                                    *a,
+                                    j,
                                     vis,
                                     self.use_visibility,
                                 );
                             } else {
                                 Self::dec_blocks(
+                                    individual_impacts,
+                                    all_aids,
                                     blocks,
                                     impacts,
                                     &mut self.visibility,
-                                    prob,
-                                    ps,
                                     i,
-                                    *a,
+                                    j,
                                     vis,
                                     self.use_visibility,
                                 );
@@ -389,7 +416,7 @@ impl Board {
                         }
                     }
                 } else {
-                    for (r, a) in aids.iter() {
+                    for (j, (r, a)) in aids.iter().enumerate() {
                         if *r > r2 {
                             break;
                         }
@@ -399,39 +426,41 @@ impl Board {
                         }
                         .square_length();
 
-                        let r11 = r1 - 2. * PI;
-                        let vis = 1. - (r2 - r).min(r - r11) / ((r2 - r11) / 2.) + 1e-6;
+                        let r11 = r1.get() - 2. * PI;
+                        let vis = 1.
+                            - (r2.get() - r.get()).min(r.get() - r11) / ((r2.get() - r11) / 2.)
+                            + 1e-6;
                         let vis = Self::vis_f(vis);
 
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
                                 Self::inc_blocks(
+                                    individual_impacts,
+                                    all_aids,
                                     blocks,
                                     impacts,
                                     &mut self.visibility,
-                                    prob,
-                                    ps,
                                     i,
-                                    *a,
+                                    j,
                                     vis,
                                     self.use_visibility,
                                 );
                             } else {
                                 Self::dec_blocks(
+                                    individual_impacts,
+                                    all_aids,
                                     blocks,
                                     impacts,
                                     &mut self.visibility,
-                                    prob,
-                                    ps,
                                     i,
-                                    *a,
+                                    j,
                                     vis,
                                     self.use_visibility,
                                 );
                             }
                         }
                     }
-                    for (r, a) in aids.iter().rev() {
+                    for (j, (r, a)) in aids.iter().enumerate().rev() {
                         if *r < r1 {
                             break;
                         }
@@ -441,31 +470,34 @@ impl Board {
                         }
                         .square_length();
 
-                        let vis = 1. - (r - r2).min(r1 - r) / ((r1 - r2) / 2.) + 1e-6;
+                        let vis = 1.
+                            - (r.get() - r2.get()).min(r1.get() - r.get())
+                                / ((r1.get() - r2.get()) / 2.)
+                            + 1e-6;
                         let vis = Self::vis_f(vis);
 
                         if distance_to_attendee_sq > distance_to_blocker_sq {
                             if inc {
                                 Self::inc_blocks(
+                                    individual_impacts,
+                                    all_aids,
                                     blocks,
                                     impacts,
                                     &mut self.visibility,
-                                    prob,
-                                    ps,
                                     i,
-                                    *a,
+                                    j,
                                     vis,
                                     self.use_visibility,
                                 );
                             } else {
                                 Self::dec_blocks(
+                                    individual_impacts,
+                                    all_aids,
                                     blocks,
                                     impacts,
                                     &mut self.visibility,
-                                    prob,
-                                    ps,
                                     i,
-                                    *a,
+                                    j,
                                     vis,
                                     self.use_visibility,
                                 );
@@ -505,21 +537,23 @@ impl Board {
         }
     }
 
-    #[inline]
     fn inc_blocks(
-        blocks: &mut Vec<Vec<usize>>,
+        individual_impacts: &Vec<Vec<i64>>,
+        aids: &Vec<Vec<(F64, usize)>>,
+        blocks: &mut Vec<Vec<u8>>,
         impacts: &mut Vec<f64>,
         visibility: &mut Vec<Vec<f64>>,
-        prob: &Problem,
-        ps: &Vec<Option<(P, f64)>>,
         i: usize,
-        a: usize,
+        j: usize,
         vis: f64, // (0. -> 1.]
         use_visibility: bool,
     ) {
-        let b = &mut blocks[i][a];
+        let b = &mut blocks[i][j];
         *b += 1;
-        let impact = Self::impact_internal(prob, ps, prob.musicians[i], i, a);
+        let impact = Self::impact_internal(individual_impacts, i, j);
+
+        let a = aids[i][j].1;
+
         if use_visibility {
             let prev_vis = visibility[i][a];
             visibility[i][a] *= vis;
@@ -531,22 +565,23 @@ impl Board {
         }
     }
 
-    #[inline]
     fn dec_blocks(
-        blocks: &mut Vec<Vec<usize>>,
+        individual_impacts: &Vec<Vec<i64>>,
+        aids: &Vec<Vec<(F64, usize)>>,
+        blocks: &mut Vec<Vec<u8>>,
         impacts: &mut Vec<f64>,
         visibility: &mut Vec<Vec<f64>>,
-        prob: &Problem,
-        ps: &Vec<Option<(P, f64)>>,
         i: usize,
-        a: usize,
+        j: usize,
         vis: f64,
         use_visibility: bool,
     ) {
-        let b = &mut blocks[i][a];
+        let b = &mut blocks[i][j];
         *b -= 1;
 
-        let impact = Self::impact_internal(prob, ps, prob.musicians[i], i, a);
+        let a = aids[i][j].1;
+
+        let impact = Self::impact_internal(individual_impacts, i, j);
         if use_visibility {
             let prev_vis = visibility[i][a];
             visibility[i][a] /= vis;
@@ -586,28 +621,24 @@ impl Board {
         }
     }
 
-    fn impact_internal(
-        prob: &Problem,
-        ps: &Vec<Option<(P, f64)>>,
-        k: usize,
-        m: usize,
-        a: usize,
-    ) -> f64 {
-        let d2 = (prob.attendees[a].position - ps[m].unwrap().0)
+    fn impact_internal(individual_impacts: &Vec<Vec<i64>>, m: usize, j: usize) -> f64 {
+        individual_impacts[m][j] as f64
+    }
+
+    #[inline]
+    fn impact(&self, m: usize, j: usize) -> f64 {
+        let k = self.prob.musicians[m];
+        self.impact_if_kind(m, j, k)
+    }
+
+    #[inline]
+    fn impact_if_kind(&self, m: usize, j: usize, k: usize) -> f64 {
+        let d2 = (self.prob.attendees[self.aids[m][j].1].position - self.ps[m].unwrap().0)
             .to_vector()
             .square_length();
-        let impact = 1_000_000.0 * prob.attendees[a].tastes[k] / d2;
+
+        let impact = 1_000_000.0 * self.prob.attendees[self.aids[m][j].1].tastes[k] / d2;
         impact.ceil()
-    }
-
-    #[inline]
-    fn impact(&self, m: usize, a: usize) -> f64 {
-        Self::impact_internal(&self.prob, &self.ps, self.prob.musicians[m], m, a)
-    }
-
-    #[inline]
-    fn impact_if_kind(&self, m: usize, a: usize, k: usize) -> f64 {
-        Self::impact_internal(&self.prob, &self.ps, k, m, a)
     }
 
     pub fn solution(&self) -> Result<Solution> {
