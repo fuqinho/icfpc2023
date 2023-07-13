@@ -3,7 +3,7 @@ use std::{fs::read_to_string, path::PathBuf};
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use common::{api::Client, evaluate, fixup_volumes, Problem, RawProblem, RawSolution};
-use fuqinho_solver::sa::solve_sa;
+use fuqinho_solver::sa::{SAConfig, solve_sa};
 use fuqinho_solver::solve;
 use thousands::Separable;
 
@@ -15,6 +15,12 @@ struct Args {
     force_submit: bool,
     #[arg(long)]
     sa: bool,
+    #[arg(long)]
+    iterations: Option<usize>,
+    #[arg(long)]
+    initial_temp: Option<f64>,
+    #[arg(long)]
+    solutions_dir: Option<PathBuf>,
 }
 
 fn main() -> Result<()> {
@@ -32,7 +38,12 @@ fn main() -> Result<()> {
 
     // Solve the problem.
     let mut solution = if args.sa {
-        solve_sa(&problem, problem_id as u32)
+        let config = SAConfig {
+            num_iterations: args.iterations,
+            initial_temperature: args.initial_temp,
+            solutions_dir: args.solutions_dir,
+        };
+        solve_sa(&problem, problem_id as u32, &config)
     } else {
         solve(&problem, problem_id)
     };

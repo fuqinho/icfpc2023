@@ -6,9 +6,19 @@ use rand::{thread_rng, Rng};
 use std::path::PathBuf;
 use thousands::Separable;
 
+// How to run:
+// cargo run --release --bin fuqinho-solver -- --sa --initial-temp=1000000 --iterations=100000000 --problem-id=1
+
 const SOLVER_NAME: &str = "fuqinho-SA";
-const NUM_ITERATIONS: usize = 100000000;
-const INITIAL_TEMPERATURE: f64 = 10000000.;
+const DEFAULT_NUM_ITERATIONS: usize = 100000000;
+const DEFAULT_INITIAL_TEMPERATURE: f64 = 10000000.;
+const DEFAULT_SOLUTIONS_DIR: &str = "results";
+
+pub struct SAConfig {
+    pub num_iterations: Option<usize>,
+    pub initial_temperature: Option<f64>,
+    pub solutions_dir: Option<PathBuf>,
+}
 
 fn place_musician_randomly(board: &mut Board, m: usize, rng: &mut ThreadRng) {
     loop {
@@ -95,10 +105,12 @@ fn collide_at_random_direction(board: &mut Board, m: usize, rng: &mut ThreadRng)
     let pos = board.musicians()[m].unwrap().0;
 
     let angle = rng.gen_range(0.0..2.0) * std::f64::consts::PI;
+    let scale: f64 = rng.gen_range(0.0..1.0);
+    let dist = 40.0 * scale.powi(2);
     let dx = angle.cos();
     let dy = angle.sin();
     let mut lo = 0.;
-    let mut hi = 40.;
+    let mut hi = dist;
     board.unplace(m);
     while hi - lo > 0.001 {
         let mi = (lo + hi) / 2.;
@@ -131,19 +143,24 @@ fn move_at_random_direction(board: &mut Board, m: usize, rng: &mut ThreadRng) ->
     }
 }
 
-pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
+pub fn solve_sa(problem: &Problem, problem_id: u32, config: &SAConfig) -> Solution {
     let mut rng = thread_rng();
 
     let mut board = Board::new(problem_id, problem.clone(), SOLVER_NAME.to_owned(), false);
     place_musicians_randomly(&mut board, &mut rng);
     let mut best_score = board.score_ignore_negative();
 
+    let num_iterations = config.num_iterations.unwrap_or(DEFAULT_NUM_ITERATIONS);
+    let initial_temperature = config
+        .initial_temperature
+        .unwrap_or(DEFAULT_INITIAL_TEMPERATURE);
+
     let mut iteration = 0;
     loop {
         iteration += 1;
-        let temperature = INITIAL_TEMPERATURE * (1. - iteration as f64 / NUM_ITERATIONS as f64);
+        let temperature = initial_temperature * (1. - iteration as f64 / num_iterations as f64);
 
-        if rng.gen_range(0..7) == 0 {
+        if rng.gen_range(0..10) == 0 {
             // 10%: swap two musicians
 
             let m1 = rng.gen_range(0..board.prob.musicians.len());
@@ -157,7 +174,7 @@ pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
                 swap_two_musicians(&mut board, m1, m2);
             }
         } else {
-            let r = rng.gen_range(0..7);
+            let r = rng.gen_range(0..10);
             let m = rng.gen_range(0..board.prob.musicians.len());
             let prev_pos = board.musicians()[m].unwrap().0.to_point();
             let moved;
@@ -167,6 +184,9 @@ pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
             } else if r == 1 {
                 // 90*10 = 9%: Move random direction for 40 units at max.
                 moved = collide_at_random_direction(&mut board, m, &mut rng);
+            } else if r == 2 {
+                // 90*10 = 9%: Move at gradient direction for 40 units at max.
+                moved = move_at_gradient_direction(&mut board, m, &mut rng);
             } else {
                 // 90*70 = 63%: Move a musician at random direction for up to 40 units.
                 moved = move_at_random_direction(&mut board, m, &mut rng);
@@ -192,15 +212,22 @@ pub fn solve_sa(problem: &Problem, problem_id: u32) -> Solution {
             let solution_to_write = board.clone().solution().unwrap();
             let solution_json =
                 serde_json::to_string(&RawSolution::from(solution_to_write.clone())).unwrap();
-            let output = PathBuf::from(format!(
-                "fuqinho-solver/results/{}-{}M-{}.json",
+            let mut output = config
+                .solutions_dir
+                .clone()
+                .unwrap_or(PathBuf::from(DEFAULT_SOLUTIONS_DIR));
+            if !output.is_dir() {
+                std::fs::create_dir_all(&output).unwrap();
+            }
+            output.push(format!(
+                "{}-{}M-{}.json",
                 solution_to_write.problem_id,
                 iteration / 1000000,
                 best_score
             ));
             std::fs::write(output, solution_json).unwrap();
         }
-        if iteration >= NUM_ITERATIONS {
+        if iteration >= num_iterations {
             break;
         }
     }
