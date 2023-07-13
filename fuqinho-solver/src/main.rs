@@ -3,7 +3,7 @@ use std::{fs::read_to_string, path::PathBuf};
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use common::{api::Client, evaluate, fixup_volumes, Problem, RawProblem, RawSolution};
-use fuqinho_solver::sa::{solve_sa, SAConfig};
+use fuqinho_solver::sa::{solve_sa, AcceptFunction, CoolingSchedule, SAConfig};
 use fuqinho_solver::solve;
 use thousands::Separable;
 
@@ -15,12 +15,18 @@ struct Args {
     force_submit: bool,
     #[arg(long)]
     sa: bool,
-    #[arg(long)]
-    iterations: Option<usize>,
-    #[arg(long)]
-    initial_temp: Option<f64>,
+    #[arg(long, default_value_t = 100000000)]
+    iterations: usize,
+    #[arg(long, default_value_t = 1000000.0)]
+    initial_temp: f64,
+    #[arg(long, default_value_t = 100.)]
+    final_temp: f64,
     #[arg(long)]
     solutions_dir: Option<PathBuf>,
+    #[arg(long, value_enum, default_value_t = CoolingSchedule::Linear)]
+    cooling_schedule: CoolingSchedule,
+    #[arg(long, value_enum, default_value_t = AcceptFunction::Linear)]
+    accept_function: AcceptFunction,
 }
 
 fn main() -> Result<()> {
@@ -41,7 +47,10 @@ fn main() -> Result<()> {
         let config = SAConfig {
             num_iterations: args.iterations,
             initial_temperature: args.initial_temp,
-            solutions_dir: args.solutions_dir,
+            final_temperature: args.final_temp,
+            solutions_dir: args.solutions_dir.unwrap_or(PathBuf::from("results")),
+            cooling_schedule: args.cooling_schedule,
+            accept_function: args.accept_function,
         };
         solve_sa(&problem, problem_id as u32, &config)
     } else {

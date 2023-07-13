@@ -10,14 +10,55 @@ use thousands::Separable;
 // cargo run --release --bin fuqinho-solver -- --sa --initial-temp=1000000 --iterations=100000000 --problem-id=1
 
 const SOLVER_NAME: &str = "fuqinho-SA";
-const DEFAULT_NUM_ITERATIONS: usize = 100000000;
-const DEFAULT_INITIAL_TEMPERATURE: f64 = 10000000.;
-const DEFAULT_SOLUTIONS_DIR: &str = "results";
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+pub enum CoolingSchedule {
+    Linear,
+    Quadratic,
+    Exponential,
+}
+
+#[derive(Debug, Clone, clap::ValueEnum)]
+pub enum AcceptFunction {
+    Linear,
+    Exponential,
+}
 
 pub struct SAConfig {
-    pub num_iterations: Option<usize>,
-    pub initial_temperature: Option<f64>,
-    pub solutions_dir: Option<PathBuf>,
+    pub num_iterations: usize,
+    pub initial_temperature: f64,
+    pub final_temperature: f64,
+    pub solutions_dir: PathBuf,
+    pub cooling_schedule: CoolingSchedule,
+    pub accept_function: AcceptFunction,
+}
+
+fn current_temperature(progress: f64, config: &SAConfig) -> f64 {
+    match config.cooling_schedule {
+        CoolingSchedule::Linear => (1. - progress) * config.initial_temperature,
+        CoolingSchedule::Quadratic => (1. - progress).powi(2) * config.initial_temperature,
+        CoolingSchedule::Exponential => {
+            config.initial_temperature.powf(1. - progress) * config.final_temperature.powf(progress)
+        }
+    }
+}
+
+fn should_accept(
+    cur_score: f64,
+    next_score: f64,
+    temperature: f64,
+    rng: &mut ThreadRng,
+    config: &SAConfig,
+) -> bool {
+    if next_score >= cur_score {
+        return true;
+    }
+    match config.accept_function {
+        AcceptFunction::Linear => rng.gen_range(0.0..1.0) * temperature > -(next_score - cur_score),
+        AcceptFunction::Exponential => {
+            rng.gen_bool(f64::exp((next_score - cur_score) / (temperature + 1e-9)))
+        }
+    }
 }
 
 fn place_musician_randomly(board: &mut Board, m: usize, rng: &mut ThreadRng) {
@@ -150,15 +191,11 @@ pub fn solve_sa(problem: &Problem, problem_id: u32, config: &SAConfig) -> Soluti
     place_musicians_randomly(&mut board, &mut rng);
     let mut best_score = board.score_ignore_negative();
 
-    let num_iterations = config.num_iterations.unwrap_or(DEFAULT_NUM_ITERATIONS);
-    let initial_temperature = config
-        .initial_temperature
-        .unwrap_or(DEFAULT_INITIAL_TEMPERATURE);
-
     let mut iteration = 0;
     loop {
         iteration += 1;
-        let temperature = initial_temperature * (1. - iteration as f64 / num_iterations as f64);
+        let temperature =
+            current_temperature(iteration as f64 / config.num_iterations as f64, config);
 
         if rng.gen_range(0..10) == 0 {
             // 10%: swap two musicians
@@ -167,8 +204,7 @@ pub fn solve_sa(problem: &Problem, problem_id: u32, config: &SAConfig) -> Soluti
             let m2 = rng.gen_range(0..board.prob.musicians.len());
             swap_two_musicians(&mut board, m1, m2);
             let score = board.score_ignore_negative();
-            let score_diff = score - best_score;
-            if score > best_score || rng.gen_range(0.0..1.0) * temperature > -score_diff {
+            if should_accept(best_score, score, temperature, &mut rng, config) {
                 best_score = score;
             } else {
                 swap_two_musicians(&mut board, m1, m2);
@@ -194,8 +230,7 @@ pub fn solve_sa(problem: &Problem, problem_id: u32, config: &SAConfig) -> Soluti
 
             if moved {
                 let score = board.score_ignore_negative();
-                let score_diff = score - best_score;
-                if score > best_score || rng.gen_range(0.0..1.0) * temperature > -score_diff {
+                if should_accept(best_score, score, temperature, &mut rng, config) {
                     best_score = score;
                 } else {
                     board.unplace(m);
@@ -205,17 +240,19 @@ pub fn solve_sa(problem: &Problem, problem_id: u32, config: &SAConfig) -> Soluti
         }
 
         if iteration % 10000 == 0 {
-            eprintln!("{} {}", iteration, best_score.separate_with_commas());
+            eprintln!(
+                "I:{} T:{:.0} Score:{}",
+                iteration,
+                temperature,
+                best_score.separate_with_commas()
+            );
         }
         if iteration % 1000000 == 0 {
             // Write the solution to file.
             let solution_to_write = board.clone().solution().unwrap();
             let solution_json =
                 serde_json::to_string(&RawSolution::from(solution_to_write.clone())).unwrap();
-            let mut output = config
-                .solutions_dir
-                .clone()
-                .unwrap_or(PathBuf::from(DEFAULT_SOLUTIONS_DIR));
+            let mut output = config.solutions_dir.clone();
             if !output.is_dir() {
                 std::fs::create_dir_all(&output).unwrap();
             }
@@ -227,7 +264,7 @@ pub fn solve_sa(problem: &Problem, problem_id: u32, config: &SAConfig) -> Soluti
             ));
             std::fs::write(output, solution_json).unwrap();
         }
-        if iteration >= num_iterations {
+        if iteration >= config.num_iterations {
             break;
         }
     }
