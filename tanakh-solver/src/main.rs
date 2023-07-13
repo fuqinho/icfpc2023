@@ -1,7 +1,8 @@
 use anyhow::Result;
 use common::{api::Client, RawSolution, Solution};
+use pprof::protos::Message;
 use rand::Rng;
-use std::{fs::File, path::PathBuf};
+use std::{fs::File, io::Write, path::PathBuf};
 
 use tanakh_solver::solver::{post_process, pre_process, Solver2};
 
@@ -87,7 +88,7 @@ fn main(
     let guard = if profile {
         Some(
             pprof::ProfilerGuardBuilder::default()
-                .frequency(1000)
+                .frequency(100)
                 .blocklist(&["libc", "libgcc", "pthread", "vdso"])
                 .build()
                 .unwrap(),
@@ -168,11 +169,13 @@ fn main(
 
     if let Some(guard) = guard {
         if let Ok(report) = guard.report().build() {
-            println!("Writing ./results/flamegraph.svg");
-            let file = File::create("results/flamegraph.svg").unwrap();
-            let mut options = pprof::flamegraph::Options::default();
-            options.image_width = Some(2500);
-            report.flamegraph_with_options(file, &mut options).unwrap();
+            println!("Writing ./results/profile.pb");
+            let mut file = File::create("results/profile.pb").unwrap();
+            let profile = report.pprof().unwrap();
+
+            let mut content = Vec::new();
+            profile.write_to_vec(&mut content).unwrap();
+            file.write_all(&content).unwrap();
         };
     }
 
