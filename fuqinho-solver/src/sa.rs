@@ -236,29 +236,10 @@ pub fn solve_sa(problem: &Problem, problem_id: u32, config: &SAConfig) -> Soluti
 }
 
 // ======================================================
-// 100,000 iterations result (problem 1)
-// -- HC --
-// 10% swap + 90% random dir: 6,618,179,280
-// 10% swap + 9% random pos + 81% random dir: 7,507,255,080
-// 10% swap + 9% random pos + 9% random collide + 72% random dir: 7,474,679,580
-// 10% swap + 9% random pos + 9% random collide + 9% grad dir + 63% random dir: 7,928,612,710
-// -- SA --
-// 10% swap + 90% random dir: 6,429,198,220
-// 10% swap + 9% random pos + 81% random dir: 7,149,606,650
-// 10% swap + 9% random pos + 9% random collide + 72% random dir: 7,471,540,310
-// 10% swap + 9% random pos + 9% random collide + 9% grad dir + 63% random dir: 8,199,123,670
-
-// ======================================================
-// 1,000,000 iterations result (problem 1)
-// -- HC --
-// 10% swap + 9% random pos + 9% random collide + 9% grad dir + 63% random dir: 13,349,415,440
-// -- SA --
-// 10% swap + 9% random pos + 9% random collide + 9% grad dir + 63% random dir: 13,571,224,960 (T = 4000)
-// 10% swap + 9% random pos + 9% random collide + 9% grad dir + 63% random dir: 13,415,731,140 (T = 50000)
-
-// ======================================================
-// 20,000,000 iterations result (problem 1)
-// -- HC --
-// 10% swap + 9% random pos + 9% random collide + 9% grad dir + 63% random dir:
-// -- SA --
-// 10% swap + 9% random pos + 9% random collide + 9% grad dir + 63% random dir: running...  (T = 30000)
+// 100,000,000 iterations result (problem 1)
+// 1) Steps: 10% swap + 9% random pos + 9% random collide + 9% grad dir + 63% random dir
+//    Setup: T=1,000,000, linear cooling, linear accept function
+//    Score: 16,488,264,680
+// 2) Steps: 14% swap + 12% random pos + 12% random collide + 62% random dir
+//    Setup: T=1,000,000, linear cooling, linear accept function
+//    Score: 16,351,443,820
