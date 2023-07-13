@@ -3,7 +3,7 @@ use std::{fs::read_to_string, path::PathBuf};
 use anyhow::{anyhow, Result};
 use clap::Parser;
 use common::{api::Client, evaluate, fixup_volumes, Problem, RawProblem, RawSolution};
-use fuqinho_solver::sa::{SAConfig, solve_sa};
+use fuqinho_solver::sa::{solve_sa, SAConfig};
 use fuqinho_solver::solve;
 use thousands::Separable;
 
