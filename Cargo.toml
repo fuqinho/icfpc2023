@@ -20,4 +20,5 @@ members = [
   "psh-validator",
   "tanakh-solver",
   "wasm",
+  "upsolve-oka-solver",
 ]
