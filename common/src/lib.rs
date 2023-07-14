@@ -5,6 +5,7 @@ pub mod evaluate;
 pub mod f64;
 pub mod geom;
 pub mod problem;
+pub mod board_options;
 
 pub use evaluate::*;
 pub use problem::*;

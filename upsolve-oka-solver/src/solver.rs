@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use common::{board::Board, Problem};
+use common::{board::Board, board_options::BoardOptions, Problem};
 use lyon_geom::Vector;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
@@ -19,7 +19,13 @@ impl Solver {
         if problem.stage.min.x > 0. || problem.stage.min.y > 0. {
             panic!("Unsupported stage min: {:?}", problem.stage.min);
         }
-        let board = Board::new(problem_id, problem, "upsolve-oka-solver", false);
+
+        let important_attendees_ratio = 0.2;
+        let options =
+            BoardOptions::default().with_important_attendees_ratio(important_attendees_ratio);
+
+        let board =
+            Board::new_with_options(problem_id, problem, "upsolve-oka-solver", false, options);
 
         let rng = SmallRng::seed_from_u64(0);
 
@@ -172,12 +178,14 @@ impl Solver {
     }
 
     fn random_direction(&mut self) -> P {
-        let d = self.rng.gen_range(0.0..1.0);
+        let d: f64 = self.rng.gen_range(0.0..1.0);
         let r = self.rng.gen_range(-1.0..1.0) * PI;
 
         let (x, y) = r.sin_cos();
 
-        P::new(x * 40. * d * d, y * 40. * d * d)
+        let dd = d.powi(2);
+
+        P::new(x * 40. * dd, y * 40. * dd)
     }
 
     fn random_musician(&mut self) -> usize {

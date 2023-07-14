@@ -13,3 +13,5 @@ argopt = "*"
 
 rand = { version = "*", default-features = false, features = ["small_rng"] }
 lyon_geom = "*"
+
+pprof = { version = "*", features = ["protobuf-codec"] }
