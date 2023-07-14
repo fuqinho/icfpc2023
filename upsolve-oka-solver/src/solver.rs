@@ -21,8 +21,10 @@ impl Solver {
         }
 
         let important_attendees_ratio = 0.2;
-        let options =
-            BoardOptions::default().with_important_attendees_ratio(important_attendees_ratio);
+        let important_musician_range = 500.0;
+        let options = BoardOptions::default()
+            .with_important_attendees_ratio(important_attendees_ratio)
+            .with_important_musician_range(important_musician_range);
 
         let board =
             Board::new_with_options(problem_id, problem, "upsolve-oka-solver", false, options);

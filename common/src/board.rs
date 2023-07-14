@@ -31,7 +31,9 @@ pub struct Board {
     aids_rev: Vec<Vec<Option<usize>>>,
 
     // m -> j -> block count of aids[j].1
+    // i.e. number of important musicians or pillars between m and aids[j].1.
     blocks: Vec<Vec<u8>>,
+
     // m -> closeness factor
     qs: Vec<f64>,
     // m -> I
@@ -385,6 +387,15 @@ impl Board {
             }
 
             let Some((q, r)) = q else { continue; };
+
+            if self.options.important_musician_range_squared < f64::INFINITY
+                && i < prob.musicians.len()
+            {
+                let dist2 = (p - *q).square_length();
+                if dist2 > self.options.important_musician_range_squared {
+                    continue;
+                }
+            }
 
             for rev in [false, true] {
                 let (blocking, blocked, blocked_i, blocking_i, _, r, blocked_aids) = if rev {
