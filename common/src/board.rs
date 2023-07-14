@@ -5,7 +5,10 @@ use euclid::{Box2D, Vector2D};
 use lyon_geom::{LineSegment, Point};
 
 use crate::{
-    board_options::BoardOptions, f64::F64, geom::tangent_to_circle, Placement, Problem, Solution,
+    board_options::BoardOptions,
+    float::{Float, F32, F64},
+    geom::tangent_to_circle,
+    Placement, Problem, Solution,
 };
 
 use anyhow::Result;
@@ -15,7 +18,7 @@ type P = Vector2D<f64, euclid::UnknownUnit>;
 const MUSICIAN_R: f64 = 5.;
 
 #[derive(Clone, Debug)]
-pub struct Board {
+pub struct Board<F: Float = F64> {
     pub problem_id: u32,
     pub solver: String,
     // NB: stage is modified
@@ -25,7 +28,7 @@ pub struct Board {
     // musicians + pillars
     ps: Vec<Option<(P, f64)>>,
     // m -> important audience ids sorted by args
-    aids: Vec<Vec<(F64, usize)>>,
+    aids: Vec<Vec<(F, u32)>>,
 
     // m -> a -> j s.t. aids[j].1 == a
     aids_rev: Vec<Vec<Option<usize>>>,
@@ -54,7 +57,7 @@ pub struct Board {
     options: BoardOptions,
 }
 
-impl Board {
+impl Board<F64> {
     pub fn new<T: AsRef<str>>(
         problem_id: u32,
         prob: Problem,
@@ -63,7 +66,20 @@ impl Board {
     ) -> Self {
         Self::new_with_options(problem_id, prob, solver, use_visibility, Default::default())
     }
+}
 
+impl Board<F32> {
+    pub fn new_f32<T: AsRef<str>>(
+        problem_id: u32,
+        prob: Problem,
+        solver: T,
+        use_visibility: bool,
+    ) -> Self {
+        Self::new_with_options(problem_id, prob, solver, use_visibility, Default::default())
+    }
+}
+
+impl<F: Float> Board<F> {
     pub fn new_with_options<T: AsRef<str>>(
         problem_id: u32,
         mut prob: Problem,
@@ -267,8 +283,6 @@ impl Board {
         }
 
         for (i, a) in self.prob.attendees.iter().enumerate() {
-            let r: f64 = (a.position - p).to_vector().angle_from_x_axis().radians;
-
             let is_important = if let Some(max_dist2) = max_dist2 {
                 let dist = (a.position - p).to_vector().square_length();
                 dist <= max_dist2
@@ -277,14 +291,15 @@ impl Board {
             };
 
             if is_important {
-                self.aids[m].push((r.into(), i));
+                let r: f64 = (a.position - p).to_vector().angle_from_x_axis().radians;
+                self.aids[m].push((r.into(), i as u32));
             }
         }
         self.aids[m].sort_unstable();
 
         self.aids_rev[m].fill(None);
         for j in 0..self.aids[m].len() {
-            self.aids_rev[m][self.aids[m][j].1] = j.into();
+            self.aids_rev[m][self.aids[m][j].1 as usize] = j.into();
         }
 
         self.impacts[m] = 0.0;
@@ -379,7 +394,10 @@ impl Board {
             &self.individual_impacts,
         );
 
-        let mut rs = vec![];
+        let mut rs = [None, None];
+
+        let eps = F::EPS;
+        let pi_plus_eps = F::new(PI + eps);
 
         for (i, q) in ps.iter().enumerate() {
             if i == m {
@@ -397,54 +415,57 @@ impl Board {
                 }
             }
 
-            for rev in [false, true] {
-                let (blocking, blocked, blocked_i, blocking_i, _, r, blocked_aids) = if rev {
-                    (*q, p, m, i, MUSICIAN_R, *r, &all_aids[m])
+            let (t1, t2) = tangent_to_circle(p, *q, *r);
+            let base_r1 = (t1 - p).angle_from_x_axis().radians;
+            let base_r2 = (t2 - p).angle_from_x_axis().radians;
+
+            for m_is_blocked in [false, true] {
+                let (blocking, blocked, blocked_i, blocking_i, blocked_aids) = if m_is_blocked {
+                    (*q, p, m, i, &all_aids[m])
                 } else {
                     if i >= prob.musicians.len() {
                         // blocked is pillar, we don't need to calculate impact
                         continue;
                     }
-                    (p, *q, i, m, *r, MUSICIAN_R, &all_aids[i])
+                    (p, *q, i, m, &all_aids[i])
                 };
 
                 // Update for blocked musician.
 
-                let (t1, t2) = tangent_to_circle(blocked, blocking, r);
-
-                let eps = 1e-12;
-                let r1: f64 = (t1 - blocked).angle_from_x_axis().radians + eps;
-                let r2: f64 = (t2 - blocked).angle_from_x_axis().radians - eps;
-
-                let (r1, r2) = (F64::new(r1), F64::new(r2));
-
-                let j1 = blocked_aids.partition_point(|r| r.0 < r1);
-
-                rs.clear();
-                if r1 < r2 {
-                    rs.push((r1, r2));
+                let (r1, r2) = if m_is_blocked {
+                    (base_r1 + eps, base_r2 - eps)
                 } else {
-                    rs.push((r1, F64::new(2. * PI + eps)));
-                    rs.push((F64::new(-2. * PI - eps), r2));
+                    (opposite_angle(base_r1) + eps, opposite_angle(base_r2) - eps)
+                };
+
+                let (f_r1, f_r2) = (F::new(r1), F::new(r2));
+
+                let j1 = blocked_aids.partition_point(|r| r.0 < f_r1);
+
+                let rs_len;
+                if f_r1 < f_r2 {
+                    rs[0] = Some(f_r2);
+                    rs_len = 1;
+                } else {
+                    rs[0] = Some(pi_plus_eps);
+                    rs[1] = Some(f_r2);
+                    rs_len = 2;
                 }
 
-                let distance_to_blocker_sq = (blocked - blocking).square_length();
-
-                for (ri, (r1, r2)) in rs.iter().enumerate() {
+                for ri in 0..rs_len {
                     let j1 = if ri == 0 { j1 } else { 0 };
 
-                    for j in j1..blocked_aids.len() {
-                        let (r, a) = &blocked_aids[j];
+                    let r2 = rs[ri].unwrap();
 
-                        if r > r2 {
+                    for j in j1..blocked_aids.len() {
+                        if blocked_aids[j].0 > r2 {
                             break;
                         }
 
-                        let distance_to_attendee_sq = (self.prob.attendees[*a].position - blocked)
-                            .to_vector()
-                            .square_length();
-
                         let vis = if self.use_visibility {
+                            let r = blocked_aids[j].0;
+                            let r1 = if ri == 0 { f_r1 } else { F::new(-PI - eps) };
+
                             let vis = 1.
                                 - (r2.get() - r.get()).min(r.get() - r1.get())
                                     / ((r2.get() - r1.get()) / 2.)
@@ -455,8 +476,27 @@ impl Board {
                             0.0
                         };
 
-                        if distance_to_attendee_sq <= distance_to_blocker_sq {
-                            continue;
+                        debug_assert!({
+                            let a = blocked_aids[j].1 as usize;
+                            let distance_to_blocker_sq = (blocked - blocking).square_length();
+                            let distance_to_attendee_sq = (self.prob.attendees[a].position
+                                - blocked)
+                                .to_vector()
+                                .square_length();
+                            !(distance_to_attendee_sq <= distance_to_blocker_sq
+                                && blocking_i < prob.musicians.len())
+                        });
+
+                        if blocking_i >= prob.musicians.len() {
+                            let a = blocked_aids[j].1 as usize;
+                            let distance_to_blocker_sq = (blocked - blocking).square_length();
+                            let distance_to_attendee_sq = (self.prob.attendees[a].position
+                                - blocked)
+                                .to_vector()
+                                .square_length();
+                            if distance_to_attendee_sq <= distance_to_blocker_sq {
+                                continue;
+                            }
                         }
 
                         if inc {
@@ -465,10 +505,11 @@ impl Board {
                             let impact = individual_impacts[blocked_i][j] as f64;
 
                             if self.use_visibility {
-                                let prev_vis = self.visibility[blocked_i][*a];
-                                self.visibility[blocked_i][*a] *= vis;
+                                let a = blocked_aids[j].1 as usize;
+                                let prev_vis = self.visibility[blocked_i][a];
+                                self.visibility[blocked_i][a] *= vis;
                                 impacts[blocked_i] +=
-                                    (self.visibility[blocked_i][*a] - prev_vis) * impact;
+                                    (self.visibility[blocked_i][a] - prev_vis) * impact;
                             } else {
                                 if *b == 1 {
                                     impacts[blocked_i] -= impact;
@@ -480,11 +521,12 @@ impl Board {
 
                             let impact = individual_impacts[blocked_i][j] as f64;
                             if self.use_visibility {
-                                let prev_vis = self.visibility[blocked_i][*a];
-                                self.visibility[blocked_i][*a] /= vis;
+                                let a = blocked_aids[j].1 as usize;
+                                let prev_vis = self.visibility[blocked_i][a];
+                                self.visibility[blocked_i][a] /= vis;
 
                                 impacts[blocked_i] +=
-                                    (self.visibility[blocked_i][*a] - prev_vis) * impact;
+                                    (self.visibility[blocked_i][a] - prev_vis) * impact;
                             } else {
                                 if *b == 0 {
                                     impacts[blocked_i] += impact;
@@ -496,9 +538,15 @@ impl Board {
 
                 // for debug. Please keep it.
                 if false {
+                    let distance_to_blocker_sq = (blocked - blocking).square_length();
+
+                    let (r1, r2) = (f_r1, f_r2);
+
                     for (r, a) in blocked_aids.iter() {
+                        let a = *a as usize;
+
                         let seg = LineSegment {
-                            from: self.prob.attendees[*a].position,
+                            from: self.prob.attendees[a].position,
                             to: self.ps[blocked_i].unwrap().0.to_point(),
                         };
                         let included = if r1 < r2 {
@@ -515,7 +563,7 @@ impl Board {
                                 if blocking_i < self.prob.musicians.len() { blocking_i } else { blocking_i - self.prob.musicians.len() },
                                 self.ps[blocking_i].unwrap().0.to_point(),
                                 blocked_i, self.ps[blocked_i].unwrap().0.to_point(),
-                                *a, self.prob.attendees[*a].position,
+                                a, self.prob.attendees[a].position,
                                 seg.distance_to_point(self.ps[blocking_i].unwrap().0.to_point()),
                                 self.ps[blocking_i].unwrap().1, *r,
                                 r1, r2, t1, t2);
@@ -561,11 +609,11 @@ impl Board {
 
     #[inline]
     fn impact_if_kind(&self, m: usize, j: usize, k: usize) -> f64 {
-        let d2 = (self.prob.attendees[self.aids[m][j].1].position - self.ps[m].unwrap().0)
+        let d2 = (self.prob.attendees[self.aids[m][j].1 as usize].position - self.ps[m].unwrap().0)
             .to_vector()
             .square_length();
 
-        let impact = 1_000_000.0 * self.prob.attendees[self.aids[m][j].1].tastes[k] / d2;
+        let impact = 1_000_000.0 * self.prob.attendees[self.aids[m][j].1 as usize].tastes[k] / d2;
         impact.ceil()
     }
 
@@ -599,6 +647,14 @@ impl Board {
         }
         Ok(sol)
     }
+}
+
+fn opposite_angle(mut r: f64) -> f64 {
+    r += PI;
+    if r > PI {
+        r -= 2. * PI;
+    }
+    r
 }
 
 impl TryInto<Solution> for Board {
@@ -644,7 +700,12 @@ mod tests {
 
             let expected_score = evaluate(&problem, &solution);
 
-            assert_eq!(board.score(), expected_score);
+            assert_eq!(
+                board.score(),
+                expected_score,
+                "failed on important_attendees_ratio {}",
+                important_attendees_ratio
+            );
 
             for i in 0..problem.musicians.len() {
                 board.unplace(i);

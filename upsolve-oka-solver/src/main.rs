@@ -3,6 +3,10 @@ pub mod solver;
 
 use std::{fs::File, io::Write};
 
+use chrono::Local;
+use env_logger::Builder;
+use log::LevelFilter;
+
 use common::{api::Client, evaluate, Solution};
 use pprof::protos::Message;
 use pretty::pretty;
@@ -14,6 +18,19 @@ fn main(
     #[opt(long, short, default_value = "500000")] num_iter: usize,
     #[opt(long, short)] profile: bool,
 ) {
+    Builder::new()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} [{}] {}",
+                Local::now().format("%Y-%m-%dT%H:%M:%S"),
+                record.level(),
+                record.args()
+            )
+        })
+        .filter(None, LevelFilter::Info)
+        .init();
+
     let cl = Client::new();
 
     let problem = cl.get_problem(problem_id).unwrap();
@@ -21,13 +38,7 @@ fn main(
     let mut solver = Solver::new(problem_id, problem.clone(), num_iter);
 
     let guard = if profile {
-        Some(
-            pprof::ProfilerGuardBuilder::default()
-                .frequency(100)
-                .blocklist(&["libc", "libgcc", "pthread", "vdso"])
-                .build()
-                .unwrap(),
-        )
+        Some(pprof::ProfilerGuardBuilder::default().build().unwrap())
     } else {
         None
     };
@@ -43,6 +54,10 @@ fn main(
             let mut content = Vec::new();
             profile.write_to_vec(&mut content).unwrap();
             file.write_all(&content).unwrap();
+
+            println!("Writing /tmp/profile.svg");
+            let mut file = File::create("/tmp/profile.svg").unwrap();
+            report.flamegraph(&mut file).unwrap();
         };
     }
 

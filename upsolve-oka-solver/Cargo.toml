@@ -14,4 +14,7 @@ argopt = "*"
 rand = { version = "*", default-features = false, features = ["small_rng"] }
 lyon_geom = "*"
 
-pprof = { version = "*", features = ["protobuf-codec"] }
+pprof = { version = "*", features = ["flamegraph", "protobuf-codec"] }
+chrono = "0.4.26"
+env_logger = "0.10.0"
+log = "0.4.19"

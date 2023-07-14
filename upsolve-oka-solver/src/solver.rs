@@ -1,10 +1,13 @@
 use std::f64::consts::PI;
 
-use common::{board::Board, board_options::BoardOptions, Problem};
+use common::{board_options::BoardOptions, float::F32, Problem};
+use log::info;
 use lyon_geom::Vector;
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 use crate::pretty::pretty;
+
+type Board = common::board::Board<F32>;
 
 pub struct Solver {
     board: Board,
@@ -57,7 +60,7 @@ impl Solver {
 
             if iter % (self.num_iter / 100) == 0 {
                 let temp = self.temp(iter);
-                eprintln!(
+                info!(
                     "iter: {:>10}  score: {:>14}  temp: {:>10}",
                     pretty(iter as i64),
                     pretty(self.board.score() as i64),

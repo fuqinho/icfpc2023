@@ -38,7 +38,6 @@ pub fn tangent_to_circle(p: P, c: P, r: f64) -> (P, P) {
 //              - sqrt(r1^2 / d^2 - {(r1^2 + d^2 - r2^2) / (2 * d^2)}^2) * dv.y
 //       = c1.x + {(r1^2 + d^2 - r2^2) / (2 * d^2)} * dv.x
 //              - sqrt(4 * r1^2 * d^2 - (r1^2 + d^2 - r2^2)^2) / (2 * d^2) * dv.y
-#[inline]
 fn cross_points_cc2(c1: P, r1_2: f64, c2: P, r2_2: f64) -> (P, P) {
     let dv = c2 - c1;
     let d2 = dv.square_length();
