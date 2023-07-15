@@ -171,8 +171,8 @@ impl<F: Float> Board<F> {
     // The musician's contribution to the score
     pub fn contribution(&self, m: usize) -> f64 {
         let mut res = 0;
-        for (j, b) in self.blocks[m].iter().enumerate() {
-            if *b > 0 {
+        for j in 0..self.aids[m].len() {
+            if self.blocks[m][j] > 0 {
                 continue;
             }
             res += self.individual_impacts[m][j];

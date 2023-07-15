@@ -88,13 +88,13 @@ impl Solver {
             }
         }
 
-        for iter in 0..self.num_iter {
+        for iter in 0..=self.num_iter {
             self.step(iter);
 
             if iter % (self.num_iter / 100) == 0 {
                 let temp = self.temp(iter);
                 info!(
-                    "{:>2}% iter: {:>10}  score: {:>14}  temp: {:>10}",
+                    "{:>3}% iter: {:>10}  score: {:>14}  temp: {:>10}",
                     (iter * 100) / self.num_iter,
                     pretty(iter as i64),
                     pretty(self.board.score() as i64),
@@ -104,18 +104,49 @@ impl Solver {
         }
 
         // Place remaining musicians randomly
+        let mut remaining_musicians = vec![];
         for i in 0..self.board.musicians().len() {
             if self.is_visible[i] {
                 continue;
             }
-            loop {
-                let p = self.random_place();
+            remaining_musicians.push(i);
+        }
 
-                self.move_musician_to(i, p).unwrap();
+        for x in ((self.board.prob.stage.min.x as usize)..(self.board.prob.stage.max.x as usize))
+            .step_by(10)
+        {
+            if remaining_musicians.is_empty() {
+                break;
+            }
 
-                if self.set_visibility(i, true).is_ok() {
+            for y in ((self.board.prob.stage.min.y as usize)
+                ..(self.board.prob.stage.max.y as usize))
+                .step_by(10)
+            {
+                if remaining_musicians.is_empty() {
                     break;
                 }
+
+                let p = P::new(x as f64, y as f64);
+
+                if self.forbidden_area.contains(p.to_point()) {
+                    continue;
+                }
+
+                let m = remaining_musicians.last().unwrap();
+                self.move_musician_to(*m, p).unwrap();
+
+                let prev_score = self.board.score();
+
+                if self.set_visibility(*m, true).is_err() {
+                    continue;
+                }
+                if self.board.score() < prev_score {
+                    self.set_visibility(*m, false).unwrap();
+                    continue;
+                }
+
+                remaining_musicians.pop();
             }
         }
 
