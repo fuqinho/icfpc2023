@@ -3,6 +3,7 @@ use std::f64::consts::PI;
 use anyhow::bail;
 use euclid::{Box2D, Vector2D};
 use lyon_geom::{LineSegment, Point};
+use pathfinding::{kuhn_munkres::kuhn_munkres, prelude::Matrix};
 
 use crate::{
     board_options::BoardOptions,
@@ -187,8 +188,9 @@ impl<F: Float> Board<F> {
 
     pub fn contribution_if_instrument(&self, m: usize, ins: usize) -> f64 {
         let mut res = 0.;
-        for (j, b) in self.blocks[m].iter().enumerate() {
-            if *b > 0 {
+
+        for j in 0..self.aids[m].len() {
+            if self.blocks[m][j] > 0 {
                 continue;
             }
             res += self.impact_if_kind(m, j, ins);
@@ -246,7 +248,7 @@ impl<F: Float> Board<F> {
         for p in self.ps[0..self.prob.musicians.len()].iter() {
             if let Some((p, _)) = p {
                 if (*p - position.to_vector()).square_length() < 100. {
-                    bail!("too close to another musician");
+                    bail!("too close to another musician {:?}: {:?}", p, position);
                 }
             }
         }
@@ -646,6 +648,45 @@ impl<F: Float> Board<F> {
             }
         }
         Ok(sol)
+    }
+
+    // Optimize musician allocations with hungarian algorithm in O(|musicians|^3).
+    pub fn hungarian(&mut self) {
+        let mut weights = vec![vec![0; self.prob.musicians.len()]; self.prob.musicians.len()];
+
+        for m in 0..self.musicians().len() {
+            for m2 in 0..self.musicians().len() {
+                if self.musicians()[m2].is_none() {
+                    continue;
+                }
+
+                weights[m][m2] = self
+                    .contribution_if_instrument(m2, self.prob.musicians[m])
+                    .max(0.) as i64;
+            }
+        }
+
+        let matrix = Matrix::from_rows(weights).unwrap();
+
+        let (_, assignment) = kuhn_munkres(&matrix);
+
+        let ps: Vec<_> = self
+            .musicians()
+            .iter()
+            .map(|p| p.map(|(p, _)| p.to_point()))
+            .collect();
+
+        for m in 0..ps.len() {
+            if ps[m].is_some() {
+                self.unplace(m);
+            }
+        }
+
+        for (m, m2) in assignment.into_iter().enumerate() {
+            if let Some(p) = ps[m2] {
+                self.try_place(m, p).unwrap();
+            }
+        }
     }
 }
 

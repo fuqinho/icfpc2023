@@ -11,12 +11,12 @@ use anyhow::{bail, Result};
 type Board = common::board::Board<F32>;
 type P = Vector<f64>;
 
-const MAX_TEMP: f64 = 5_000_000.0;
+const MAX_TEMP: f64 = 10_000_000.0;
 const MIN_TEMP: f64 = 0.0;
 const TEMP_FUNC_POWER: f64 = 2.0;
 
 const MAX_MOVE_DIST: f64 = 40.0;
-const MIN_MOVE_DIST: f64 = 40.0;
+const MIN_MOVE_DIST: f64 = 5.0;
 
 pub struct Solver {
     board: Board,
@@ -119,6 +119,8 @@ impl Solver {
             }
         }
 
+        self.board.hungarian();
+
         self.board.clone()
     }
 
@@ -218,17 +220,35 @@ impl Solver {
                 self.set_visibility(x, y_vis).unwrap();
                 self.set_visibility(y, x_vis).unwrap();
 
-                return true;
+                true
             }
-            Action::MoveRandom(m, _, p) => return self.move_musician_to(m, p).is_ok(),
+            Action::MoveRandom(m, _, p) => self.move_musician_to(m, p).is_ok(),
             Action::MoveDir(m, dir) => {
                 let dest = self.move_to_dir(self.musicians[m], dir);
-                return self.move_musician_to(m, dest).is_ok();
+                self.move_musician_to(m, dest).is_ok()
+            }
+            Action::Hungarian => {
+                self.board.hungarian();
+
+                for (m, p) in self.board.musicians().iter().enumerate() {
+                    if let Some((p, _)) = p {
+                        self.musicians[m] = *p;
+                        self.is_visible[m] = true;
+                    } else {
+                        self.is_visible[m] = false;
+                    }
+                }
+
+                true
             }
         }
     }
 
     fn random_action(&mut self, iter: usize) -> Action {
+        if self.rng.gen_range(0..1_000_000) == 0 {
+            return Action::Hungarian;
+        }
+
         loop {
             let v = self.rng.gen_range(0..100);
 
@@ -361,6 +381,7 @@ enum Action {
     Swap(usize, usize),
     MoveRandom(usize, /* from */ P, /* to */ P),
     MoveDir(usize, P),
+    Hungarian,
 }
 
 impl Action {
@@ -369,6 +390,7 @@ impl Action {
             Action::Swap(x, y) => Action::Swap(*x, *y),
             Action::MoveRandom(m, orig, p) => Action::MoveRandom(*m, *p, *orig),
             Action::MoveDir(m, p) => Action::MoveDir(*m, -*p),
+            Action::Hungarian => Action::Hungarian,
         }
     }
 }
