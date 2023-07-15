@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use common::{board_options::BoardOptions, float::F32, Problem};
+use common::{board_options::BoardOptions, float, Problem};
 use log::info;
 use lyon_geom::{Box2D, LineSegment, Vector};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
@@ -8,7 +8,7 @@ use rand::{rngs::SmallRng, Rng, SeedableRng};
 use crate::pretty::pretty;
 use anyhow::{bail, Result};
 
-type Board = common::board::Board<F32>;
+type Board = common::board::Board<float::F64>;
 type P = Vector<f64>;
 
 const MAX_TEMP: f64 = 10_000_000.0;
