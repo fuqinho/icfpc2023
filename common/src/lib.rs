@@ -6,6 +6,7 @@ pub mod evaluate;
 pub mod float;
 pub mod geom;
 pub mod problem;
+pub mod vec2;
 
 pub use evaluate::*;
 pub use problem::*;

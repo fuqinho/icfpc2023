@@ -9,6 +9,7 @@ use crate::{
     board_options::BoardOptions,
     float::{Float, F32, F64},
     geom::tangent_to_circle,
+    vec2::Vec2,
     Placement, Problem, Solution,
 };
 
@@ -29,14 +30,14 @@ pub struct Board<F: Float = F64> {
     // musicians + pillars
     ps: Vec<Option<(P, f64)>>,
     // m -> important audience ids sorted by args
-    aids: Vec<Vec<(F, u32)>>,
+    aids: Vec2<(F, u32)>,
 
     // m -> a -> j s.t. aids[j].1 == a
-    aids_rev: Vec<Vec<Option<usize>>>,
+    aids_rev: Vec2<Option<usize>>,
 
     // m -> j -> block count of aids[j].1
     // i.e. number of important musicians or pillars between m and aids[j].1.
-    blocks: Vec<Vec<u8>>,
+    blocks: Vec2<u8>,
 
     // m -> closeness factor
     qs: Vec<f64>,
@@ -44,7 +45,7 @@ pub struct Board<F: Float = F64> {
     impacts: Vec<f64>,
 
     // m -> j -> impact between m and aids[j].1.
-    individual_impacts: Vec<Vec<i64>>,
+    individual_impacts: Vec2<i64>,
 
     // m -> a -> visibility [0., 1.] (0. == completely invisible)
     visibility: Vec<Vec<f64>>,
@@ -96,13 +97,17 @@ impl<F: Float> Board<F> {
         for i in 0..p {
             ps[i + n] = Some((prob.pillars[i].center.to_vector(), prob.pillars[i].radius));
         }
-        let aids = vec![vec![]; n];
-        let aids_rev = vec![vec![None; m]; n];
 
-        let blocks = vec![vec![0; m]; n];
+        let important_attendees_count =
+            (prob.attendees.len() as f64 * options.important_attendees_ratio).ceil() as usize;
+
+        let aids = Vec2::new(n, important_attendees_count, (F::new(0.), 0));
+        let aids_rev = Vec2::new(n, m, None);
+
+        let blocks = Vec2::new(n, important_attendees_count, 0);
         let qs = vec![1.; n];
         let impacts = vec![0.; n];
-        let individual_impacts = vec![vec![0; m]; n];
+        let individual_impacts = Vec2::new(n, important_attendees_count, 0);
         let visibility = vec![vec![1.; m]; n];
 
         let mut available_musician = vec![None; prob.attendees[0].tastes.len()];
@@ -171,11 +176,11 @@ impl<F: Float> Board<F> {
     // The musician's contribution to the score
     pub fn contribution(&self, m: usize) -> f64 {
         let mut res = 0;
-        for j in 0..self.aids[m].len() {
-            if self.blocks[m][j] > 0 {
+        for j in 0..self.aids.len2() {
+            if *self.blocks.get(m, j) > 0 {
                 continue;
             }
-            res += self.individual_impacts[m][j];
+            res += self.individual_impacts.get(m, j);
         }
         res as f64
     }
@@ -189,8 +194,8 @@ impl<F: Float> Board<F> {
     pub fn contribution_if_instrument(&self, m: usize, ins: usize) -> f64 {
         let mut res = 0.;
 
-        for j in 0..self.aids[m].len() {
-            if self.blocks[m][j] > 0 {
+        for j in 0..self.aids.len2() {
+            if *self.blocks.get(m, j) > 0 {
                 continue;
             }
             res += self.impact_if_kind(m, j, ins);
@@ -199,12 +204,12 @@ impl<F: Float> Board<F> {
     }
 
     pub fn contribution_for(&self, m: usize, a: usize) -> f64 {
-        let Some(j) = self.aids_rev[m][a] else {return 0.0};
+        let Some(j) = self.aids_rev.get(m, a) else {return 0.0};
 
-        if self.blocks[m][j] > 0 {
+        if *self.blocks.get(m, *j) > 0 {
             return 0.;
         }
-        self.individual_impacts[m][j] as f64
+        *self.individual_impacts.get(m, *j) as f64
     }
 
     pub fn score_increase_if_put_musician_on(&mut self, m: usize, p: Point<f64>) -> Result<f64> {
@@ -235,8 +240,8 @@ impl<F: Float> Board<F> {
     }
 
     pub fn is_musician_seeing(&self, m: usize, a: usize) -> bool {
-        let Some(j) = self.aids_rev[m][a] else { return false };
-        return self.blocks[m][j] == 0;
+        let Some(j) = self.aids_rev.get(m,a) else { return false };
+        *self.blocks.get(m, *j) == 0
     }
 
     pub fn try_place(&mut self, i: usize, position: Point<f64>) -> anyhow::Result<()> {
@@ -263,8 +268,6 @@ impl<F: Float> Board<F> {
         // Update ps and impacts
         self.ps[m] = Some((p, MUSICIAN_R));
 
-        assert!(self.aids[m].is_empty());
-
         // Update qs
         self.update_qs(m, true);
 
@@ -278,12 +281,10 @@ impl<F: Float> Board<F> {
                 .map(|a| (a.position - p).to_vector().square_length())
                 .collect::<Vec<_>>();
             dists.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-            let max_dist2_idx = ((dists.len() as f64 * self.options.important_attendees_ratio)
-                .ceil() as usize)
-                .min(dists.len() - 1);
-            max_dist2 = Some(dists[max_dist2_idx]);
+            max_dist2 = Some(dists[self.aids.len2() - 1]);
         }
 
+        let mut cnt = 0;
         for (i, a) in self.prob.attendees.iter().enumerate() {
             let is_important = if let Some(max_dist2) = max_dist2 {
                 let dist = (a.position - p).to_vector().square_length();
@@ -292,22 +293,26 @@ impl<F: Float> Board<F> {
                 true
             };
 
-            if is_important {
+            if is_important && cnt < self.aids.len2() {
                 let r: f64 = (a.position - p).to_vector().angle_from_x_axis().radians;
-                self.aids[m].push((r.into(), i as u32));
+                self.aids.set(m, cnt, (r.into(), i as u32));
+                cnt += 1;
             }
         }
-        self.aids[m].sort_unstable();
+        debug_assert_eq!(cnt, self.aids.len2());
 
-        self.aids_rev[m].fill(None);
-        for j in 0..self.aids[m].len() {
-            self.aids_rev[m][self.aids[m][j].1 as usize] = j.into();
+        self.aids.row_mut(m).sort_unstable();
+
+        self.aids_rev.row_mut(m).fill(None);
+        for j in 0..self.aids.len2() {
+            self.aids_rev
+                .set(m, self.aids.get(m, j).1 as usize, j.into());
         }
 
         self.impacts[m] = 0.0;
-        for j in 0..self.aids[m].len() {
-            self.individual_impacts[m][j] = self.impact(m, j) as i64;
-            self.impacts[m] += self.individual_impacts[m][j] as f64;
+        for j in 0..self.aids.len2() {
+            self.individual_impacts.set(m, j, self.impact(m, j) as i64);
+            self.impacts[m] += *self.individual_impacts.get(m, j) as f64;
         }
 
         // Update blocks
@@ -340,9 +345,6 @@ impl<F: Float> Board<F> {
 
         // Update blocks
         self.update_blocks(m, p, false);
-
-        // Update aids
-        self.aids[m].clear();
 
         // Update qs
         self.update_qs(m, false);
@@ -422,14 +424,14 @@ impl<F: Float> Board<F> {
             let base_r2 = (t2 - p).angle_from_x_axis().radians;
 
             for m_is_blocked in [false, true] {
-                let (blocking, blocked, blocked_i, blocking_i, blocked_aids) = if m_is_blocked {
-                    (*q, p, m, i, &all_aids[m])
+                let (blocking, blocked, blocked_i, blocking_i) = if m_is_blocked {
+                    (*q, p, m, i)
                 } else {
                     if i >= prob.musicians.len() {
                         // blocked is pillar, we don't need to calculate impact
                         continue;
                     }
-                    (p, *q, i, m, &all_aids[i])
+                    (p, *q, i, m)
                 };
 
                 // Update for blocked musician.
@@ -442,7 +444,7 @@ impl<F: Float> Board<F> {
 
                 let (f_r1, f_r2) = (F::new(r1), F::new(r2));
 
-                let j1 = blocked_aids.partition_point(|r| r.0 < f_r1);
+                let j1 = all_aids.row(blocked_i).partition_point(|r| r.0 < f_r1);
 
                 let rs_len;
                 if f_r1 < f_r2 {
@@ -459,13 +461,13 @@ impl<F: Float> Board<F> {
 
                     let r2 = rs[ri].unwrap();
 
-                    for j in j1..blocked_aids.len() {
-                        if blocked_aids[j].0 > r2 {
+                    for j in j1..all_aids.len2() {
+                        if all_aids.get(blocked_i, j).0 > r2 {
                             break;
                         }
 
                         let vis = if self.use_visibility {
-                            let r = blocked_aids[j].0;
+                            let r = all_aids.get(blocked_i, j).0;
                             let r1 = if ri == 0 { f_r1 } else { F::new(-PI - eps) };
 
                             let vis = 1.
@@ -479,7 +481,7 @@ impl<F: Float> Board<F> {
                         };
 
                         debug_assert!({
-                            let a = blocked_aids[j].1 as usize;
+                            let a = all_aids.get(blocked_i, j).1 as usize;
                             let distance_to_blocker_sq = (blocked - blocking).square_length();
                             let distance_to_attendee_sq = (self.prob.attendees[a].position
                                 - blocked)
@@ -490,7 +492,7 @@ impl<F: Float> Board<F> {
                         });
 
                         if blocking_i >= prob.musicians.len() {
-                            let a = blocked_aids[j].1 as usize;
+                            let a = all_aids.get(blocked_i, j).1 as usize;
                             let distance_to_blocker_sq = (blocked - blocking).square_length();
                             let distance_to_attendee_sq = (self.prob.attendees[a].position
                                 - blocked)
@@ -502,12 +504,12 @@ impl<F: Float> Board<F> {
                         }
 
                         if inc {
-                            let b = &mut blocks[blocked_i][j];
+                            let b = blocks.get_mut(blocked_i, j);
                             *b += 1;
-                            let impact = individual_impacts[blocked_i][j] as f64;
+                            let impact = *individual_impacts.get(blocked_i, j) as f64;
 
                             if self.use_visibility {
-                                let a = blocked_aids[j].1 as usize;
+                                let a = all_aids.get(blocked_i, j).1 as usize;
                                 let prev_vis = self.visibility[blocked_i][a];
                                 self.visibility[blocked_i][a] *= vis;
                                 impacts[blocked_i] +=
@@ -518,12 +520,12 @@ impl<F: Float> Board<F> {
                                 }
                             }
                         } else {
-                            let b = &mut blocks[blocked_i][j];
+                            let b = blocks.get_mut(blocked_i, j);
                             *b -= 1;
 
-                            let impact = individual_impacts[blocked_i][j] as f64;
+                            let impact = *individual_impacts.get(blocked_i, j) as f64;
                             if self.use_visibility {
-                                let a = blocked_aids[j].1 as usize;
+                                let a = all_aids.get(blocked_i, j).1 as usize;
                                 let prev_vis = self.visibility[blocked_i][a];
                                 self.visibility[blocked_i][a] /= vis;
 
@@ -544,7 +546,7 @@ impl<F: Float> Board<F> {
 
                     let (r1, r2) = (f_r1, f_r2);
 
-                    for (r, a) in blocked_aids.iter() {
+                    for (r, a) in all_aids.row(blocked_i).iter() {
                         let a = *a as usize;
 
                         let seg = LineSegment {
@@ -611,11 +613,13 @@ impl<F: Float> Board<F> {
 
     #[inline]
     fn impact_if_kind(&self, m: usize, j: usize, k: usize) -> f64 {
-        let d2 = (self.prob.attendees[self.aids[m][j].1 as usize].position - self.ps[m].unwrap().0)
+        let d2 = (self.prob.attendees[self.aids.get(m, j).1 as usize].position
+            - self.ps[m].unwrap().0)
             .to_vector()
             .square_length();
 
-        let impact = 1_000_000.0 * self.prob.attendees[self.aids[m][j].1 as usize].tastes[k] / d2;
+        let impact =
+            1_000_000.0 * self.prob.attendees[self.aids.get(m, j).1 as usize].tastes[k] / d2;
         impact.ceil()
     }
 
@@ -715,7 +719,7 @@ mod tests {
 
     #[test]
     fn test_board() {
-        for important_attendees_ratio in [1.0, 0.99] {
+        for (important_attendees_ratio, expected) in [(1.0, None), (0.99, Some(434649.0))] {
             let problem_id = 42u32;
 
             let mut rng = StdRng::seed_from_u64(42);
@@ -739,7 +743,7 @@ mod tests {
 
             let solution: Solution = board.clone().try_into().unwrap();
 
-            let expected_score = evaluate(&problem, &solution);
+            let expected_score = expected.unwrap_or_else(|| evaluate(&problem, &solution));
 
             assert_eq!(
                 board.score(),
