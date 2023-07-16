@@ -18,6 +18,10 @@ const TEMP_FUNC_POWER: f64 = 2.0;
 const MAX_MOVE_DIST: f64 = 40.0;
 const MIN_MOVE_DIST: f64 = 5.0;
 
+// 0 -> all area is forbidden.
+// x -> forbidden.max == stage.max - (stage.max - stage.min) * important_musician_ragnge * x
+const FORBIDDEN_AREA_COEFF: f64 = 0.5;
+
 pub struct Solver {
     board: Board,
     num_iter: usize,
@@ -51,8 +55,9 @@ impl Solver {
 
         let rng = SmallRng::seed_from_u64(0);
 
-        let d =
-            (board.prob.stage.min - board.prob.stage.max).normalize() * important_musician_range;
+        let d = (board.prob.stage.min - board.prob.stage.max).normalize()
+            * important_musician_range
+            * FORBIDDEN_AREA_COEFF;
         let forbidden_area = Box2D::new(board.prob.stage.min, board.prob.stage.max + d);
 
         let visible_musicians_count =
