@@ -278,10 +278,10 @@ impl<F: Float> Board<F> {
                 .prob
                 .attendees
                 .iter()
-                .map(|a| (a.position - p).to_vector().square_length())
-                .collect::<Vec<_>>();
-            dists.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
-            max_dist2 = Some(dists[self.aids.len2() - 1]);
+                .map(|a| (a.position - p).to_vector().square_length().into())
+                .collect::<Vec<F64>>();
+            dists.sort_unstable();
+            max_dist2 = Some(dists[self.aids.len2() - 1].get());
         }
 
         let mut cnt = 0;
