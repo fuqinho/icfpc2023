@@ -321,6 +321,7 @@ impl<F: Float> Board<F> {
         self.update_available_musician(m);
     }
 
+    // Returns whether i can be moved to the position.
     pub fn can_place(&self, i: usize, position: Point<f64>) -> bool {
         let mut bb = self.prob.stage;
         bb.max += P::new(1e-9, 1e-9);

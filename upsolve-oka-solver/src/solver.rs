@@ -175,23 +175,22 @@ impl Solver {
         if !self.board.prob.stage.contains(p.to_point()) {
             bail!("Out of stage");
         }
+
         if !self.is_visible[m] {
             self.musicians[m] = p;
             return Ok(());
         }
 
-        let orig = self.board.musicians()[m].unwrap().0;
-
-        assert_eq!(orig, self.musicians[m]);
+        if !self.board.can_place(m, p.to_point()) {
+            bail!("Cannot place");
+        }
 
         self.board.unplace(m);
 
-        if let Err(e) = self.board.try_place(m, p.to_point()) {
-            self.board.try_place(m, orig.to_point()).unwrap();
-            return Err(e);
-        }
+        self.board.try_place(m, p.to_point()).unwrap();
 
         self.musicians[m] = p;
+
         Ok(())
     }
 
