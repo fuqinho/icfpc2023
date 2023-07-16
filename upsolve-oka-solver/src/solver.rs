@@ -5,24 +5,15 @@ use log::info;
 use lyon_geom::{Box2D, LineSegment, Vector};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
 
-use crate::pretty::pretty;
+use crate::{params::Params, pretty::pretty};
 use anyhow::{bail, Result};
 
 type Board = common::board::Board<float::F64>;
 type P = Vector<f64>;
 
-const MAX_TEMP: f64 = 10_000_000.0;
-const MIN_TEMP: f64 = 0.0;
-const TEMP_FUNC_POWER: f64 = 2.0;
-
-const MAX_MOVE_DIST: f64 = 40.0;
-const MIN_MOVE_DIST: f64 = 5.0;
-
-// 0 -> all area is forbidden.
-// x -> forbidden.max == stage.max - (stage.max - stage.min) * important_musician_ragnge * x
-const FORBIDDEN_AREA_COEFF: f64 = 0.5;
-
 pub struct Solver {
+    orig_problem: Problem,
+
     board: Board,
     num_iter: usize,
     rng: SmallRng,
@@ -33,22 +24,21 @@ pub struct Solver {
 
     is_visible: Vec<bool>,
     musicians: Vec<P>,
+
+    params: Params,
 }
 
 impl Solver {
-    pub fn new(problem_id: u32, problem: Problem, num_iter: usize) -> Self {
+    pub fn new(problem_id: u32, problem: Problem, num_iter: usize, params: Params) -> Self {
         if problem.stage.min.x > 0. || problem.stage.min.y > 0. {
             panic!("Unsupported stage min: {:?}", problem.stage.min);
         }
 
-        // Parameters
-        let placed_musicians_ratio = 0.5;
-        let important_attendees_ratio = 0.2;
-        let important_musician_range = 300.0;
+        let orig_problem = problem.clone();
 
         let options = BoardOptions::default()
-            .with_important_attendees_ratio(important_attendees_ratio)
-            .with_important_musician_range(important_musician_range);
+            .with_important_attendees_ratio(params.important_attendees_ratio)
+            .with_important_musician_range(params.important_musician_range);
 
         let board =
             Board::new_with_options(problem_id, problem, "upsolve-oka-solver", false, options);
@@ -56,16 +46,17 @@ impl Solver {
         let rng = SmallRng::seed_from_u64(0);
 
         let d = (board.prob.stage.min - board.prob.stage.max).normalize()
-            * important_musician_range
-            * FORBIDDEN_AREA_COEFF;
+            * params.important_musician_range
+            * params.forbidden_area_coeff;
         let forbidden_area = Box2D::new(board.prob.stage.min, board.prob.stage.max + d);
 
         let visible_musicians_count =
-            (board.musicians().len() as f64 * placed_musicians_ratio) as usize;
+            (board.musicians().len() as f64 * params.placed_musicians_ratio) as usize;
         let is_visible = vec![false; board.musicians().len()];
         let musicians = vec![board.prob.stage.min.to_vector(); board.musicians().len()];
 
         Self {
+            orig_problem,
             board,
             num_iter,
             rng,
@@ -73,6 +64,7 @@ impl Solver {
             visible_musicians_count,
             is_visible,
             musicians,
+            params,
         }
     }
 
@@ -108,24 +100,35 @@ impl Solver {
             }
         }
 
-        // Place remaining musicians randomly
-        let mut remaining_musicians = vec![];
+        let mut res_board = Board::new(
+            self.board.problem_id,
+            self.orig_problem.clone(),
+            "upsolve-oka-solver",
+            false,
+        );
+
         for i in 0..self.board.musicians().len() {
-            if self.is_visible[i] {
-                continue;
-            }
-            remaining_musicians.push(i);
+            res_board.set_volume(i, 10.0);
         }
 
-        for x in ((self.board.prob.stage.min.x as usize)..(self.board.prob.stage.max.x as usize))
+        let mut remaining_musicians = vec![];
+        for i in 0..self.board.musicians().len() {
+            if let Some((p, _)) = self.board.musicians()[i] {
+                res_board.try_place(i, p.to_point()).unwrap();
+            } else {
+                remaining_musicians.push(i);
+            }
+        }
+
+        // Place remaining musicians
+        for x in ((res_board.prob.stage.min.x as usize)..=(res_board.prob.stage.max.x as usize))
             .step_by(10)
         {
             if remaining_musicians.is_empty() {
                 break;
             }
 
-            for y in ((self.board.prob.stage.min.y as usize)
-                ..(self.board.prob.stage.max.y as usize))
+            for y in ((res_board.prob.stage.min.y as usize)..=(res_board.prob.stage.max.y as usize))
                 .step_by(10)
             {
                 if remaining_musicians.is_empty() {
@@ -134,20 +137,15 @@ impl Solver {
 
                 let p = P::new(x as f64, y as f64);
 
-                if self.forbidden_area.contains(p.to_point()) {
-                    continue;
-                }
-
                 let m = remaining_musicians.last().unwrap();
-                self.move_musician_to(*m, p).unwrap();
 
-                let prev_score = self.board.score();
+                let prev_score = res_board.score();
 
-                if self.set_visibility(*m, true).is_err() {
+                if res_board.try_place(*m, p.to_point()).is_err() {
                     continue;
                 }
-                if self.board.score() < prev_score {
-                    self.set_visibility(*m, false).unwrap();
+                if res_board.score() < prev_score {
+                    res_board.unplace(*m);
                     continue;
                 }
 
@@ -155,9 +153,9 @@ impl Solver {
             }
         }
 
-        self.board.hungarian();
+        res_board.hungarian();
 
-        self.board.clone()
+        res_board
     }
 
     fn set_visibility(&mut self, m: usize, visible: bool) -> Result<()> {
@@ -200,12 +198,12 @@ impl Solver {
     }
 
     fn temp(&self, iter: usize) -> f64 {
-        let max_temp = MAX_TEMP;
-        let min_temp = MIN_TEMP;
+        let max_temp = self.params.max_temp;
+        let min_temp = self.params.min_temp;
 
         let r = iter as f64 / self.num_iter as f64;
 
-        min_temp + (max_temp - min_temp) * (1. - r).powf(TEMP_FUNC_POWER)
+        min_temp + (max_temp - min_temp) * (1. - r).powf(self.params.temp_func_power)
     }
 
     fn step(&mut self, iter: usize) {
@@ -279,16 +277,15 @@ impl Solver {
     }
 
     fn random_action(&mut self, iter: usize) -> Action {
-        if self.rng.gen_range(0..1_000_000) == 0 {
+        if self.rng.gen_range(0..self.params.hungarian_rarity) == 0 {
             return Action::Hungarian;
         }
 
         loop {
-            let v = self.rng.gen_range(0..100);
+            let v = self.rng.gen_range(0..50);
 
-            match v {
-                // Swap random two musicianss
-                0..=7 => loop {
+            if (0..self.params.swap).contains(&v) {
+                loop {
                     let x = self.random_musician();
                     let y = self.random_musician();
 
@@ -300,23 +297,18 @@ impl Solver {
                     }
 
                     return Action::Swap(x, y);
-                },
-                // Move a musician to a random place
-                10..=11 => {
-                    let x = self.random_visible_musician();
-                    let orig = self.musicians[x];
-                    let p = self.random_place();
-
-                    return Action::MoveRandom(x, orig, p);
                 }
-                // Move a musician to a random direction
-                20..=29 => {
-                    let x = self.random_visible_musician();
-                    let dir = self.random_direction(iter);
+            } else if (10..(10 + self.params.move_random)).contains(&v) {
+                let x = self.random_visible_musician();
+                let orig = self.musicians[x];
+                let p = self.random_place();
 
-                    return Action::MoveDir(x, dir);
-                }
-                _ => continue,
+                return Action::MoveRandom(x, orig, p);
+            } else if (20..(20 + self.params.move_dir)).contains(&v) {
+                let x = self.random_visible_musician();
+                let dir = self.random_direction(iter);
+
+                return Action::MoveDir(x, dir);
             }
         }
     }
@@ -329,9 +321,10 @@ impl Solver {
 
         let dd = d.powi(2);
 
-        let max_dist = MAX_MOVE_DIST
-            - (MAX_MOVE_DIST - MIN_MOVE_DIST) * (MAX_TEMP - self.temp(iter))
-                / (MAX_TEMP - MIN_TEMP);
+        let max_dist = self.params.max_move_dist
+            - (self.params.max_move_dist - self.params.min_move_dist)
+                * (self.params.max_temp - self.temp(iter))
+                / (self.params.max_temp - self.params.min_temp);
 
         P::new(x * max_dist * dd, y * max_dist * dd)
     }

@@ -1,7 +1,12 @@
+pub mod output;
+pub mod params;
 pub mod pretty;
 pub mod solver;
 
-use std::{fs::File, io::Write};
+use std::{
+    fs::{read_to_string, File},
+    io::Write,
+};
 
 use chrono::Local;
 use env_logger::Builder;
@@ -12,11 +17,16 @@ use pprof::protos::Message;
 use pretty::pretty;
 use solver::Solver;
 
+const PARAMS: &str = include_str!("../params.json");
+
 #[argopt::cmd]
 fn main(
     problem_id: u32,
     #[opt(long, short, default_value = "500000")] num_iter: usize,
     #[opt(long, short)] profile: bool,
+    #[opt(long, default_value = "")] params: String,
+    #[opt(long, default_value = "")] output: String,
+    #[opt(long)] quiet: bool,
 ) {
     Builder::new()
         .format(|buf, record| {
@@ -28,14 +38,29 @@ fn main(
                 record.args()
             )
         })
-        .filter(None, LevelFilter::Info)
+        .filter(
+            None,
+            if quiet {
+                LevelFilter::Warn
+            } else {
+                LevelFilter::Info
+            },
+        )
         .init();
 
     let cl = Client::new();
 
     let problem = cl.get_problem(problem_id).unwrap();
 
-    let mut solver = Solver::new(problem_id, problem.clone(), num_iter);
+    let params_str = if params.is_empty() {
+        PARAMS.to_string()
+    } else {
+        read_to_string(params).unwrap()
+    };
+
+    let params = serde_json::from_str(&params_str).unwrap();
+
+    let mut solver = Solver::new(problem_id, problem.clone(), num_iter, params);
 
     let guard = if profile {
         Some(pprof::ProfilerGuardBuilder::default().build().unwrap())
@@ -76,4 +101,8 @@ fn main(
     eprintln!("Writing to file {filename}");
 
     Solution::write_to_file(filename, solution).unwrap();
+
+    if !output.is_empty() {
+        serde_json::to_writer(File::create(output).unwrap(), &output::Output { score }).unwrap();
+    }
 }
