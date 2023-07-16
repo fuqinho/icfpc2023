@@ -236,20 +236,19 @@ impl Solver {
     fn apply(&mut self, action: Action) -> bool {
         match action {
             Action::Swap(x, y) => {
-                let xp = self.musicians[x];
-                let yp = self.musicians[y];
-
                 let x_vis = self.is_visible[x];
                 let y_vis = self.is_visible[y];
 
-                self.set_visibility(x, false).unwrap();
-                self.set_visibility(y, false).unwrap();
+                let xp = self.musicians[x];
+                let yp = self.musicians[y];
 
-                self.move_musician_to(x, yp).unwrap();
-                self.move_musician_to(y, xp).unwrap();
+                self.board.swap(x, y);
 
-                self.set_visibility(x, y_vis).unwrap();
-                self.set_visibility(y, x_vis).unwrap();
+                self.is_visible[x] = y_vis;
+                self.is_visible[y] = x_vis;
+
+                self.musicians[x] = yp;
+                self.musicians[y] = xp;
 
                 true
             }
@@ -285,7 +284,7 @@ impl Solver {
 
             match v {
                 // Swap random two musicianss
-                0..=9 => loop {
+                0..=7 => loop {
                     let x = self.random_musician();
                     let y = self.random_musician();
 
@@ -299,7 +298,7 @@ impl Solver {
                     return Action::Swap(x, y);
                 },
                 // Move a musician to a random place
-                10..=19 => {
+                10..=11 => {
                     let x = self.random_visible_musician();
                     let orig = self.musicians[x];
                     let p = self.random_place();
@@ -307,7 +306,7 @@ impl Solver {
                     return Action::MoveRandom(x, orig, p);
                 }
                 // Move a musician to a random direction
-                20..=99 => {
+                20..=29 => {
                     let x = self.random_visible_musician();
                     let dir = self.random_direction(iter);
 

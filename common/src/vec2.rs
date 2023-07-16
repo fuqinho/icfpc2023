@@ -53,4 +53,10 @@ impl<T> Vec2<T> {
 
         &mut self.v[i * self.m..(i + 1) * self.m]
     }
+
+    pub fn swap(&mut self, i1: usize, j1: usize, i2: usize, j2: usize) {
+        let x = i1 * self.m + j1;
+        let y = i2 * self.m + j2;
+        self.v.swap(x, y)
+    }
 }

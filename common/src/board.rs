@@ -588,8 +588,10 @@ impl<F: Float> Board<F> {
             return;
         }
 
-        if self.available_musician[ins].unwrap() != m {
-            return;
+        if let Some(m2) = self.available_musician[ins] {
+            if m2 != m {
+                return;
+            }
         }
 
         self.available_musician[ins] = None;
@@ -690,6 +692,51 @@ impl<F: Float> Board<F> {
             if let Some(p) = ps[m2] {
                 self.try_place(m, p).unwrap();
             }
+        }
+    }
+
+    pub fn swap(&mut self, m: usize, m2: usize) {
+        if m == m2 {
+            return;
+        }
+        if self.ps[m].is_none() && self.ps[m2].is_none() {
+            return;
+        }
+        if self.prob.is_v2() {
+            panic!("cannot swap musicians in v2");
+        }
+        if self.use_visibility {
+            panic!("cannot swap musicians if use_visibility is set");
+        }
+
+        // Swap ps, aids, aids_rev, volumes, blocks
+        self.ps.swap(m, m2);
+        for i in 0..self.aids.len2() {
+            self.aids.swap(m, i, m2, i);
+        }
+        for i in 0..self.aids_rev.len2() {
+            self.aids_rev.swap(m, i, m2, i);
+        }
+        self.volumes.swap(m, m2);
+        for i in 0..self.blocks.len2() {
+            self.blocks.swap(m, i, m2, i);
+        }
+
+        // Recompute individual_impacts and impacts.
+        for i in [m, m2] {
+            self.impacts[i] = 0.;
+
+            if self.ps[i].is_some() {
+                for j in 0..self.aids.len2() {
+                    let impact = self.impact(i, j);
+                    self.individual_impacts.set(i, j, impact as i64);
+                    if *self.blocks.get(i, j) == 0 {
+                        self.impacts[i] += impact;
+                    }
+                }
+            }
+
+            self.update_available_musician(i);
         }
     }
 }
