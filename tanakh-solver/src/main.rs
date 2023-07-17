@@ -1,6 +1,5 @@
 use anyhow::Result;
 use common::{api::Client, RawSolution, Solution};
-use pprof::protos::Message;
 use rand::Rng;
 use std::{fs::File, io::Write, path::PathBuf};
 
@@ -82,21 +81,7 @@ fn main(
     problem_id: u32,
     // Use blur
     #[opt(long)] use_visibility: bool,
-    // Profile
-    #[opt(long)] profile: bool,
 ) -> Result<()> {
-    let guard = if profile {
-        Some(
-            pprof::ProfilerGuardBuilder::default()
-                .frequency(100)
-                .blocklist(&["libc", "libgcc", "pthread", "vdso"])
-                .build()
-                .unwrap(),
-        )
-    } else {
-        None
-    };
-
     let client = Client::new();
 
     // let problem = get_problem_from_file(problem_id)?;
@@ -166,18 +151,6 @@ fn main(
     let Some(mut solution) = solution.solution else {
         anyhow::bail!("Valid solution not found")
     };
-
-    if let Some(guard) = guard {
-        if let Ok(report) = guard.report().build() {
-            println!("Writing ./results/profile.pb");
-            let mut file = File::create("results/profile.pb").unwrap();
-            let profile = report.pprof().unwrap();
-
-            let mut content = Vec::new();
-            profile.write_to_vec(&mut content).unwrap();
-            file.write_all(&content).unwrap();
-        };
-    }
 
     post_process(problem_id, &problem, &mut solution);
 
