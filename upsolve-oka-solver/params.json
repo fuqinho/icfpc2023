@@ -1,15 +1,15 @@
 {
-    "placed_musicians_ratio": 0.39284349990891937,
-    "important_attendees_ratio": 0.161791379541514,
-    "important_musician_range": 210,
+    "placed_musicians_ratio": 0.5,
+    "important_attendees_ratio": 0.2,
+    "important_musician_range": 300,
     "max_temp": 16000000,
     "min_temp": 70000,
     "temp_func_power": 2.4234973901903913,
     "max_move_dist": 84,
     "min_move_dist": 1,
-    "forbidden_area_coeff": 0.4387106895950378,
+    "forbidden_area_coeff": 0.5,
     "hungarian_rarity": 53000000,
     "swap": 8,
     "move_random": 3,
-    "move_dir": 10
+    "move_dir": 20
 }

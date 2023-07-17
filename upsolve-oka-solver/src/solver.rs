@@ -282,7 +282,7 @@ impl Solver {
         }
 
         loop {
-            let v = self.rng.gen_range(0..50);
+            let v = self.rng.gen_range(0..60);
 
             if (0..self.params.swap).contains(&v) {
                 loop {
@@ -298,13 +298,13 @@ impl Solver {
 
                     return Action::Swap(x, y);
                 }
-            } else if (10..(10 + self.params.move_random)).contains(&v) {
+            } else if (20..(20 + self.params.move_random)).contains(&v) {
                 let x = self.random_visible_musician();
                 let orig = self.musicians[x];
                 let p = self.random_place();
 
                 return Action::MoveRandom(x, orig, p);
-            } else if (20..(20 + self.params.move_dir)).contains(&v) {
+            } else if (40..(40 + self.params.move_dir)).contains(&v) {
                 let x = self.random_visible_musician();
                 let dir = self.random_direction(iter);
 

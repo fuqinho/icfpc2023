@@ -29,13 +29,13 @@ def objective(trial: optuna.Trial, temp_dir: str, exe: str) -> float:
 
     params = {
         "placed_musicians_ratio": trial.suggest_float(
-            "placed_musicians_ratio", 0.2, 0.5
+            "placed_musicians_ratio", 0.4, 0.6
         ),
         "important_attendees_ratio": trial.suggest_float(
-            "important_attendees_ratio", 0.1, 0.2
+            "important_attendees_ratio", 0.2, 0.3
         ),
         "important_musician_range": (
-            trial.suggest_int("important_musician_range", 200, 500, step=10)
+            trial.suggest_int("important_musician_range", 300, 500, step=10)
         ),
         "max_temp": trial.suggest_int(
             "max_temp", 1_000_000, 20_000_000, step=1_000_000
@@ -44,13 +44,13 @@ def objective(trial: optuna.Trial, temp_dir: str, exe: str) -> float:
         "temp_func_power": trial.suggest_float("temp_func_power", 1.0, 3.0),
         "max_move_dist": trial.suggest_int("max_move_dist", 40, 100),
         "min_move_dist": trial.suggest_int("min_move_dist", 1, 40),
-        "forbidden_area_coeff": trial.suggest_float("forbidden_area_coeff", 0.4, 1.0),
+        "forbidden_area_coeff": trial.suggest_float("forbidden_area_coeff", 0.5, 1.0),
         "hungarian_rarity": trial.suggest_int(
             "hungarian_rarity", 1_000_000, 100_000_000, step=1_000_000
         ),
-        "swap": trial.suggest_int("swap", 1, 10),
-        "move_random": trial.suggest_int("move_random", 1, 10),
-        "move_dir": trial.suggest_int("move_dir", 1, 10),
+        "swap": trial.suggest_int("swap", 1, 20),
+        "move_random": trial.suggest_int("move_random", 1, 20),
+        "move_dir": trial.suggest_int("move_dir", 1, 20),
     }
 
     param_file = os.path.join(temp_dir, "params.json")
