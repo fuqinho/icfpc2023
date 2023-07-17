@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     null,
     { attendeeHeatmapByScore: true },
     initialViewportState(problem, solution ?? null),
-    () => { },
+    () => {},
   );
   renderer.render();
   const pngBlob = offscreen.toBuffer("image/png");
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     null,
     { attendeeHeatmapByScore: true },
     initialViewportState(problem, solution ?? null),
-    () => { },
+    () => {},
   );
   renderer.render();
   const pngBlob = offscreen.toBuffer("image/png");

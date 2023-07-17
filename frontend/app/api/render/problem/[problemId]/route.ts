@@ -37,7 +37,7 @@ export async function GET(
     null,
     { attendeeHeatmapByScore: true },
     initialViewportState(problem, null),
-    () => { },
+    () => {},
   );
   renderer.render();
 
