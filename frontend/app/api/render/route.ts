@@ -1,4 +1,5 @@
-import { Problem, Solution } from "@/components/problems";
+import { NO_BACKEND } from "@/components/env";
+import { Problem, Solution, readProblem } from "@/components/problems";
 import { Renderer } from "@/components/visualizer/renderer";
 import {
   CANVAS_SIZE,
@@ -25,7 +26,7 @@ export async function POST(request: NextRequest) {
     null,
     { attendeeHeatmapByScore: true },
     initialViewportState(problem, solution ?? null),
-    () => {},
+    () => { },
   );
   renderer.render();
   const pngBlob = offscreen.toBuffer("image/png");
@@ -40,17 +41,26 @@ export async function GET(request: NextRequest) {
   const problemID = parseInt(searchParams.get("problem")!);
   const solutionID = searchParams.get("solution");
 
-  const response: AxiosResponse<Problem> = await axios.get(
-    `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/${problemID}/spec`,
-  );
-  const problem = response.data;
+  let problem: Problem;
+  if (NO_BACKEND) {
+    problem = readProblem(problemID);
+  } else {
+    const response: AxiosResponse<Problem> = await axios.get(
+      `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/${problemID}/spec`,
+    );
+    problem = response.data;
+  }
 
   let solution: Solution | null = null;
-  if (solutionID) {
-    const solResp = await axios.get<Solution>(
-      `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/solutions/${solutionID}/spec`,
-    );
-    solution = solResp.data;
+  if (NO_BACKEND) {
+    // TODO: read solution
+  } else {
+    if (solutionID) {
+      const solResp = await axios.get<Solution>(
+        `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/solutions/${solutionID}/spec`,
+      );
+      solution = solResp.data;
+    }
   }
 
   const offscreen = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
@@ -62,7 +72,7 @@ export async function GET(request: NextRequest) {
     null,
     { attendeeHeatmapByScore: true },
     initialViewportState(problem, solution ?? null),
-    () => {},
+    () => { },
   );
   renderer.render();
   const pngBlob = offscreen.toBuffer("image/png");

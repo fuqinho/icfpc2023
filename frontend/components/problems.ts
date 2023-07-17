@@ -1,3 +1,5 @@
+import problem1 from "../../problems/1.json";
+
 export interface Attendee {
   x: number;
   y: number;
@@ -28,4 +30,10 @@ export interface Musician {
 export interface Solution {
   problem_id: number;
   placements: Musician[];
+}
+
+export const problems = [problem1];
+
+export function readProblem(problemID: number): Problem {
+  return problems[problemID - 1];
 }
