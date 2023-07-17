@@ -17,7 +17,7 @@ struct Args {
     sa: bool,
     #[arg(long, default_value_t = 100000000)]
     iterations: usize,
-    #[arg(long, default_value_t = 1000000.0)]
+    #[arg(long, default_value_t = 10000000.0)]
     initial_temp: f64,
     #[arg(long, default_value_t = 100.)]
     final_temp: f64,
