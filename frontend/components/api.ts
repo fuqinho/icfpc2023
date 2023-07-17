@@ -3,10 +3,13 @@
 import axios from "axios";
 import type { AxiosResponse } from "axios";
 import useSWR from "swr";
-import { Problem, Solution } from "./problems";
+import { Problem, Solution, problems, readProblem } from "./problems";
+import { NO_BACKEND } from "./env";
 
 const client = axios.create({
-  baseURL: "https://icfpc2023-backend-uadsges7eq-an.a.run.app/",
+  baseURL: NO_BACKEND
+    ? "fake://"
+    : "https://icfpc2023-backend-uadsges7eq-an.a.run.app/",
 });
 
 export interface ProblemMetadata {
@@ -71,6 +74,10 @@ export function useProblemList() {
     },
     client,
   );
+  if (NO_BACKEND) {
+    const problemMetadata = problems.map((_, i) => ({ id: i + 1 }));
+    return { data: problemMetadata, error: null, isLoading: false };
+  }
   return { data: data?.data, error, isLoading };
 }
 
@@ -84,6 +91,13 @@ export function useProblemSpec(problemID: number | undefined) {
       : null,
     client,
   );
+  if (NO_BACKEND) {
+    return {
+      data: problemID && readProblem(problemID),
+      error: null,
+      isLoading: false,
+    };
+  }
   return { data: data?.data, error, isLoading };
 }
 
@@ -95,6 +109,10 @@ export function useBestSolutions() {
     },
     client,
   );
+
+  if (NO_BACKEND) {
+    return { data: [], error: null, isLoading: false };
+  }
 
   const allSolutions = data?.data ?? [];
   allSolutions.sort(
@@ -119,6 +137,11 @@ export function useSolutions() {
     },
     client,
   );
+
+  if (NO_BACKEND) {
+    return { data: [], error: null, isLoading: false };
+  }
+
   return { data: data?.data, error, isLoading };
 }
 
@@ -132,6 +155,11 @@ export function useKnownSolutions(problemID: number | undefined) {
       : null,
     client,
   );
+
+  if (NO_BACKEND) {
+    return { data: [], error: null, isLoading: false };
+  }
+
   if (data?.data) {
     data.data.sort(
       (a, b) =>

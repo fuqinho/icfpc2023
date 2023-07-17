@@ -108,7 +108,7 @@ export default function Home({ params }: { params: { problemId: string } }) {
 
   useEffect(() => {
     (async () => {
-      if (firstLoad && knownSolutions) {
+      if (firstLoad && knownSolutions && knownSolutions.length > 0) {
         setFirstLoad(false);
         const solution = await loadSolutionSpec(knownSolutions[0].uuid);
         parseAndSetSolution(JSON.stringify(solution));

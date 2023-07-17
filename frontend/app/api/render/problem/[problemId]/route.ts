@@ -1,4 +1,5 @@
-import { Problem } from "@/components/problems";
+import { NO_BACKEND } from "@/components/env";
+import { Problem, readProblem } from "@/components/problems";
 import { Renderer } from "@/components/visualizer/renderer";
 import {
   CANVAS_SIZE,
@@ -17,10 +18,15 @@ export async function GET(
     throw new Error("Invalid problem ID");
   }
 
-  const response: AxiosResponse<Problem> = await axios.get(
-    `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/${problemID}/spec`,
-  );
-  const problem = response.data;
+  let problem: Problem;
+  if (NO_BACKEND) {
+    problem = readProblem(problemID);
+  } else {
+    const response: AxiosResponse<Problem> = await axios.get(
+      `https://icfpc2023-backend-uadsges7eq-an.a.run.app/api/problems/${problemID}/spec`,
+    );
+    problem = response.data;
+  }
 
   const offscreen = createCanvas(CANVAS_SIZE, CANVAS_SIZE);
   const ctx = offscreen.getContext("2d")!;
