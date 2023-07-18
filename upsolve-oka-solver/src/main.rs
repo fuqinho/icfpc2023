@@ -12,21 +12,24 @@ use chrono::Local;
 use env_logger::Builder;
 use log::LevelFilter;
 
-use common::{api::Client, evaluate, Solution};
+use common::{evaluate, Problem, Solution};
 use pprof::protos::Message;
 use pretty::pretty;
 use solver::Solver;
+
+use crate::params::Params;
 
 const PARAMS: &str = include_str!("../params.json");
 
 #[argopt::cmd]
 fn main(
     problem_id: u32,
-    #[opt(long, short, default_value = "500000")] num_iter: usize,
+    #[opt(long, short, default_value = "5000000")] num_iter: usize,
     #[opt(long, short)] profile: bool,
     #[opt(long, default_value = "")] params: String,
     #[opt(long, default_value = "")] output: String,
     #[opt(long)] quiet: bool,
+    #[opt(long, default_value = "")] initial_solution: String,
 ) {
     Builder::new()
         .format(|buf, record| {
@@ -48,9 +51,7 @@ fn main(
         )
         .init();
 
-    let cl = Client::new();
-
-    let problem = cl.get_problem(problem_id).unwrap();
+    let problem = Problem::read_from_file(&format!("problems/{}.json", problem_id)).unwrap();
 
     let params_str = if params.is_empty() {
         PARAMS.to_string()
@@ -58,9 +59,21 @@ fn main(
         read_to_string(params).unwrap()
     };
 
-    let params = serde_json::from_str(&params_str).unwrap();
+    let params: Params = serde_json::from_str(&params_str).unwrap();
 
-    let mut solver = Solver::new(problem_id, problem.clone(), num_iter, params);
+    let initial_solution = if !initial_solution.is_empty() {
+        Some(Solution::read_from_file(initial_solution).unwrap())
+    } else {
+        None
+    };
+
+    let mut solver = Solver::new(
+        problem_id,
+        problem.clone(),
+        num_iter,
+        params,
+        initial_solution,
+    );
 
     let guard = if profile {
         Some(pprof::ProfilerGuardBuilder::default().build().unwrap())

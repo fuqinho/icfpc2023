@@ -1,0 +1,15 @@
+{
+    "placed_musicians_ratio": 0.6,
+    "important_attendees_ratio": 0.5,
+    "important_musician_range": 10000,
+    "max_temp": 100000,
+    "min_temp": 0,
+    "temp_func_power": 2,
+    "max_move_dist": 40,
+    "min_move_dist": 1,
+    "forbidden_area_coeff": 1.0,
+    "hungarian_rarity": 53000000,
+    "swap": 8,
+    "move_random": 8,
+    "move_dir": 20
+}

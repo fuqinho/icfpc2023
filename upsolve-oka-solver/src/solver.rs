@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use common::{board_options::BoardOptions, float, Problem};
+use common::{board_options::BoardOptions, float, Problem, Solution};
 use log::info;
 use lyon_geom::{Box2D, LineSegment, Vector};
 use rand::{rngs::SmallRng, Rng, SeedableRng};
@@ -26,10 +26,17 @@ pub struct Solver {
     musicians: Vec<P>,
 
     params: Params,
+    initial_solution: Option<Solution>,
 }
 
 impl Solver {
-    pub fn new(problem_id: u32, problem: Problem, num_iter: usize, params: Params) -> Self {
+    pub fn new(
+        problem_id: u32,
+        problem: Problem,
+        num_iter: usize,
+        params: Params,
+        initial_solution: Option<Solution>,
+    ) -> Self {
         if problem.stage.min.x > 0. || problem.stage.min.y > 0. {
             panic!("Unsupported stage min: {:?}", problem.stage.min);
         }
@@ -65,12 +72,33 @@ impl Solver {
             is_visible,
             musicians,
             params,
+            initial_solution,
         }
     }
 
-    pub fn solve(&mut self) -> Board {
+    pub fn initialize(&mut self) {
         for i in 0..self.board.musicians().len() {
             self.board.set_volume(i, 10.0);
+        }
+        if let Some(initial_solution) = self.initial_solution.clone() {
+            for (i, p) in initial_solution.placements.iter().enumerate() {
+                self.move_musician_to(i, p.position.to_vector()).unwrap();
+
+                self.set_visibility(i, true).unwrap();
+            }
+            let mut scores = vec![];
+            for i in 0..self.board.musicians().len() {
+                scores.push((self.board.contribution2(i) as i64, i));
+            }
+            scores.sort();
+
+            for i in 0..self.board.musicians().len() - self.visible_musicians_count {
+                self.set_visibility(scores[i].1, false).unwrap();
+            }
+
+            info!("Initial solution score: {}", self.board.score());
+
+            return;
         }
         // Initialize with random positions
         for i in 0..self.visible_musicians_count {
@@ -84,6 +112,10 @@ impl Solver {
                 }
             }
         }
+    }
+
+    pub fn solve(&mut self) -> Board {
+        self.initialize();
 
         for iter in 0..=self.num_iter {
             self.step(iter);
@@ -222,6 +254,8 @@ impl Solver {
         }
 
         self.apply(action.invert());
+
+        debug_assert_eq!(score, self.board.score(), "{:?}", action);
     }
 
     fn accept(&mut self, iter: usize, improve: f64) -> bool {
@@ -254,11 +288,7 @@ impl Solver {
 
                 true
             }
-            Action::MoveRandom(m, _, p) => self.move_musician_to(m, p).is_ok(),
-            Action::MoveDir(m, dir) => {
-                let dest = self.move_to_dir(self.musicians[m], dir);
-                self.move_musician_to(m, dest).is_ok()
-            }
+            Action::MoveTo(m, _, p) => self.move_musician_to(m, p).is_ok(),
             Action::Hungarian => {
                 self.board.hungarian();
 
@@ -289,7 +319,7 @@ impl Solver {
                     let x = self.random_musician();
                     let y = self.random_musician();
 
-                    if x == y {
+                    if self.orig_problem.musicians[x] == self.orig_problem.musicians[y] {
                         continue;
                     }
                     if !self.is_visible[x] && !self.is_visible[y] {
@@ -303,12 +333,20 @@ impl Solver {
                 let orig = self.musicians[x];
                 let p = self.random_place();
 
-                return Action::MoveRandom(x, orig, p);
+                return Action::MoveTo(x, orig, p);
             } else if (40..(40 + self.params.move_dir)).contains(&v) {
                 let x = self.random_visible_musician();
+                let orig = self.musicians[x];
+
                 let dir = self.random_direction(iter);
 
-                return Action::MoveDir(x, dir);
+                let dest = self.move_to_dir(orig, dir);
+
+                if orig == dest {
+                    continue;
+                }
+
+                return Action::MoveTo(x, orig, dest);
             }
         }
     }
@@ -360,6 +398,10 @@ impl Solver {
     }
 
     fn move_to_dir(&self, p: P, dir: P) -> P {
+        if self.forbidden_area.contains(p.to_point()) {
+            return p;
+        }
+
         let dest = p + dir;
 
         if !self.forbidden_area.contains(dest.to_point()) {
@@ -377,14 +419,14 @@ impl Solver {
             let nq = self.translate_point_on_forbideen_bounding_box(q.to_vector());
             let ndir = P::new(-dir.y, dir.x);
 
-            return nq + ndir;
+            nq + ndir
         } else if let Some(q) = l.vertical_line_intersection(self.forbidden_area.max.x) {
             let dir = dest - q.to_vector();
 
             let nq = self.translate_point_on_forbideen_bounding_box(q.to_vector());
             let ndir = P::new(dir.y, -dir.x);
 
-            return nq + ndir;
+            nq + ndir
         } else {
             panic!("No intersection found: {:?}", l);
         }
@@ -406,8 +448,7 @@ impl Solver {
 #[derive(Debug, Clone, Copy)]
 enum Action {
     Swap(usize, usize),
-    MoveRandom(usize, /* from */ P, /* to */ P),
-    MoveDir(usize, P),
+    MoveTo(usize, /* from */ P, /* to */ P),
     Hungarian,
 }
 
@@ -415,8 +456,7 @@ impl Action {
     fn invert(&self) -> Action {
         match self {
             Action::Swap(x, y) => Action::Swap(*x, *y),
-            Action::MoveRandom(m, orig, p) => Action::MoveRandom(*m, *p, *orig),
-            Action::MoveDir(m, p) => Action::MoveDir(*m, -*p),
+            Action::MoveTo(m, orig, p) => Action::MoveTo(*m, *p, *orig),
             Action::Hungarian => Action::Hungarian,
         }
     }
