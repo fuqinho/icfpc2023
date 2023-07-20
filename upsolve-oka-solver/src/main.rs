@@ -2,6 +2,7 @@ pub mod output;
 pub mod params;
 pub mod pretty;
 pub mod solver;
+pub mod solver2;
 
 use std::{
     fs::{read_to_string, File},
@@ -17,7 +18,7 @@ use pprof::protos::Message;
 use pretty::pretty;
 use solver::Solver;
 
-use crate::params::Params;
+use crate::{params::Params, solver2::Solver2};
 
 const PARAMS: &str = include_str!("../params.json");
 
@@ -30,6 +31,7 @@ fn main(
     #[opt(long, default_value = "")] output: String,
     #[opt(long)] quiet: bool,
     #[opt(long, default_value = "")] initial_solution: String,
+    #[opt(long, short, default_value = "1")] version: usize, // solver version
 ) {
     Builder::new()
         .format(|buf, record| {
@@ -67,21 +69,31 @@ fn main(
         None
     };
 
-    let mut solver = Solver::new(
-        problem_id,
-        problem.clone(),
-        num_iter,
-        params,
-        initial_solution,
-    );
-
     let guard = if profile {
         Some(pprof::ProfilerGuardBuilder::default().build().unwrap())
     } else {
         None
     };
 
-    let board = solver.solve();
+    let board = match version {
+        1 => Solver::new(
+            problem_id,
+            problem.clone(),
+            num_iter,
+            params,
+            initial_solution,
+        )
+        .solve(),
+        2 => Solver2::new(
+            problem_id,
+            problem.clone(),
+            num_iter,
+            params,
+            initial_solution,
+        )
+        .solve(),
+        _ => panic!("Unknown solver version: {}", version),
+    };
 
     if let Some(guard) = guard {
         if let Ok(report) = guard.report().build() {

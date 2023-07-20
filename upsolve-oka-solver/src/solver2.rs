@@ -11,7 +11,7 @@ use anyhow::{bail, Result};
 type Board = common::board::Board<float::F64>;
 type P = Vector<f64>;
 
-pub struct Solver {
+pub struct Solver2 {
     orig_problem: Problem,
 
     board: Board,
@@ -20,6 +20,8 @@ pub struct Solver {
 
     forbidden_area: Box2D<f64>,
 
+    visible_musicians_count: usize,
+
     is_visible: Vec<bool>,
     musicians: Vec<P>,
 
@@ -27,7 +29,7 @@ pub struct Solver {
     initial_solution: Option<Solution>,
 }
 
-impl Solver {
+impl Solver2 {
     pub fn new(
         problem_id: u32,
         problem: Problem,
@@ -50,10 +52,10 @@ impl Solver {
 
         let rng = SmallRng::seed_from_u64(0);
 
-        let d = (board.prob.stage.min - board.prob.stage.max).normalize()
+        let d = (board.prob.stage.max - board.prob.stage.min).normalize()
             * params.important_musician_range
             * params.forbidden_area_coeff;
-        let forbidden_area = Box2D::new(board.prob.stage.min, board.prob.stage.max + d);
+        let forbidden_area = Box2D::new(board.prob.stage.min, board.prob.stage.max - d);
 
         let is_visible = vec![false; board.musicians().len()];
         let musicians = vec![board.prob.stage.min.to_vector(); board.musicians().len()];
@@ -64,6 +66,7 @@ impl Solver {
             num_iter,
             rng,
             forbidden_area,
+            visible_musicians_count: 0,
             is_visible,
             musicians,
             params,
@@ -197,9 +200,11 @@ impl Solver {
         if visible {
             self.board.try_place(m, self.musicians[m].to_point())?;
             self.is_visible[m] = true;
+            self.visible_musicians_count += 1;
         } else {
             self.board.unplace(m);
             self.is_visible[m] = false;
+            self.visible_musicians_count -= 1;
         }
 
         Ok(())
@@ -270,6 +275,15 @@ impl Solver {
 
     fn apply(&mut self, action: Action) -> bool {
         match action {
+            Action::Unplace(x, _) => {
+                debug_assert!(self.is_visible[x]);
+                self.set_visibility(x, false).is_ok()
+            }
+            Action::Place(x, p) => {
+                debug_assert!(!self.is_visible[x]);
+                self.move_musician_to(x, p).unwrap();
+                self.set_visibility(x, true).is_ok()
+            }
             Action::Swap(x, y) => {
                 let x_vis = self.is_visible[x];
                 let y_vis = self.is_visible[y];
@@ -311,9 +325,30 @@ impl Solver {
         }
 
         loop {
-            let v = self.rng.gen_range(0..60);
+            let v = self.rng.gen_range(0..80);
 
-            if (0..self.params.swap).contains(&v) {
+            if (0..self.params.v2_unplace).contains(&v) {
+                let Some(x) = self.random_visible_musician() else {continue};
+                return Action::Unplace(x, self.musicians[x]);
+            } else if (20..20 + self.params.v2_place).contains(&v) {
+                let Some(x) = self.random_invisible_musician() else {continue};
+                let p = self.random_place();
+
+                return Action::Place(x, p);
+            } else if (40..40 + self.params.v2_move_dir).contains(&v) {
+                let Some(x) = self.random_visible_musician() else {continue};
+                let orig = self.musicians[x];
+
+                let dir = self.random_direction(iter);
+
+                let dest = self.move_to_dir(orig, dir);
+
+                if orig == dest {
+                    continue;
+                }
+
+                return Action::MoveTo(x, orig, dest);
+            } else if (60..60 + self.params.v2_swap).contains(&v) {
                 loop {
                     let x = self.random_musician();
                     let y = self.random_musician();
@@ -327,25 +362,6 @@ impl Solver {
 
                     return Action::Swap(x, y);
                 }
-            } else if (20..(20 + self.params.move_random)).contains(&v) {
-                let x = self.random_visible_musician();
-                let orig = self.musicians[x];
-                let p = self.random_place();
-
-                return Action::MoveTo(x, orig, p);
-            } else if (40..(40 + self.params.move_dir)).contains(&v) {
-                let x = self.random_visible_musician();
-                let orig = self.musicians[x];
-
-                let dir = self.random_direction(iter);
-
-                let dest = self.move_to_dir(orig, dir);
-
-                if orig == dest {
-                    continue;
-                }
-
-                return Action::MoveTo(x, orig, dest);
             }
         }
     }
@@ -370,11 +386,26 @@ impl Solver {
         self.rng.gen_range(0..self.board.musicians().len())
     }
 
-    fn random_visible_musician(&mut self) -> usize {
+    fn random_visible_musician(&mut self) -> Option<usize> {
+        if self.visible_musicians_count == 0 {
+            return None;
+        }
         loop {
             let x = self.rng.gen_range(0..self.board.musicians().len());
             if self.is_visible[x] {
-                return x;
+                return x.into();
+            }
+        }
+    }
+
+    fn random_invisible_musician(&mut self) -> Option<usize> {
+        if self.visible_musicians_count == self.is_visible.len() {
+            return None;
+        }
+        loop {
+            let x = self.rng.gen_range(0..self.board.musicians().len());
+            if !self.is_visible[x] {
+                return x.into();
             }
         }
     }
@@ -401,7 +432,16 @@ impl Solver {
             return p;
         }
 
-        let dest = p + dir;
+        let dest = {
+            let dest = p + dir;
+
+            let stage = self.board.prob.stage;
+
+            let x = dest.x.min(stage.max.x).max(stage.min.x);
+            let y = dest.y.min(stage.max.y).max(stage.min.y);
+
+            P::new(x, y)
+        };
 
         if !self.forbidden_area.contains(dest.to_point()) {
             return dest;
@@ -446,16 +486,20 @@ impl Solver {
 
 #[derive(Debug, Clone, Copy)]
 enum Action {
+    Unplace(usize, /* orig */ P),
+    Place(usize, P),
     Swap(usize, usize),
     MoveTo(usize, /* from */ P, /* to */ P),
     Hungarian,
 }
 
 impl Action {
-    fn invert(&self) -> Action {
+    fn invert(self) -> Action {
         match self {
-            Action::Swap(x, y) => Action::Swap(*x, *y),
-            Action::MoveTo(m, orig, p) => Action::MoveTo(*m, *p, *orig),
+            Action::Unplace(x, p) => Action::Place(x, p),
+            Action::Place(x, p) => Action::Unplace(x, p),
+            Action::Swap(x, y) => Action::Swap(x, y),
+            Action::MoveTo(m, orig, p) => Action::MoveTo(m, p, orig),
             Action::Hungarian => Action::Hungarian,
         }
     }

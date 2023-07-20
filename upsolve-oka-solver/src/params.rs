@@ -22,30 +22,9 @@ pub struct Params {
     pub swap: usize,        // 1 - 20
     pub move_random: usize, // 1 - 20
     pub move_dir: usize,    // 1 - 20
-}
 
-impl Default for Params {
-    fn default() -> Self {
-        Self {
-            placed_musicians_ratio: 0.5,
-            important_attendees_ratio: 0.2,
-            important_musician_range: 300.0,
-
-            max_temp: 10_000_000.0,
-            min_temp: 0.0,
-
-            temp_func_power: 2.0,
-
-            max_move_dist: 40.0,
-            min_move_dist: 5.0,
-
-            forbidden_area_coeff: 0.5,
-
-            hungarian_rarity: 1_000_000,
-
-            swap: 8,
-            move_random: 2,
-            move_dir: 10,
-        }
-    }
+    pub v2_unplace: usize,  // 1 - 20
+    pub v2_place: usize,    // 1 - 20
+    pub v2_move_dir: usize, // 1 - 20
+    pub v2_swap: usize,     // 1 - 20
 }

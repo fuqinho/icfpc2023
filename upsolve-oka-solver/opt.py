@@ -22,8 +22,12 @@ PROBLEM_ID = 1
 
 N_JOBS = 14
 
+VERSION = 2
 
-def objective(trial: optuna.Trial, temp_dir: str, exe: str) -> float:
+
+def objective(
+    trial: optuna.Trial, temp_dir: str, exe: str, version: int, current_params
+) -> float:
     temp_dir = os.path.join(temp_dir, str(trial.number))
     os.mkdir(temp_dir)
 
@@ -48,14 +52,31 @@ def objective(trial: optuna.Trial, temp_dir: str, exe: str) -> float:
         "hungarian_rarity": trial.suggest_int(
             "hungarian_rarity", 1_000_000, 100_000_000, step=1_000_000
         ),
-        "swap": trial.suggest_int("swap", 1, 20),
-        "move_random": trial.suggest_int("move_random", 1, 20),
-        "move_dir": trial.suggest_int("move_dir", 1, 20),
     }
+
+    if version == 1:
+        params.update(
+            {
+                "swap": trial.suggest_int("swap", 1, 20),
+                "move_random": trial.suggest_int("move_random", 1, 20),
+                "move_dir": trial.suggest_int("move_dir", 1, 20),
+            }
+        )
+    elif version == 2:
+        params.update(
+            {
+                "v2_unplace": trial.suggest_int("v2_unplace", 1, 20),
+                "v2_place": trial.suggest_int("v2_place", 1, 20),
+                "v2_move_dir": trial.suggest_int("v2_move_dir", 1, 20),
+                "v2_swap": trial.suggest_int("v2_swap", 1, 20),
+            }
+        )
+    else:
+        raise ValueError(f"Invalid version: {version}")
 
     param_file = os.path.join(temp_dir, "params.json")
     with open(param_file, "w") as f:
-        json.dump(params, f)
+        json.dump(current_params | params, f)
 
     output_file = os.path.join(temp_dir, "output.json")
 
@@ -71,7 +92,10 @@ def objective(trial: optuna.Trial, temp_dir: str, exe: str) -> float:
                 "--quiet",
                 "-n",
                 str(N_ITER),
-            ]
+                "-v",
+                str(version),
+            ],
+            timeout=1 * 60 * 60,
         )
         with open(output_file) as f:
             return float(json.load(f)["score"])
@@ -85,6 +109,9 @@ def main():
     cur = os.path.dirname(os.path.abspath(__file__))
     os.chdir(os.path.join(cur, ".."))
 
+    with open("upsolve-oka-solver/params.json") as f:
+        current_params = json.load(f)
+
     with tempfile.TemporaryDirectory() as temp_dir:
         dest = os.path.join(temp_dir, "upsolve-oka-solver")
         subprocess.run(["cargo", "build", "-r", "--bin", "upsolve-oka-solver"])
@@ -95,14 +122,15 @@ def main():
         )
 
         study.optimize(
-            lambda trial: objective(trial, temp_dir, dest),
+            lambda trial: objective(trial, temp_dir, dest, VERSION, current_params),
             n_trials=N_TRIALS,
             n_jobs=N_JOBS,
         )
 
-        print("Writing params.json")
-        with open("upsolve-oka-solver/params.json", "w") as f:
-            json.dump(study.best_params, f, indent=4)
+        if study.best_value > 0:
+            print("Writing params.json")
+            with open("upsolve-oka-solver/params.json", "w") as f:
+                json.dump(current_params | study.best_params, f, indent=4)
 
 
 if __name__ == "__main__":

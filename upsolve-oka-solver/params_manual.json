@@ -11,5 +11,9 @@
     "hungarian_rarity": 53000000,
     "swap": 8,
     "move_random": 8,
-    "move_dir": 20
+    "move_dir": 20,
+    "v2_unplace": 3,
+    "v2_place": 3,
+    "v2_move_dir": 20,
+    "v2_swap": 13
 }
