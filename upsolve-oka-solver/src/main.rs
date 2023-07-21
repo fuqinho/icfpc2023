@@ -3,6 +3,7 @@ pub mod params;
 pub mod pretty;
 pub mod solver;
 pub mod solver2;
+pub mod solver3;
 
 use std::{
     fs::{read_to_string, File},
@@ -92,6 +93,7 @@ fn main(
             initial_solution,
         )
         .solve(),
+        3 => solver3::solve(problem_id, problem.clone(), num_iter, params),
         _ => panic!("Unknown solver version: {}", version),
     };
 

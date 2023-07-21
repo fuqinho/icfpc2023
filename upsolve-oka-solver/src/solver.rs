@@ -45,8 +45,14 @@ impl Solver {
             .with_important_attendees_ratio(params.important_attendees_ratio)
             .with_important_musician_range(params.important_musician_range);
 
-        let board =
-            Board::new_with_options(problem_id, problem, "upsolve-oka-solver", false, options);
+        let board = Board::new_with_options(
+            problem_id,
+            problem,
+            "upsolve-oka-solver",
+            false,
+            vec![],
+            options,
+        );
 
         let rng = SmallRng::seed_from_u64(0);
 
