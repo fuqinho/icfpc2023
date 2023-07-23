@@ -7,7 +7,7 @@ use rand::{rngs::SmallRng, Rng, SeedableRng};
 use crate::{params::Params, pretty::pretty};
 
 use super::{
-    etx_problem::ExtProblem,
+    ext_problem::ExtProblem,
     types::{Board, P},
 };
 
@@ -26,7 +26,7 @@ pub struct MiniSolver {
     params: Params,
 
     available_musicians: Vec<usize>,
-    initial_locations: Option<Vec<P>>,
+    initial_locations: Vec<Option<P>>,
 
     show_progress: bool,
 }
@@ -39,7 +39,7 @@ impl MiniSolver {
         iter_range: Range<usize>,
         params: Params,
         available_musicians: Vec<usize>,
-        initial_locations: Option<Vec<P>>,
+        initial_locations: Vec<Option<P>>,
         seed: u64,
         show_progress: bool,
     ) -> Self {
@@ -49,6 +49,7 @@ impl MiniSolver {
             format!("upsolver-oka-solver3-{seed}"),
             false,
             problem.walls,
+            problem.extra_pillars,
             Default::default(),
         );
 
@@ -75,23 +76,23 @@ impl MiniSolver {
             self.board.set_volume(i, 10.0);
         }
 
-        let initial_visible_musicians_count =
-            (self.available_musicians.len() as f64 * self.params.placed_musicians_ratio) as usize;
+        for (i, p) in self.initial_locations.clone().into_iter().enumerate() {
+            let m = self.available_musicians[i];
 
-        if let Some(initial_locations) = self.initial_locations.clone() {
-            for (i, p) in initial_locations.into_iter().enumerate() {
-                self.move_musician_to(self.available_musicians[i], p)
-                    .unwrap();
+            let Some(p) = p else {continue};
 
-                self.set_visibility(self.available_musicians[i], true)
-                    .unwrap();
-            }
-            return;
+            self.move_musician_to(m, p).unwrap();
+            self.set_visibility(m, true).unwrap();
         }
 
-        // Initialize with random positions
-        for i in 0..initial_visible_musicians_count {
+        for (i, p) in self.initial_locations.clone().into_iter().enumerate() {
+            if p.is_some() {
+                continue;
+            }
+
             let m = self.available_musicians[i];
+
+            // Initialize with random position
             loop {
                 let p = self.random_place();
 
@@ -100,6 +101,17 @@ impl MiniSolver {
                 if self.set_visibility(m, true).is_ok() {
                     break;
                 }
+            }
+        }
+
+        // Hide musicians with zero score randomly.
+        for m in self.available_musicians.clone() {
+            if self.board.contribution2(m) > 0. {
+                continue;
+            }
+
+            if self.rng.gen_bool(0.5) {
+                self.set_visibility(m, false).unwrap();
             }
         }
     }
@@ -133,7 +145,7 @@ impl MiniSolver {
         }
 
         // Place remaining musicians
-        'outer: for accept_decrease in (0..u64::MAX).step_by(10000) {
+        'outer: for accept_decrease in (0..=10).map(|x| 10f64.powi(x)) {
             for x in ((self.board.prob.stage.min.x.ceil() as usize)
                 ..=(self.board.prob.stage.max.x as usize))
                 .step_by(10)
@@ -169,8 +181,6 @@ impl MiniSolver {
             }
         }
 
-        debug_assert_eq!(remaining_musicians.len(), 0);
-
         self.board.clone()
     }
 
@@ -197,8 +207,10 @@ impl MiniSolver {
     fn move_musician_to(&mut self, m: usize, p: P) -> Result<()> {
         debug_assert!(self.available_musicians.contains(&m));
 
-        if !self.board.prob.stage.contains(p.to_point()) {
-            bail!("Out of stage");
+        let mut bb = self.board.prob.stage;
+        bb.max += P::new(1e-12, 1e-12);
+        if !bb.contains(p.to_point()) {
+            bail!("Out of stage: {:?} {:?}", self.board.prob.stage, p);
         }
 
         if !self.is_visible[m] {
@@ -355,7 +367,7 @@ impl MiniSolver {
         }
     }
 
-    fn random_place(&mut self) -> P {
+    pub fn random_place(&mut self) -> P {
         let x = self
             .rng
             .gen_range(self.board.prob.stage.min.x..self.board.prob.stage.max.x);

@@ -93,7 +93,13 @@ fn main(
             initial_solution,
         )
         .solve(),
-        3 => solver3::solve(problem_id, problem.clone(), num_iter, params),
+        3 => solver3::solve(
+            problem_id,
+            problem.clone(),
+            num_iter,
+            params,
+            initial_solution,
+        ),
         _ => panic!("Unknown solver version: {}", version),
     };
 

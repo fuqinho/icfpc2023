@@ -10,7 +10,7 @@ use crate::{
     float::{Float, F32, F64},
     geom::tangent_to_circle,
     vec2::Vec2,
-    Placement, Problem, Solution,
+    Pillar, Placement, Problem, Solution,
 };
 
 use anyhow::Result;
@@ -74,6 +74,7 @@ impl Board<F64> {
             solver,
             use_visibility,
             vec![],
+            vec![],
             Default::default(),
         )
     }
@@ -92,6 +93,7 @@ impl Board<F32> {
             solver,
             use_visibility,
             vec![],
+            vec![],
             Default::default(),
         )
     }
@@ -104,15 +106,15 @@ impl<F: Float> Board<F> {
         solver: T,
         use_visibility: bool,
         walls: Vec<LineSegment<f64>>,
+        extra_pillars: Vec<Pillar>,
         options: BoardOptions,
     ) -> Self {
         let n = prob.musicians.len();
         let m = prob.attendees.len();
-        let p = prob.pillars.len();
 
-        let mut ps = vec![None; n + p];
-        for i in 0..p {
-            ps[i + n] = Some((prob.pillars[i].center.to_vector(), prob.pillars[i].radius));
+        let mut ps = vec![None; n];
+        for pillar in prob.pillars.iter().chain(extra_pillars.iter()) {
+            ps.push(Some((pillar.center.to_vector(), pillar.radius)));
         }
 
         let important_attendees_count =
@@ -268,7 +270,7 @@ impl<F: Float> Board<F> {
         if !bb.contains(position) {
             bail!("not on stage {:?} {:?}", position, self.prob.stage);
         }
-        for p in self.ps[0..self.prob.musicians.len()].iter() {
+        for p in self.ps.iter() {
             if let Some((p, _)) = p {
                 if (*p - position.to_vector()).square_length() < 100. {
                     bail!("too close to another musician {:?}: {:?}", p, position);
@@ -360,7 +362,7 @@ impl<F: Float> Board<F> {
         if !bb.contains(position) {
             return false;
         }
-        for (ix, p) in self.ps[0..self.prob.musicians.len()].iter().enumerate() {
+        for (ix, p) in self.ps.iter().enumerate() {
             if ix == i {
                 continue;
             }
@@ -807,6 +809,7 @@ mod tests {
                 problem.clone(),
                 "test_solver",
                 false,
+                vec![],
                 vec![],
                 options,
             );

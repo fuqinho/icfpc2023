@@ -51,6 +51,7 @@ impl Solver {
             "upsolve-oka-solver",
             false,
             vec![],
+            vec![],
             options,
         );
 

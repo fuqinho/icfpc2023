@@ -4,7 +4,7 @@
     "important_musician_range": 400,
     "max_temp": 10000000,
     "min_temp": 10000,
-    "temp_func_power": 2.15,
+    "temp_func_power": 2.1,
     "max_move_dist": 80,
     "min_move_dist": 1,
     "forbidden_area_coeff": 0.8,
